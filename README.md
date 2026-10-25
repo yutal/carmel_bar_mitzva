@@ -58,6 +58,14 @@ docker compose --profile tunnel up --build    # + כתובת https ציבורי�
 3. Variables: `OPENAI_API_KEY`, `ADMIN_PASSWORD`.
 4. Settings → Networking → Generate Domain. את הכתובת הזו שמים ב-QR.
 
+## פריסה ל-Render (בלי התחברות עם GitHub)
+
+1. New → Web Service → Public Git Repository → `https://github.com/yutal/carmel_bar_mitzva`.
+2. Language: Docker. Instance type: Starter (דיסק קבוע לא זמין בחינם).
+3. Environment: `OPENAI_API_KEY`, `ADMIN_PASSWORD`.
+4. Advanced → Add Disk: mount path `/data`, גודל 1GB.
+5. הכתובת `onrender.com` שמופיעה למעלה היא הכתובת ל-QR.
+
 ## פרטיות
 
 - תמונת אורח נשלחת ל-OpenAI רק אם האורח העלה אותה אחרי הודעת ההסכמה; מטא-דאטה (כולל GPS) נמחק.
