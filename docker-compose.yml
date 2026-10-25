@@ -1,0 +1,21 @@
+# Local run: `docker compose up --build` → http://localhost:3000
+# Public HTTPS link for the QR (no account needed): `docker compose --profile tunnel up --build`
+# and read the https://*.trycloudflare.com address from the tunnel logs.
+services:
+  app:
+    build: .
+    env_file: .env
+    environment:
+      DATA_DIR: /data
+    volumes:
+      - ./data:/data
+    ports:
+      - "3000:3000"
+    restart: unless-stopped
+
+  tunnel:
+    image: cloudflare/cloudflared:2025.9.1
+    command: tunnel --no-autoupdate --url http://app:3000
+    depends_on: [app]
+    restart: unless-stopped
+    profiles: [tunnel]

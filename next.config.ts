@@ -5,7 +5,7 @@ const nextConfig: NextConfig = {
   cacheComponents: true,
   partialPrefetching: true,
   // Native modules must stay out of the bundle.
-  serverExternalPackages: ["@napi-rs/canvas", "sharp"],
+  serverExternalPackages: ["@napi-rs/canvas", "sharp", "heic-convert"],
   // Fonts are read from disk at runtime by the poster composer.
   outputFileTracingIncludes: { "/**": ["./assets/fonts/**"] },
   experimental: {

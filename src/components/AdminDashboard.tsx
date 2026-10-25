@@ -268,7 +268,7 @@ function CelebrantPhotos({ notify }: { notify: (m: string) => void }) {
       </div>
       <label className="btn-ghost w-full cursor-pointer">
         {busy ? "מעלה..." : "+ הוספת תמונות"}
-        <input type="file" accept="image/*" multiple className="sr-only" disabled={busy} onChange={(e) => e.target.files && upload(e.target.files)} />
+        <input type="file" accept="image/*,.heic,.heif" multiple className="sr-only" disabled={busy} onChange={(e) => e.target.files && upload(e.target.files)} />
       </label>
     </section>
   );

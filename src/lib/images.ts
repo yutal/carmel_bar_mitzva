@@ -1,4 +1,5 @@
 import "server-only";
+import heicConvert from "heic-convert";
 import sharp from "sharp";
 
 export const MAX_UPLOAD_BYTES = 15 * 1024 * 1024;
@@ -18,9 +19,13 @@ export async function normalizePhoto(input: Buffer, maxSide = 1536): Promise<Buf
 export async function readUpload(file: File | null): Promise<Buffer | undefined> {
   if (!file || file.size === 0) return undefined;
   if (file.size > MAX_UPLOAD_BYTES) throw new UploadError("הקובץ גדול מדי");
-  if (!file.type.startsWith("image/")) throw new UploadError("אפשר להעלות רק תמונה");
+  const isHeic = /\.hei[cf]$/i.test(file.name) || /hei[cf]/i.test(file.type);
+  if (!file.type.startsWith("image/") && !isHeic) throw new UploadError("אפשר להעלות רק תמונה");
   try {
-    return await normalizePhoto(Buffer.from(await file.arrayBuffer()));
+    let data = Buffer.from(await file.arrayBuffer());
+    // sharp's prebuilt libheif cannot decode iPhone HEIC (HEVC), so convert it first.
+    if (isHeic) data = Buffer.from(await heicConvert({ buffer: data, format: "JPEG", quality: 0.92 }));
+    return await normalizePhoto(data);
   } catch {
     throw new UploadError("לא הצלחנו לקרוא את התמונה");
   }

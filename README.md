@@ -41,6 +41,16 @@ event.json  celebrant/  uploads/  blessings/  images/  songs/
 שיר: ל-Suno אין API רשמי, ולכן ברירת המחדל היא "ידני": המערכת כותבת מילים וסגנון, והמנהל מעתיק אותם ל-Suno מהדשבורד
 ומעלה את ה-MP3 חזרה. ספק אוטומטי נכנס דרך `MusicProvider`.
 
+## הרצה ב-Docker על מחשב מקומי
+
+```bash
+cp .env.example .env      # למלא מפתחות
+docker compose up --build                     # http://localhost:3000
+docker compose --profile tunnel up --build    # + כתובת https ציבורית ל-QR (בלוגים של tunnel)
+```
+
+הנתונים נשמרים ב-`./data` במחשב.
+
 ## פריסה ל-Railway
 
 1. New Project → Deploy from GitHub repo → לבחור את הריפו (הוא נבנה מה-Dockerfile).
