@@ -81,16 +81,15 @@ export default function ResultView({ publicId }: { publicId: string }) {
               {data.song.audioUrl ? (
                 <audio controls src={data.song.audioUrl} className="mt-4 w-full" />
               ) : (
-                <p className="mt-4 rounded-2xl bg-olive-100 p-3 text-accent">🎵 המילים מוכנות! השיר המלא יוקלט ויגיע לאלבום של חגיגת בר המצווה.</p>
+                <p className="mt-4 rounded-2xl bg-olive-100 p-3 text-accent">🎵 השיר שלך בהפקה. הוא יגיע לקישור הזה ולאלבום של בר המצווה אחרי האירוע.</p>
               )}
-              <pre className="mt-5 whitespace-pre-wrap font-sans text-lg leading-relaxed">{formatLyrics(data.song.lyrics)}</pre>
             </>
           ) : songFailed ? (
             <Failed what="השיר" />
           ) : (
             <div className="flex items-center gap-3" role="status">
               <span className="size-8 animate-spin rounded-full border-4 border-line border-t-accent" />
-              <p className="text-lg font-bold">כותבים לך שיר...</p>
+              <p className="text-lg font-bold">מכינים את השיר...</p>
             </div>
           )}
         </section>
@@ -146,9 +145,4 @@ function Failed({ what }: { what: string }) {
 
 function Shell({ children }: { children: React.ReactNode }) {
   return <main className="mx-auto min-h-dvh w-full max-w-md px-5 py-8">{children}</main>;
-}
-
-/** Drops the [Verse]/[Chorus] tags meant for the music generator and tidies the gaps they leave. */
-function formatLyrics(lyrics: string): string {
-  return lyrics.replace(/^\s*\[[^\]]+\]\s*$/gm, "").replace(/\n{3,}/g, "\n\n").trim();
 }

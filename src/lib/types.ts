@@ -51,11 +51,10 @@ export const ImageConceptSchema = z.object({
 });
 export type ImageConcept = z.infer<typeof ImageConceptSchema>;
 
-/** Stages 2+3 for the song: musical direction and lyrics. */
+/** Stage 2 for the song: a brief that Suno turns into lyrics and music (we never write the lyrics). */
 export const SongConceptSchema = z.object({
   titleHebrew: z.string(),
-  styleDescription: z.string().describe("English style prompt for a music generator: genre, tempo, instruments, vocal type, mood. Max 200 characters"),
-  lyricsHebrew: z.string().describe("Full Hebrew lyrics with [Verse 1], [Chorus], [Verse 2], [Chorus], [Bridge], [Chorus] tags"),
+  sunoPrompt: z.string().describe("Song description for Suno's simple mode, max 400 characters, ready to paste"),
   coverPrompt: z.string().describe("English prompt for a square album cover image, no text in the image"),
 });
 export type SongConcept = z.infer<typeof SongConceptSchema>;
@@ -69,7 +68,7 @@ export type SubmissionFiles = {
   photo?: string;
   imageRaw?: string;
   image?: string;
-  lyrics?: string;
+  sunoPrompt?: string;
   mp3?: string;
   cover?: string;
 };

@@ -166,7 +166,6 @@ function SubmissionCard({ s, run }: { s: Submission; run: (fn: () => Promise<unk
       <div className="flex flex-wrap gap-2 text-sm">
         {s.files.image && <a className="btn-ghost min-h-9 px-3" href={fileUrl(s.files.image, true)}>PNG</a>}
         <a className="btn-ghost min-h-9 px-3" href={fileUrl(`blessings/${s.id}.txt`, true)}>TXT</a>
-        {s.files.lyrics && <a className="btn-ghost min-h-9 px-3" href={fileUrl(s.files.lyrics, true)}>מילים</a>}
         {s.files.mp3 && <a className="btn-ghost min-h-9 px-3" href={fileUrl(s.files.mp3, true)}>MP3</a>}
         <button type="button" className="btn-ghost min-h-9 px-3" onClick={toggleHidden}>{s.hidden ? "הצג במסך" : "הסתר"}</button>
       </div>
@@ -176,7 +175,7 @@ function SubmissionCard({ s, run }: { s: Submission; run: (fn: () => Promise<unk
         <div className="mt-2 flex flex-wrap gap-2">
           {s.stages.image && <button type="button" className="btn-ghost min-h-9 px-3" onClick={() => regen("image", false)}>פוסטר, אותו רעיון</button>}
           {s.stages.image && <button type="button" className="btn-ghost min-h-9 px-3" onClick={() => regen("image", true)}>פוסטר, רעיון חדש</button>}
-          {s.stages.song && <button type="button" className="btn-ghost min-h-9 px-3" onClick={() => regen("song", true)}>מילים חדשות</button>}
+          {s.stages.song && <button type="button" className="btn-ghost min-h-9 px-3" onClick={() => regen("song", true)}>תיאור שיר חדש</button>}
           <button type="button" className="btn-ghost min-h-9 px-3" onClick={() => regen("analysis", true)}>הכל מההתחלה</button>
         </div>
       </details>
@@ -184,9 +183,9 @@ function SubmissionCard({ s, run }: { s: Submission; run: (fn: () => Promise<unk
       {s.songConcept && s.stages.song?.status !== "done" && (
         <div className="space-y-2 rounded-2xl bg-olive-100 p-3 text-sm">
           <p className="font-bold text-accent">🎵 {s.songConcept.titleHebrew}</p>
+          <p dir="auto" className="rounded-xl bg-surface p-2 text-xs leading-relaxed text-muted">{s.songConcept.sunoPrompt}</p>
           <div className="flex flex-wrap gap-2">
-            <button type="button" className="btn-ghost min-h-9 px-3" onClick={() => copy(s.songConcept!.lyricsHebrew, "המילים")}>העתק מילים</button>
-            <button type="button" className="btn-ghost min-h-9 px-3" onClick={() => copy(s.songConcept!.styleDescription, "הסגנון")}>העתק סגנון</button>
+            <button type="button" className="btn-primary min-h-9 px-3 text-sm" onClick={() => copy(s.songConcept!.sunoPrompt, "התיאור")}>העתק תיאור ל־Suno</button>
             <button type="button" className="btn-ghost min-h-9 px-3" onClick={() => copy(s.songConcept!.titleHebrew, "השם")}>העתק שם</button>
             <a className="btn-ghost min-h-9 px-3" href="https://suno.com/create" target="_blank" rel="noreferrer">Suno ↗</a>
           </div>

@@ -24,7 +24,7 @@ npm run dev
 
 ```
 src/app/            מסכים ו-API routes
-src/lib/pipeline/   ניתוח → קונספט → פרומפט/מילים → יצירה → הרכבה, עם תור (p-queue) והמשך אחרי ריסטארט
+src/lib/pipeline/   ניתוח → קונספט → פרומפט/תיאור שיר → יצירה → הרכבה, עם תור (p-queue) והמשך אחרי ריסטארט
 src/lib/providers/  LLM / תמונה / מוזיקה מאחורי ממשקים (providers/index.ts בוחר)
 src/lib/prompts/    כל הפרומפטים
 src/lib/compose/    הרכבת הפוסטר והעטיפה: הטקסט העברי נכתב בקוד (@napi-rs/canvas), לא במודל
@@ -38,7 +38,7 @@ src/proxy.ts        Basic Auth ל-/admin ול-/api/admin
 event.json  celebrant/  uploads/  blessings/  images/  songs/
 ```
 
-שיר: ל-Suno אין API רשמי, ולכן ברירת המחדל היא "ידני": המערכת כותבת מילים וסגנון, והמנהל מעתיק אותם ל-Suno מהדשבורד
+שיר: ל-Suno אין API רשמי, ולכן ברירת המחדל היא "ידני": המערכת מכינה תיאור שיר (Suno כותב את המילים בעצמו), והמנהל מעתיק אותו ל-Suno מהדשבורד
 ומעלה את ה-MP3 חזרה. ספק אוטומטי נכנס דרך `MusicProvider`.
 
 ## הרצה ב-Docker על מחשב מקומי

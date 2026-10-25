@@ -80,7 +80,7 @@ async function runSong(id: string, event: EventSettings): Promise<void> {
     });
   }
   const song = s.songConcept!;
-  await saveFile(id, "lyrics", "songs", "_lyrics.txt", lyricsFile(s));
+  await saveFile(id, "sunoPrompt", "songs", "_suno.txt", sunoFile(s));
 
   try {
     const art = s.files.imageRaw
@@ -89,11 +89,11 @@ async function runSong(id: string, event: EventSettings): Promise<void> {
     const cover = await composeCover(art, song.titleHebrew, `מאת ${s.input.fullName} ל${event.celebrantName}`);
     await saveFile(id, "cover", "songs", "_cover.png", cover);
   } catch (err) {
-    // A missing cover must not block the lyrics the guest is waiting for.
+    // A missing cover must not block the song brief.
     console.error(`[pipeline] cover failed for ${id}`, err);
   }
 
-  const music = await providers.music.generate({ title: song.titleHebrew, style: song.styleDescription, lyrics: song.lyricsHebrew });
+  const music = await providers.music.generate({ title: song.titleHebrew, prompt: song.sunoPrompt });
   if (music.kind === "audio") {
     await saveFile(id, "mp3", "songs", ".mp3", music.mp3);
     return;
@@ -101,16 +101,14 @@ async function runSong(id: string, event: EventSettings): Promise<void> {
   await setStage(id, "song", "awaiting_music");
 }
 
-function lyricsFile(s: Submission): string {
+function sunoFile(s: Submission): string {
   const song = s.songConcept!;
   return [
     song.titleHebrew,
     `מאת: ${s.input.fullName} (${s.input.relationship})`,
     "",
-    song.lyricsHebrew,
-    "",
-    "---",
-    `Style: ${song.styleDescription}`,
+    "Song description (Suno):",
+    song.sunoPrompt,
     "",
     "הברכה המקורית:",
     s.input.blessing,

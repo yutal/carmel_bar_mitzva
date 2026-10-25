@@ -156,7 +156,7 @@ function renderText(s: Submission): string {
       "--- השיר ---",
       `שם השיר: ${s.songConcept.titleHebrew}`,
       `סגנון שנבחר: ${MUSIC_STYLES[input.musicStyle]}`,
-      `סגנון מוזיקלי: ${s.songConcept.styleDescription}`,
+      `תיאור ל-Suno: ${s.songConcept.sunoPrompt}`,
     );
   }
   return lines.join("\n") + "\n";

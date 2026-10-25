@@ -28,8 +28,7 @@ export const mockLlm: LlmProvider = {
   async songConcept(input, _a, event) {
     return {
       titleHebrew: `ניצחון של ${event.celebrantName}`,
-      styleDescription: "Upbeat Israeli pop, 120 bpm, electric guitar, male vocals, Hebrew vocals",
-      lyricsHebrew: `[Verse 1]\nבחצר מול הסל\nאתה תמיד מנצח\n\n[Chorus]\n${event.celebrantName}, ${event.celebrantName}\nשנה של ניצחונות\n\n[Verse 2]\n${input.fullName} פה איתך`,
+      sunoPrompt: `Upbeat Israeli pop song in Hebrew for the Bar Mitzvah of ${event.celebrantName}, sung by ${input.fullName} (${input.relationship}). Basketball games in the yard where ${event.celebrantName} always wins. 120 bpm, electric guitar, warm male vocals.`,
       coverPrompt: "mock",
     };
   },

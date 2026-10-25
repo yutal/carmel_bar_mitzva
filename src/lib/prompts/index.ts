@@ -39,16 +39,16 @@ Rules:
   * Absolutely no text, letters, numbers, logos or watermarks in the image.
   * Photorealistic cinematic style unless the concept clearly calls for animation.`;
 
-export const SONG_CONCEPT_SYSTEM = `You are a Hebrew songwriter writing a personal song from one guest to a Bar Mitzvah boy.
+export const SONG_CONCEPT_SYSTEM = `You prepare a brief for Suno, an AI music generator that writes the lyrics and the music itself.
+The song is a personal gift from one guest to a Bar Mitzvah boy.
 
 Rules:
-- Natural, modern, singable Hebrew. Short lines (4-8 words). Rhymes where possible, never forced.
-- The song must be about THIS guest and THIS boy: weave in the concrete activities, memories, jokes and wishes
-  from the blessing. Mention the celebrant's name in the chorus. A generic birthday song is a failure.
-- Structure with tags: [Verse 1], [Chorus], [Verse 2], [Chorus], [Bridge], [Chorus]. About 2.5 minutes.
-- The song is sung from the guest's point of view ("I", "we").
-- styleDescription: English, under 200 characters, for an AI music generator: genre, tempo, instruments,
-  vocal type, mood, and "Hebrew vocals".
+- sunoPrompt: one paragraph of at most 400 characters, pasted as-is into Suno's "Song description" box.
+  Write it in English, but keep names in Hebrew letters exactly as given (the celebrant's name and the guest's name).
+  It must say: a song in Hebrew, for the Bar Mitzvah of <celebrant>, sung from <guest>'s point of view (their relationship),
+  the 2-3 most concrete memories, jokes or shared activities from the blessing, the main wish, and the musical style
+  (genre, tempo, mood, vocal type). Concrete details beat adjectives. A generic birthday song is a failure.
+- titleHebrew: a short Hebrew song title that fits the story.
 - coverPrompt: English prompt for a square album cover that visualises the song's story; no text in the image.`;
 
 export function songStyleHint(input: GuestInput): string {

@@ -15,8 +15,8 @@ export interface ImageProvider {
 
 export type MusicResult =
   | { kind: "audio"; mp3: Buffer }
-  | { kind: "manual" }; // lyrics are ready; an organiser produces the track and uploads it
+  | { kind: "manual" }; // the Suno brief is ready; an organiser produces the track and uploads it
 
 export interface MusicProvider {
-  generate(req: { title: string; style: string; lyrics: string }): Promise<MusicResult>;
+  generate(req: { title: string; prompt: string }): Promise<MusicResult>;
 }

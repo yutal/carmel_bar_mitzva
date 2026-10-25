@@ -9,7 +9,7 @@ export type PublicSubmission = {
   experience: Submission["input"]["experience"];
   stages: { analysis: StageState["status"]; image?: StageState["status"]; song?: StageState["status"] };
   image?: { title: string; tagline: string; rationale: string; url?: string };
-  song?: { title: string; lyrics: string; coverUrl?: string; audioUrl?: string };
+  song?: { title: string; coverUrl?: string; audioUrl?: string };
 };
 
 export function toPublic(s: Submission): PublicSubmission {
@@ -33,7 +33,6 @@ export function toPublic(s: Submission): PublicSubmission {
     },
     song: s.songConcept && {
       title: s.songConcept.titleHebrew,
-      lyrics: s.songConcept.lyricsHebrew,
       coverUrl: s.files.cover && `${base}/cover`,
       audioUrl: s.files.mp3 && `${base}/mp3`,
     },
