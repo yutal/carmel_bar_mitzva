@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 import QRCode from "qrcode";
 import type { PublicSubmission } from "@/lib/views";
 
-const SLIDE_MS = 12_000;
+const SLIDE_MS = 10_000;
 const REFRESH_MS = 20_000;
 
 export default function HallScreen() {
