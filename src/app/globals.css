@@ -1,26 +1,58 @@
 @import "tailwindcss";
 
-:root {
-  --background: #ffffff;
-  --foreground: #171717;
+@theme {
+  --color-night: #070b1f;
+  --color-night-2: #0e1636;
+  --color-night-3: #18224a;
+  --color-gold: #f4d58d;
+  --color-gold-deep: #d9a93f;
+  --color-ink: #f7f4ec;
+  --color-muted: #aab0c8;
+  --font-sans: var(--font-heebo), system-ui, sans-serif;
+  --font-display: var(--font-secular), var(--font-heebo), sans-serif;
 }
 
-@theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
-}
-
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
+html {
+  color-scheme: dark;
 }
 
 body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  background:
+    radial-gradient(1200px 600px at 50% -10%, rgb(244 213 141 / 0.14), transparent 60%),
+    radial-gradient(900px 500px at 100% 100%, rgb(80 110 255 / 0.12), transparent 60%),
+    var(--color-night);
+  color: var(--color-ink);
+  min-height: 100dvh;
+}
+
+@layer components {
+  .btn-gold {
+    @apply inline-flex min-h-14 items-center justify-center gap-2 rounded-2xl bg-gradient-to-b from-gold to-gold-deep px-6 text-lg font-bold text-night shadow-[0_8px_30px_rgb(244_213_141/0.25)] transition active:scale-[0.98] disabled:opacity-50;
+  }
+  .btn-ghost {
+    @apply inline-flex min-h-12 items-center justify-center gap-2 rounded-2xl border border-white/15 px-5 font-medium text-ink transition hover:bg-white/5 active:scale-[0.98] disabled:opacity-50;
+  }
+  .field {
+    @apply w-full rounded-2xl border border-white/10 bg-night-2/80 px-4 py-3.5 text-lg text-ink placeholder:text-muted/60 outline-none transition focus:border-gold/70 focus:ring-2 focus:ring-gold/20;
+  }
+  .card {
+    @apply rounded-3xl border border-white/10 bg-night-2/70 backdrop-blur;
+  }
+  .chip {
+    @apply rounded-full border border-white/15 px-4 py-2.5 text-base transition active:scale-[0.97];
+  }
+  .chip[aria-pressed="true"] {
+    @apply border-gold bg-gold/15 text-gold;
+  }
+}
+
+@keyframes fade {
+  from {
+    opacity: 0;
+    transform: scale(0.985);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
 }

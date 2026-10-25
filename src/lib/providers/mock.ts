@@ -1,0 +1,45 @@
+import "server-only";
+import sharp from "sharp";
+import type { ImageProvider, LlmProvider } from "./types";
+
+/** Offline providers for local development and tests (AI_PROVIDER=mock). */
+export const mockLlm: LlmProvider = {
+  async analyze() {
+    return {
+      themes: ["basketball", "friendship"],
+      sharedActivities: ["playing basketball"],
+      insideJokes: ["Carmel always wins"],
+      emotions: ["pride", "joy"],
+      celebrantTraits: ["competitive"],
+      visualMotifs: ["basketball court", "trophy"],
+      tone: "epic",
+      isAppropriate: true,
+    };
+  },
+  async imageConcept() {
+    return {
+      genre: "sports drama",
+      rationale: "מבוסס על משחקי הכדורסל שלכם, שבהם כרמל תמיד מנצח.",
+      titleHebrew: "הגמר של כרמל",
+      taglineHebrew: "יש אגדות שנולדות על המגרש",
+      imagePrompt: "mock",
+    };
+  },
+  async songConcept(input, _a, event) {
+    return {
+      titleHebrew: `ניצחון של ${event.celebrantName}`,
+      styleDescription: "Upbeat Israeli pop, 120 bpm, electric guitar, male vocals, Hebrew vocals",
+      lyricsHebrew: `[Verse 1]\nבחצר מול הסל\nאתה תמיד מנצח\n\n[Chorus]\n${event.celebrantName}, ${event.celebrantName}\nשנה של ניצחונות\n\n[Verse 2]\n${input.fullName} פה איתך`,
+      coverPrompt: "mock",
+    };
+  },
+};
+
+export const mockImage: ImageProvider = {
+  async generate({ size }) {
+    const [w, h] = size === "portrait" ? [1024, 1536] : [1024, 1024];
+    const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="${w}" height="${h}"><defs><linearGradient id="g" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#1b2a6b"/><stop offset="1" stop-color="#c76b2a"/></linearGradient></defs><rect width="100%" height="100%" fill="url(#g)"/><circle cx="${w / 2}" cy="${h / 2}" r="${w / 4}" fill="#e08a2c" stroke="#222" stroke-width="8"/></svg>`;
+    await new Promise((r) => setTimeout(r, 1500));
+    return sharp(Buffer.from(svg)).png().toBuffer();
+  },
+};

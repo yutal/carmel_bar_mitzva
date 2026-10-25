@@ -1,0 +1,31 @@
+import "server-only";
+import path from "node:path";
+import { z } from "zod";
+
+const EnvSchema = z.object({
+  OPENAI_API_KEY: z.string().optional(),
+  ADMIN_PASSWORD: z.string().optional(),
+  DATA_DIR: z.string().default("./data"),
+  LLM_MODEL: z.string().default("gpt-5.5"),
+  IMAGE_MODEL: z.string().default("gpt-image-2"),
+  IMAGE_QUALITY: z.enum(["low", "medium", "high"]).default("medium"),
+  GENERATION_CONCURRENCY: z.coerce.number().int().min(1).max(10).default(3),
+});
+
+const env = EnvSchema.parse(process.env);
+
+export const config = {
+  openaiApiKey: env.OPENAI_API_KEY,
+  adminPassword: env.ADMIN_PASSWORD,
+  dataDir: path.resolve(env.DATA_DIR),
+  llmModel: env.LLM_MODEL,
+  imageModel: env.IMAGE_MODEL,
+  imageQuality: env.IMAGE_QUALITY,
+  concurrency: env.GENERATION_CONCURRENCY,
+  fontsDir: path.resolve(process.cwd(), "assets/fonts"),
+} as const;
+
+export function requireOpenAiKey(): string {
+  if (!config.openaiApiKey) throw new Error("OPENAI_API_KEY is not set");
+  return config.openaiApiKey;
+}

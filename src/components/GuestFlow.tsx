@@ -1,0 +1,293 @@
+"use client";
+
+import { useEffect, useMemo, useState } from "react";
+import { useRouter } from "next/navigation";
+import { MUSIC_STYLES, type Experience, type MusicStyle } from "@/lib/types";
+import { resizeImage } from "./resize-image";
+
+type Form = {
+  fullName: string;
+  relationship: string;
+  together: string;
+  memory: string;
+  talent: string;
+  blessing: string;
+  experience: Experience;
+  musicStyle: MusicStyle;
+  consentScreen: boolean;
+};
+
+const RELATIONSHIPS = ["משפחה", "חבר מהכיתה", "חבר מהחוג", "חברים של ההורים", "שכנים"];
+const STEPS = ["welcome", "who", "story", "blessing", "experience", "photo"] as const;
+type Step = (typeof STEPS)[number];
+
+export default function GuestFlow() {
+  const router = useRouter();
+  const [name, setName] = useState("כרמל");
+  const [step, setStep] = useState<Step>("welcome");
+  const [form, setForm] = useState<Form>({
+    fullName: "",
+    relationship: "",
+    together: "",
+    memory: "",
+    talent: "",
+    blessing: "",
+    experience: "image",
+    musicStyle: "auto",
+    consentScreen: true,
+  });
+  const [photo, setPhoto] = useState<File | null>(null);
+  const [submitting, setSubmitting] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const preview = useMemo(() => (photo ? URL.createObjectURL(photo) : null), [photo]);
+  useEffect(() => () => void (preview && URL.revokeObjectURL(preview)), [preview]);
+
+  useEffect(() => {
+    fetch("/api/celebrant")
+      .then((r) => r.json())
+      .then((d: { celebrantName?: string }) => d.celebrantName && setName(d.celebrantName))
+      .catch(() => undefined);
+  }, []);
+
+  const set = <K extends keyof Form>(key: K, value: Form[K]) => setForm((f) => ({ ...f, [key]: value }));
+  const index = STEPS.indexOf(step);
+  const go = (delta: number) => {
+    setError(null);
+    setStep(STEPS[Math.min(STEPS.length - 1, Math.max(0, index + delta))]);
+    window.scrollTo({ top: 0, behavior: "smooth" });
+  };
+
+  const canContinue: Record<Step, boolean> = {
+    welcome: true,
+    who: form.fullName.trim().length >= 2 && form.relationship.trim().length > 0,
+    story: Boolean(form.together.trim() || form.memory.trim() || form.talent.trim()),
+    blessing: form.blessing.trim().length >= 5,
+    experience: true,
+    photo: true,
+  };
+
+  async function submit() {
+    setSubmitting(true);
+    setError(null);
+    try {
+      const body = new FormData();
+      for (const [k, v] of Object.entries(form)) body.set(k, String(v));
+      body.set("consentPhoto", String(Boolean(photo)));
+      if (photo) body.set("photo", await resizeImage(photo), "photo.jpg");
+      const res = await fetch("/api/submissions", { method: "POST", body });
+      const data = (await res.json()) as { publicId?: string; error?: string };
+      if (!res.ok || !data.publicId) throw new Error(data.error ?? "משהו השתבש");
+      router.push(`/r/${data.publicId}`);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "משהו השתבש, נסו שוב");
+      setSubmitting(false);
+    }
+  }
+
+  return (
+    <main className="mx-auto flex min-h-dvh w-full max-w-md flex-col px-5 pb-8 pt-6">
+      {step !== "welcome" && (
+        <header className="mb-6 flex items-center gap-3">
+          <button type="button" onClick={() => go(-1)} className="text-muted" aria-label="חזרה">
+            → חזרה
+          </button>
+          <div className="flex flex-1 gap-1.5" aria-hidden>
+            {STEPS.slice(1).map((s, i) => (
+              <span key={s} className={`h-1.5 flex-1 rounded-full ${i < index ? "bg-gold" : "bg-white/10"}`} />
+            ))}
+          </div>
+        </header>
+      )}
+
+      <div className="flex flex-1 flex-col">
+        {step === "welcome" && (
+          <section className="flex flex-1 flex-col items-center justify-center text-center">
+            <p className="mb-3 text-sm tracking-[0.3em] text-gold/80">בר המצווה של {name}</p>
+            <h1 className="font-display text-5xl leading-tight text-gold">הברכה שלך<br />הופכת לסרט</h1>
+            <p className="mt-5 text-lg text-muted">
+              ספרו לנו משהו על הקשר שלכם עם {name}, כתבו ברכה, וה-AI יהפוך אותה לפוסטר קולנועי או לשיר אישי.
+            </p>
+            <p className="mt-2 text-sm text-muted/70">לוקח בערך שתי דקות</p>
+            <button type="button" className="btn-gold mt-10 w-full" onClick={() => go(1)}>
+              בואו נתחיל
+            </button>
+          </section>
+        )}
+
+        {step === "who" && (
+          <section className="space-y-6">
+            <h2 className="font-display text-3xl text-gold">מי אתם?</h2>
+            <label className="block space-y-2">
+              <span className="text-muted">שם מלא</span>
+              <input className="field" autoComplete="name" value={form.fullName} maxLength={60} onChange={(e) => set("fullName", e.target.value)} placeholder="למשל: דנה כהן" />
+            </label>
+            <fieldset className="space-y-3">
+              <legend className="mb-2 text-muted">מה הקשר שלכם ל{name}?</legend>
+              <div className="flex flex-wrap gap-2">
+                {RELATIONSHIPS.map((r) => (
+                  <button key={r} type="button" className="chip" aria-pressed={form.relationship === r} onClick={() => set("relationship", r)}>
+                    {r}
+                  </button>
+                ))}
+              </div>
+              <input
+                className="field"
+                value={RELATIONSHIPS.includes(form.relationship) ? "" : form.relationship}
+                maxLength={60}
+                onChange={(e) => set("relationship", e.target.value)}
+                placeholder="או כתבו בעצמכם: סבתא, הדוד מחיפה..."
+              />
+            </fieldset>
+          </section>
+        )}
+
+        {step === "story" && (
+          <section className="space-y-6">
+            <div>
+              <h2 className="font-display text-3xl text-gold">ספרו לנו עליכם</h2>
+              <p className="mt-1 text-muted">ככל שתהיו ספציפיים, התוצאה תהיה אישית יותר. מספיק לענות על אחת.</p>
+            </div>
+            <Question label={`מה הכי אוהבים לעשות יחד עם ${name}?`} placeholder="כדורסל בחצר, פיפ״א, טיולים..." value={form.together} max={300} onChange={(v) => set("together", v)} />
+            <Question label="זיכרון משותף או סיפור מצחיק" placeholder="הפעם ההיא ש..." value={form.memory} max={600} rows={4} onChange={(v) => set("memory", v)} />
+            <Question label={`במה ${name} הכי טוב?`} placeholder="לנצח אותי בכל משחק" value={form.talent} max={300} onChange={(v) => set("talent", v)} />
+          </section>
+        )}
+
+        {step === "blessing" && (
+          <section className="space-y-4">
+            <h2 className="font-display text-3xl text-gold">הברכה שלכם ל{name}</h2>
+            <p className="text-muted">הברכה תופיע מילה במילה על היצירה.</p>
+            <textarea
+              className="field min-h-48 leading-relaxed"
+              value={form.blessing}
+              maxLength={600}
+              onChange={(e) => set("blessing", e.target.value)}
+              placeholder={`${name} יקר, מאחלים לך...`}
+            />
+            <p className="text-left text-sm text-muted/70">{form.blessing.length}/600</p>
+          </section>
+        )}
+
+        {step === "experience" && (
+          <section className="space-y-6">
+            <h2 className="font-display text-3xl text-gold">מה ניצור?</h2>
+            <div className="grid gap-3">
+              {(
+                [
+                  ["image", "🎬", "פוסטר קולנועי", `את/ה ו${name} בכיכוב סרט שנולד מהברכה`],
+                  ["song", "🎵", "שיר אישי", `מילים שנכתבו במיוחד ל${name} מהזיכרונות שלכם`],
+                  ["both", "✨", "גם וגם", "פוסטר ושיר"],
+                ] as const
+              ).map(([value, icon, title, desc]) => (
+                <button
+                  key={value}
+                  type="button"
+                  aria-pressed={form.experience === value}
+                  onClick={() => set("experience", value)}
+                  className="card flex items-center gap-4 p-4 text-right transition aria-pressed:border-gold aria-pressed:bg-gold/10"
+                >
+                  <span className="text-3xl" aria-hidden>{icon}</span>
+                  <span>
+                    <span className="block text-lg font-bold">{title}</span>
+                    <span className="block text-sm text-muted">{desc}</span>
+                  </span>
+                </button>
+              ))}
+            </div>
+            {form.experience !== "image" && (
+              <fieldset>
+                <legend className="mb-3 text-muted">איזה סגנון שיר?</legend>
+                <div className="flex flex-wrap gap-2">
+                  {(Object.entries(MUSIC_STYLES) as [MusicStyle, string][]).map(([key, label]) => (
+                    <button key={key} type="button" className="chip" aria-pressed={form.musicStyle === key} onClick={() => set("musicStyle", key)}>
+                      {label}
+                    </button>
+                  ))}
+                </div>
+              </fieldset>
+            )}
+          </section>
+        )}
+
+        {step === "photo" && (
+          <section className="space-y-5">
+            <div>
+              <h2 className="font-display text-3xl text-gold">רוצים להופיע בתמונה?</h2>
+              <p className="mt-1 text-muted">
+                {form.experience === "song" ? "התמונה תשמש לעטיפת השיר. " : ""}
+                צלמו סלפי או בחרו תמונה ברורה של הפנים. אפשר גם לדלג.
+              </p>
+            </div>
+            {preview ? (
+              <div className="relative">
+                {/* eslint-disable-next-line @next/next/no-img-element -- local object URL preview */}
+                <img src={preview} alt="התמונה שבחרתם" className="aspect-square w-full rounded-3xl object-cover" />
+                <button type="button" className="btn-ghost absolute bottom-3 left-3 bg-night/80" onClick={() => setPhoto(null)}>
+                  החלפה
+                </button>
+              </div>
+            ) : (
+              <div className="grid grid-cols-2 gap-3">
+                <PhotoInput label="📸 סלפי" capture onPick={setPhoto} />
+                <PhotoInput label="🖼️ מהגלריה" onPick={setPhoto} />
+              </div>
+            )}
+            {photo && (
+              <p className="text-sm text-muted">
+                בלחיצה על &quot;צור לי&quot; אתם מאשרים שהתמונה תישלח לשירות AI (OpenAI) כדי ליצור את היצירה, ותישמר רק לצורך האלבום של {name}.
+              </p>
+            )}
+            <label className="flex items-start gap-3 text-muted">
+              <input type="checkbox" className="mt-1 size-5 accent-gold" checked={form.consentScreen} onChange={(e) => set("consentScreen", e.target.checked)} />
+              <span>אפשר להציג את היצירה שלי על המסך באולם</span>
+            </label>
+          </section>
+        )}
+      </div>
+
+      {error && <p role="alert" className="mt-4 rounded-2xl bg-red-500/15 p-3 text-red-200">{error}</p>}
+
+      {step !== "welcome" && (
+        <footer className="sticky bottom-0 -mx-5 mt-8 bg-gradient-to-t from-night via-night/95 to-transparent px-5 pb-4 pt-6">
+          {step === "photo" ? (
+            <button type="button" className="btn-gold w-full" disabled={submitting} onClick={submit}>
+              {submitting ? "שולחים..." : "✨ צור לי"}
+            </button>
+          ) : (
+            <button type="button" className="btn-gold w-full" disabled={!canContinue[step]} onClick={() => go(1)}>
+              המשך
+            </button>
+          )}
+        </footer>
+      )}
+    </main>
+  );
+}
+
+function Question(props: { label: string; placeholder: string; value: string; max: number; rows?: number; onChange: (v: string) => void }) {
+  return (
+    <label className="block space-y-2">
+      <span className="font-medium">{props.label}</span>
+      <textarea className="field resize-none" rows={props.rows ?? 2} maxLength={props.max} value={props.value} placeholder={props.placeholder} onChange={(e) => props.onChange(e.target.value)} />
+    </label>
+  );
+}
+
+function PhotoInput({ label, capture, onPick }: { label: string; capture?: boolean; onPick: (f: File) => void }) {
+  return (
+    <label className="card flex aspect-square cursor-pointer flex-col items-center justify-center gap-2 text-lg font-bold active:scale-[0.98]">
+      {label}
+      <input
+        type="file"
+        accept="image/*"
+        className="sr-only"
+        {...(capture && { capture: "user" as const })}
+        onChange={(e) => {
+          const f = e.target.files?.[0];
+          if (f) onPick(f);
+          e.target.value = "";
+        }}
+      />
+    </label>
+  );
+}
