@@ -93,7 +93,7 @@ export default function GuestFlow() {
           </button>
           <div className="flex flex-1 gap-1.5" aria-hidden>
             {STEPS.slice(1).map((s, i) => (
-              <span key={s} className={`h-1.5 flex-1 rounded-full ${i < index ? "bg-gold" : "bg-white/10"}`} />
+              <span key={s} className={`h-1.5 flex-1 rounded-full ${i < index ? "bg-accent-soft" : "bg-line"}`} />
             ))}
           </div>
         </header>
@@ -101,22 +101,50 @@ export default function GuestFlow() {
 
       <div className="flex flex-1 flex-col">
         {step === "welcome" && (
-          <section className="flex flex-1 flex-col items-center justify-center text-center">
-            <p className="mb-3 text-sm tracking-[0.3em] text-gold/80">בר המצווה של {name}</p>
-            <h1 className="font-display text-5xl leading-tight text-gold">הברכה שלך<br />הופכת לסרט</h1>
-            <p className="mt-5 text-lg text-muted">
-              ספרו לנו משהו על הקשר שלכם עם {name}, כתבו ברכה, וה-AI יהפוך אותה לפוסטר קולנועי או לשיר אישי.
+          <section className="flex flex-1 flex-col gap-6">
+            <div className="flex items-center justify-between">
+              <span className="text-sm font-medium tracking-[0.2em] text-muted">עמדת הברכות</span>
+              <span className="text-clay" aria-hidden>✦</span>
+            </div>
+            <div className="text-center">
+              <p className="font-display text-[clamp(10rem,58vw,15rem)] font-black leading-[0.82] tracking-tight text-accent-soft" aria-hidden>
+                13
+              </p>
+              <h1 className="mt-2 font-display leading-none">
+                <span className="block text-[3.25rem] font-bold text-ink">הבר מצווה</span>
+                <span className="mt-1 block text-[2.5rem] font-medium text-clay">של {name}</span>
+              </h1>
+            </div>
+            <span className="mx-auto h-0.5 w-14 bg-line" aria-hidden />
+            <p className="text-center text-lg leading-relaxed text-muted">
+              כתבו ל{name} ברכה, ספרו זיכרון משותף, וה-AI יהפוך אותה לפוסטר קולנועי או לשיר שנכתב רק בשבילו.
             </p>
-            <p className="mt-2 text-sm text-muted/70">לוקח בערך שתי דקות</p>
-            <button type="button" className="btn-gold mt-10 w-full" onClick={() => go(1)}>
-              בואו נתחיל
+            <button type="button" className="btn-primary w-full" onClick={() => go(1)}>
+              בואו נתחיל <span aria-hidden>←</span>
             </button>
+            <div className="space-y-3">
+              <p className="text-sm font-bold tracking-[0.2em] text-accent-soft">איך זה עובד</p>
+              <ol className="grid grid-cols-3 gap-2.5">
+                {[
+                  ["כותבים ברכה", "וזיכרון משותף"],
+                  ["ה-AI יוצר", "פוסטר או שיר"],
+                  ["מקבלים מזכרת", "מורידים ומשתפים"],
+                ].map(([title, body], i) => (
+                  <li key={title} className="card space-y-1 p-3.5">
+                    <span className="block text-2xl font-bold text-accent-soft">{i + 1}</span>
+                    <span className="block text-[0.95rem] font-bold leading-tight">{title}</span>
+                    <span className="block text-sm text-muted">{body}</span>
+                  </li>
+                ))}
+              </ol>
+            </div>
+            <p className="text-center text-xs text-accent-soft">לוקח בערך 2 דקות · כל היצירות נשמרות באלבום של {name}</p>
           </section>
         )}
 
         {step === "who" && (
           <section className="space-y-6">
-            <h2 className="font-display text-3xl text-gold">מי אתם?</h2>
+            <h2 className="font-display text-[2rem] font-bold text-ink">מי אתם?</h2>
             <label className="block space-y-2">
               <span className="text-muted">שם מלא</span>
               <input className="field" autoComplete="name" value={form.fullName} maxLength={60} onChange={(e) => set("fullName", e.target.value)} placeholder="למשל: דנה כהן" />
@@ -144,7 +172,7 @@ export default function GuestFlow() {
         {step === "story" && (
           <section className="space-y-6">
             <div>
-              <h2 className="font-display text-3xl text-gold">ספרו לנו עליכם</h2>
+              <h2 className="font-display text-[2rem] font-bold text-ink">ספרו לנו עליכם</h2>
               <p className="mt-1 text-muted">ככל שתהיו ספציפיים, התוצאה תהיה אישית יותר. מספיק לענות על אחת.</p>
             </div>
             <Question label={`מה הכי אוהבים לעשות יחד עם ${name}?`} placeholder="כדורסל בחצר, פיפ״א, טיולים..." value={form.together} max={300} onChange={(v) => set("together", v)} />
@@ -155,7 +183,7 @@ export default function GuestFlow() {
 
         {step === "blessing" && (
           <section className="space-y-4">
-            <h2 className="font-display text-3xl text-gold">הברכה שלכם ל{name}</h2>
+            <h2 className="font-display text-[2rem] font-bold text-ink">הברכה שלכם ל{name}</h2>
             <p className="text-muted">הברכה תופיע מילה במילה על היצירה.</p>
             <textarea
               className="field min-h-48 leading-relaxed"
@@ -164,13 +192,13 @@ export default function GuestFlow() {
               onChange={(e) => set("blessing", e.target.value)}
               placeholder={`${name} יקר, מאחלים לך...`}
             />
-            <p className="text-left text-sm text-muted/70">{form.blessing.length}/600</p>
+            <p className="text-left text-sm text-muted">{form.blessing.length}/600</p>
           </section>
         )}
 
         {step === "experience" && (
           <section className="space-y-6">
-            <h2 className="font-display text-3xl text-gold">מה ניצור?</h2>
+            <h2 className="font-display text-[2rem] font-bold text-ink">מה ניצור?</h2>
             <div className="grid gap-3">
               {(
                 [
@@ -184,7 +212,7 @@ export default function GuestFlow() {
                   type="button"
                   aria-pressed={form.experience === value}
                   onClick={() => set("experience", value)}
-                  className="card flex items-center gap-4 p-4 text-right transition aria-pressed:border-gold aria-pressed:bg-gold/10"
+                  className="card flex items-center gap-4 p-4 text-right transition aria-pressed:border-accent aria-pressed:bg-olive-100"
                 >
                   <span className="text-3xl" aria-hidden>{icon}</span>
                   <span>
@@ -212,7 +240,7 @@ export default function GuestFlow() {
         {step === "photo" && (
           <section className="space-y-5">
             <div>
-              <h2 className="font-display text-3xl text-gold">רוצים להופיע בתמונה?</h2>
+              <h2 className="font-display text-[2rem] font-bold text-ink">רוצים להופיע בתמונה?</h2>
               <p className="mt-1 text-muted">
                 {form.experience === "song" ? "התמונה תשמש לעטיפת השיר. " : ""}
                 צלמו סלפי או בחרו תמונה ברורה של הפנים. אפשר גם לדלג.
@@ -222,7 +250,7 @@ export default function GuestFlow() {
               <div className="relative">
                 {/* eslint-disable-next-line @next/next/no-img-element -- local object URL preview */}
                 <img src={preview} alt="התמונה שבחרתם" className="aspect-square w-full rounded-3xl object-cover" />
-                <button type="button" className="btn-ghost absolute bottom-3 left-3 bg-night/80" onClick={() => setPhoto(null)}>
+                <button type="button" className="btn-ghost absolute bottom-3 left-3 bg-surface/90" onClick={() => setPhoto(null)}>
                   החלפה
                 </button>
               </div>
@@ -238,7 +266,7 @@ export default function GuestFlow() {
               </p>
             )}
             <label className="flex items-start gap-3 text-muted">
-              <input type="checkbox" className="mt-1 size-5 accent-gold" checked={form.consentScreen} onChange={(e) => set("consentScreen", e.target.checked)} />
+              <input type="checkbox" className="mt-1 size-5 accent-accent" checked={form.consentScreen} onChange={(e) => set("consentScreen", e.target.checked)} />
               <span>אפשר להציג את היצירה שלי על המסך באולם</span>
             </label>
           </section>
@@ -248,13 +276,13 @@ export default function GuestFlow() {
       {error && <p role="alert" className="mt-4 rounded-2xl bg-red-500/15 p-3 text-red-200">{error}</p>}
 
       {step !== "welcome" && (
-        <footer className="sticky bottom-0 -mx-5 mt-8 bg-gradient-to-t from-night via-night/95 to-transparent px-5 pb-4 pt-6">
+        <footer className="sticky bottom-0 -mx-5 mt-8 bg-gradient-to-t from-canvas via-canvas/95 to-transparent px-5 pb-4 pt-6">
           {step === "photo" ? (
-            <button type="button" className="btn-gold w-full" disabled={submitting} onClick={submit}>
-              {submitting ? "שולחים..." : "✨ צור לי"}
+            <button type="button" className="btn-primary w-full" disabled={submitting} onClick={submit}>
+              {submitting ? "שולחים..." : "צור לי ✦"}
             </button>
           ) : (
-            <button type="button" className="btn-gold w-full" disabled={!canContinue[step]} onClick={() => go(1)}>
+            <button type="button" className="btn-primary w-full" disabled={!canContinue[step]} onClick={() => go(1)}>
               המשך
             </button>
           )}

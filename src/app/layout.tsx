@@ -1,9 +1,9 @@
 import type { Metadata, Viewport } from "next";
-import { Heebo, Secular_One } from "next/font/google";
+import { Frank_Ruhl_Libre, Heebo } from "next/font/google";
 import "./globals.css";
 
 const heebo = Heebo({ variable: "--font-heebo", subsets: ["hebrew", "latin"] });
-const secular = Secular_One({ variable: "--font-secular", subsets: ["hebrew", "latin"], weight: "400" });
+const frank = Frank_Ruhl_Libre({ variable: "--font-frank", subsets: ["hebrew", "latin"], weight: ["500", "700", "900"] });
 
 export const metadata: Metadata = {
   title: "הברכה שלך לכרמל",
@@ -12,14 +12,14 @@ export const metadata: Metadata = {
 };
 
 export const viewport: Viewport = {
-  themeColor: "#070b1f",
+  themeColor: "#f6f6ee",
   width: "device-width",
   initialScale: 1,
 };
 
 export default function RootLayout({ children }: LayoutProps<"/">) {
   return (
-    <html lang="he" dir="rtl" className={`${heebo.variable} ${secular.variable} antialiased`}>
+    <html lang="he" dir="rtl" className={`${heebo.variable} ${frank.variable} antialiased`}>
       <body className="font-sans">{children}</body>
     </html>
   );

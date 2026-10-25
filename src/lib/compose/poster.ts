@@ -3,15 +3,16 @@ import path from "node:path";
 import { GlobalFonts, createCanvas, loadImage, type SKRSContext2D } from "@napi-rs/canvas";
 import { config } from "@/lib/config";
 
-const GOLD = "#F4D58D";
+const ACCENT = "#E4E9C6"; // pale olive, readable on the dark band
+const CLAY = "#E9A27E";
 const WHITE = "#FFFFFF";
-const TITLE_FONT = "Secular One";
+const TITLE_FONT = "Frank Ruhl Libre";
 const BODY_FONT = "Heebo";
 
 let fontsLoaded = false;
 function loadFonts() {
   if (fontsLoaded) return;
-  GlobalFonts.registerFromPath(path.join(config.fontsDir, "SecularOne-Regular.ttf"), TITLE_FONT);
+  GlobalFonts.registerFromPath(path.join(config.fontsDir, "FrankRuhlLibre.ttf"), TITLE_FONT);
   GlobalFonts.registerFromPath(path.join(config.fontsDir, "Heebo.ttf"), BODY_FONT);
   fontsLoaded = true;
 }
@@ -57,8 +58,8 @@ function drawLines(ctx: SKRSContext2D, lines: string[], x: number, y: number, li
 
 function shade(ctx: SKRSContext2D, w: number, from: number, to: number, alphaFrom: number, alphaTo: number) {
   const g = ctx.createLinearGradient(0, from, 0, to);
-  g.addColorStop(0, `rgba(5,10,30,${alphaFrom})`);
-  g.addColorStop(1, `rgba(5,10,30,${alphaTo})`);
+  g.addColorStop(0, `rgba(24,28,14,${alphaFrom})`);
+  g.addColorStop(1, `rgba(24,28,14,${alphaTo})`);
   ctx.fillStyle = g;
   ctx.fillRect(0, Math.min(from, to), w, Math.abs(to - from));
 }
@@ -96,9 +97,9 @@ export async function composePoster(art: Buffer, text: PosterText): Promise<Buff
   prepare(ctx);
 
   // Title + tagline at the top.
-  const title = fit(ctx, { text: text.title, font: (s) => `${s}px "${TITLE_FONT}"`, maxSize: Math.round(w * 0.11), minSize: 48, maxLines: 2 }, textWidth);
-  ctx.fillStyle = GOLD;
-  ctx.font = `${title.size}px "${TITLE_FONT}"`;
+  const title = fit(ctx, { text: text.title, font: (s) => `900 ${s}px "${TITLE_FONT}"`, maxSize: Math.round(w * 0.11), minSize: 48, maxLines: 2 }, textWidth);
+  ctx.fillStyle = ACCENT;
+  ctx.font = `900 ${title.size}px "${TITLE_FONT}"`;
   const y = drawLines(ctx, title.lines, cx, h * 0.035 + title.size, title.size * 1.05);
   if (text.tagline) {
     ctx.fillStyle = WHITE;
@@ -109,13 +110,14 @@ export async function composePoster(art: Buffer, text: PosterText): Promise<Buff
   // Footer, then sender, then the blessing stacked upwards from the bottom.
   const footerSize = Math.round(w * 0.026);
   const footerY = h - h * 0.03;
-  ctx.fillStyle = GOLD;
+  ctx.fillStyle = ACCENT;
   ctx.font = `500 ${footerSize}px "${BODY_FONT}"`;
   ctx.fillText(text.footer, cx, footerY);
   ctx.fillRect(cx - w * 0.12, footerY - footerSize * 1.6, w * 0.24, 2);
 
   const senderSize = Math.round(w * 0.034);
   const senderY = footerY - footerSize * 3;
+  ctx.fillStyle = CLAY;
   ctx.font = `700 ${senderSize}px "${BODY_FONT}"`;
   ctx.fillText(text.sender, cx, senderY);
 
@@ -142,9 +144,9 @@ export async function composeCover(art: Buffer, title: string, byline: string): 
   ctx.drawImage(img, (img.width - size) / 2, (img.height - size) / 2, size, size, 0, 0, size, size);
   shade(ctx, size, size * 0.62, size, 0, 0.9);
   prepare(ctx);
-  const t = fit(ctx, { text: title, font: (s) => `${s}px "${TITLE_FONT}"`, maxSize: Math.round(size * 0.1), minSize: 40, maxLines: 2 }, size * 0.86);
-  ctx.fillStyle = GOLD;
-  ctx.font = `${t.size}px "${TITLE_FONT}"`;
+  const t = fit(ctx, { text: title, font: (s) => `900 ${s}px "${TITLE_FONT}"`, maxSize: Math.round(size * 0.1), minSize: 40, maxLines: 2 }, size * 0.86);
+  ctx.fillStyle = ACCENT;
+  ctx.font = `900 ${t.size}px "${TITLE_FONT}"`;
   const bylineSize = Math.round(size * 0.035);
   const bottom = size - size * 0.06;
   drawLines(ctx, t.lines, size / 2, bottom - bylineSize * 1.8 - (t.lines.length - 1) * t.size * 1.05, t.size * 1.05);

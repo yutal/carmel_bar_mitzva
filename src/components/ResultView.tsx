@@ -45,14 +45,14 @@ export default function ResultView({ publicId }: { publicId: string }) {
 
   return (
     <Shell>
-      <p className="text-center text-sm tracking-[0.2em] text-gold/80">היצירה של {data.fullName}</p>
+      <p className="text-center text-sm tracking-[0.2em] text-accent-soft">היצירה של {data.fullName}</p>
 
       {data.stages.image && (
         <section className="mt-5">
           {data.image?.url ? (
             <figure className="space-y-4">
               {/* eslint-disable-next-line @next/next/no-img-element -- generated file served by our API */}
-              <img src={data.image.url} alt={data.image.title} className="w-full rounded-3xl shadow-2xl shadow-black/60" />
+              <img src={data.image.url} alt={data.image.title} className="w-full rounded-3xl shadow-2xl shadow-ink/15" />
               <figcaption className="text-center text-muted">{data.image.rationale}</figcaption>
               <Actions url={data.image.url} title={data.image.title} />
             </figure>
@@ -74,14 +74,14 @@ export default function ResultView({ publicId }: { publicId: string }) {
                   <img src={data.song.coverUrl} alt="" className="size-24 rounded-2xl object-cover" />
                 )}
                 <div>
-                  <p className="text-sm text-gold/80">שיר מאת {data.fullName}</p>
-                  <h2 className="font-display text-2xl text-gold">{data.song.title}</h2>
+                  <p className="text-sm text-accent-soft">שיר מאת {data.fullName}</p>
+                  <h2 className="font-display text-2xl font-bold text-ink">{data.song.title}</h2>
                 </div>
               </div>
               {data.song.audioUrl ? (
                 <audio controls src={data.song.audioUrl} className="mt-4 w-full" />
               ) : (
-                <p className="mt-4 rounded-2xl bg-gold/10 p-3 text-gold">🎵 המילים מוכנות! השיר המלא יוקלט ויגיע לאלבום של חגיגת בר המצווה.</p>
+                <p className="mt-4 rounded-2xl bg-olive-100 p-3 text-accent">🎵 המילים מוכנות! השיר המלא יוקלט ויגיע לאלבום של חגיגת בר המצווה.</p>
               )}
               <pre className="mt-5 whitespace-pre-wrap font-sans text-lg leading-relaxed">{formatLyrics(data.song.lyrics)}</pre>
             </>
@@ -89,14 +89,14 @@ export default function ResultView({ publicId }: { publicId: string }) {
             <Failed what="השיר" />
           ) : (
             <div className="flex items-center gap-3" role="status">
-              <span className="size-8 animate-spin rounded-full border-4 border-gold/20 border-t-gold" />
+              <span className="size-8 animate-spin rounded-full border-4 border-line border-t-accent" />
               <p className="text-lg font-bold">כותבים לך שיר...</p>
             </div>
           )}
         </section>
       )}
 
-      <blockquote className="mt-8 border-r-2 border-gold/50 pr-4 text-muted">
+      <blockquote className="mt-8 border-r-2 border-accent-soft pr-4 text-muted">
         <p className="whitespace-pre-wrap">&quot;{data.blessing}&quot;</p>
         <footer className="mt-2 text-sm">{data.fullName}, {data.relationship}</footer>
       </blockquote>
@@ -119,7 +119,7 @@ function Actions({ url, title }: { url: string; title: string }) {
   }
   return (
     <div className="grid grid-cols-2 gap-3">
-      <a href={`${url}?download`} className="btn-gold">⬇️ הורדה</a>
+      <a href={`${url}?download`} className="btn-primary">⬇️ הורדה</a>
       <button type="button" className="btn-ghost" onClick={share}>📤 שיתוף</button>
     </div>
   );
@@ -128,7 +128,7 @@ function Actions({ url, title }: { url: string; title: string }) {
 function Spinner({ text, sub }: { text: string; sub?: string }) {
   return (
     <div className="card flex flex-col items-center gap-4 px-6 py-14 text-center" role="status">
-      <span className="size-14 animate-spin rounded-full border-4 border-gold/20 border-t-gold" />
+      <span className="size-14 animate-spin rounded-full border-4 border-line border-t-accent" />
       <p className="text-xl font-bold">{text}</p>
       {sub && <p className="text-sm text-muted">{sub}</p>}
     </div>

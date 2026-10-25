@@ -14,7 +14,7 @@ export default function HallScreen() {
   const [celebrant, setCelebrant] = useState("כרמל");
 
   useEffect(() => {
-    void QRCode.toDataURL(location.origin, { margin: 1, width: 360, color: { dark: "#070b1f", light: "#f4d58d" } }).then(setQr);
+    void QRCode.toDataURL(location.origin, { margin: 1, width: 360, color: { dark: "#2d331c", light: "#ffffff" } }).then(setQr);
     fetch("/api/celebrant").then((r) => r.json()).then((d: { celebrantName?: string }) => d.celebrantName && setCelebrant(d.celebrantName)).catch(() => undefined);
   }, []);
 
@@ -45,27 +45,28 @@ export default function HallScreen() {
       {item && art ? (
         <div key={item.publicId} className="flex h-full w-full animate-[fade_1.2s_ease] items-center gap-[4vw]">
           {/* eslint-disable-next-line @next/next/no-img-element -- generated file served by our API */}
-          <img src={art} alt="" className="h-[86vh] max-w-[46vw] rounded-[2vw] object-contain shadow-2xl shadow-black/70" />
+          <img src={art} alt="" className="h-[86vh] max-w-[46vw] rounded-[2vw] object-contain shadow-2xl shadow-ink/20" />
           <div className="flex-1 space-y-[2.5vh]">
-            <p className="text-[1.6vw] tracking-[0.3em] text-gold/80">
+            <p className="text-[1.6vw] tracking-[0.3em] text-accent-soft">
               {item.image ? "בכורה עולמית" : "שיר חדש"} · {item.fullName}
             </p>
-            <h1 className="font-display text-[5vw] leading-[1.05] text-gold">{item.image?.title ?? item.song?.title}</h1>
+            <h1 className="font-display text-[5vw] font-bold leading-[1.05] text-ink">{item.image?.title ?? item.song?.title}</h1>
             <p className="max-h-[40vh] overflow-hidden text-[2.1vw] leading-snug">&quot;{item.blessing}&quot;</p>
             <p className="text-[1.7vw] text-muted">{item.fullName}, {item.relationship}</p>
           </div>
         </div>
       ) : (
         <div className="w-full text-center">
-          <h1 className="font-display text-[6vw] text-gold">הברכה שלך הופכת לסרט</h1>
-          <p className="mt-4 text-[2.2vw] text-muted">סרקו את הקוד וכתבו ברכה ל{celebrant}</p>
+          <p className="font-display text-[22vh] font-black leading-[0.85] text-accent-soft" aria-hidden>13</p>
+          <h1 className="font-display text-[6vw] font-bold leading-none text-ink">הבר מצווה <span className="font-medium text-clay">של {celebrant}</span></h1>
+          <p className="mt-6 text-[2.2vw] text-muted">סרקו את הקוד וכתבו ברכה. ה-AI יהפוך אותה ליצירה.</p>
         </div>
       )}
       {qr && (
-        <div className="absolute bottom-[4vh] left-[3vw] flex flex-col items-center gap-2 rounded-3xl bg-night-2/80 p-4 backdrop-blur">
+        <div className="absolute bottom-[4vh] left-[3vw] flex flex-col items-center gap-2 rounded-3xl bg-surface p-4 backdrop-blur">
           {/* eslint-disable-next-line @next/next/no-img-element -- data URL */}
           <img src={qr} alt="קוד QR להשתתפות" className="size-[11vw] rounded-xl" />
-          <span className="text-[1.2vw] font-bold text-gold">סרקו וכתבו ברכה</span>
+          <span className="text-[1.2vw] font-bold text-accent">סרקו וכתבו ברכה</span>
         </div>
       )}
     </main>

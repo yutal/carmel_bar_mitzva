@@ -12,11 +12,11 @@ const STATUS_LABEL: Record<StageStatus, string> = {
   awaiting_music: "ממתין להקלטה",
 };
 const STATUS_COLOR: Record<StageStatus, string> = {
-  pending: "bg-white/10 text-muted",
+  pending: "bg-olive-100 text-muted",
   running: "bg-blue-500/20 text-blue-200",
   done: "bg-emerald-500/20 text-emerald-200",
   failed: "bg-red-500/20 text-red-200",
-  awaiting_music: "bg-gold/15 text-gold",
+  awaiting_music: "bg-olive-100 text-accent",
 };
 const STAGE_LABEL: Record<StageName, string> = { analysis: "ניתוח", image: "פוסטר", song: "שיר" };
 const fileUrl = (rel: string, download = false) => `/api/admin/file?path=${encodeURIComponent(rel)}${download ? "&download" : ""}`;
@@ -80,12 +80,12 @@ export default function AdminDashboard() {
     <main className="mx-auto max-w-6xl space-y-8 px-4 py-8">
       <header className="flex flex-wrap items-center justify-between gap-4">
         <div>
-          <h1 className="font-display text-3xl text-gold">ניהול עמדת הברכות</h1>
+          <h1 className="font-display text-3xl font-bold text-ink">ניהול עמדת הברכות</h1>
           <p className="text-muted">{subs.length} ברכות · בתור: {queue.waiting} · רצות עכשיו: {queue.running}</p>
         </div>
         <div className="flex flex-wrap gap-2">
           <a className="btn-ghost" href="/screen" target="_blank">מסך אולם ↗</a>
-          <a className="btn-gold" href="/api/admin/export">⬇️ ייצוא אלבום (ZIP)</a>
+          <a className="btn-primary" href="/api/admin/export">⬇️ ייצוא אלבום (ZIP)</a>
         </div>
       </header>
 
@@ -110,7 +110,7 @@ export default function AdminDashboard() {
         {!visible.length && <p className="text-muted">אין כאן כלום עדיין.</p>}
       </section>
 
-      {toast && <div role="status" className="fixed bottom-6 left-1/2 -translate-x-1/2 rounded-2xl bg-night-3 px-5 py-3 shadow-xl">{toast}</div>}
+      {toast && <div role="status" className="fixed bottom-6 left-1/2 -translate-x-1/2 rounded-2xl bg-inverse text-canvas px-5 py-3 shadow-xl">{toast}</div>}
     </main>
   );
 }
@@ -143,7 +143,7 @@ function SubmissionCard({ s, run }: { s: Submission; run: (fn: () => Promise<unk
             <img src={fileUrl(thumb)} alt="" className="h-28 w-20 rounded-xl object-cover" />
           </a>
         ) : (
-          <div className="h-28 w-20 shrink-0 rounded-xl bg-white/5" />
+          <div className="h-28 w-20 shrink-0 rounded-xl bg-olive-100" />
         )}
         <div className="min-w-0 space-y-1">
           <h3 className="truncate text-lg font-bold">{s.input.fullName}</h3>
@@ -154,13 +154,13 @@ function SubmissionCard({ s, run }: { s: Submission; run: (fn: () => Promise<unk
                 {STAGE_LABEL[name]}: {STATUS_LABEL[st.status]}
               </span>
             ))}
-            {(s.hidden || !s.input.consentScreen) && <span className="rounded-full bg-white/10 px-2 py-0.5 text-xs text-muted">לא במסך</span>}
+            {(s.hidden || !s.input.consentScreen) && <span className="rounded-full bg-olive-100 px-2 py-0.5 text-xs text-muted">לא במסך</span>}
           </div>
         </div>
       </div>
 
       <p className="line-clamp-3 text-sm text-muted">&quot;{s.input.blessing}&quot;</p>
-      {s.imageConcept && <p className="text-sm"><b className="text-gold">{s.imageConcept.titleHebrew}</b> · {s.imageConcept.rationale}</p>}
+      {s.imageConcept && <p className="text-sm"><b className="text-accent">{s.imageConcept.titleHebrew}</b> · {s.imageConcept.rationale}</p>}
       {Object.values(s.stages).map((st, i) => st?.error && <p key={i} className="text-xs text-red-300">{st.error}</p>)}
 
       <div className="flex flex-wrap gap-2 text-sm">
@@ -172,7 +172,7 @@ function SubmissionCard({ s, run }: { s: Submission; run: (fn: () => Promise<unk
       </div>
 
       <details className="text-sm">
-        <summary className="cursor-pointer text-gold">יצירה מחדש</summary>
+        <summary className="cursor-pointer text-accent">יצירה מחדש</summary>
         <div className="mt-2 flex flex-wrap gap-2">
           {s.stages.image && <button type="button" className="btn-ghost min-h-9 px-3" onClick={() => regen("image", false)}>פוסטר, אותו רעיון</button>}
           {s.stages.image && <button type="button" className="btn-ghost min-h-9 px-3" onClick={() => regen("image", true)}>פוסטר, רעיון חדש</button>}
@@ -182,15 +182,15 @@ function SubmissionCard({ s, run }: { s: Submission; run: (fn: () => Promise<unk
       </details>
 
       {s.songConcept && s.stages.song?.status !== "done" && (
-        <div className="space-y-2 rounded-2xl bg-gold/5 p-3 text-sm">
-          <p className="font-bold text-gold">🎵 {s.songConcept.titleHebrew}</p>
+        <div className="space-y-2 rounded-2xl bg-olive-100 p-3 text-sm">
+          <p className="font-bold text-accent">🎵 {s.songConcept.titleHebrew}</p>
           <div className="flex flex-wrap gap-2">
             <button type="button" className="btn-ghost min-h-9 px-3" onClick={() => copy(s.songConcept!.lyricsHebrew, "המילים")}>העתק מילים</button>
             <button type="button" className="btn-ghost min-h-9 px-3" onClick={() => copy(s.songConcept!.styleDescription, "הסגנון")}>העתק סגנון</button>
             <button type="button" className="btn-ghost min-h-9 px-3" onClick={() => copy(s.songConcept!.titleHebrew, "השם")}>העתק שם</button>
             <a className="btn-ghost min-h-9 px-3" href="https://suno.com/create" target="_blank" rel="noreferrer">Suno ↗</a>
           </div>
-          <label className="btn-gold min-h-10 w-full cursor-pointer text-base">
+          <label className="btn-primary min-h-10 w-full cursor-pointer text-base">
             העלאת MP3
             <input type="file" accept="audio/mpeg,.mp3" className="sr-only" onChange={(e) => e.target.files?.[0] && uploadMp3(e.target.files[0])} />
           </label>
@@ -226,7 +226,7 @@ function EventForm({ onSaved }: { onSaved: () => void }) {
       {field("eventTitle", "כותרת האירוע")}
       {field("eventDate", "תאריך (כפי שיופיע על הפוסטר)")}
       {field("footer", "שורת תחתית בפוסטר")}
-      <button type="submit" className="btn-gold min-h-11 w-full text-base">שמירה</button>
+      <button type="submit" className="btn-primary min-h-11 w-full text-base">שמירה</button>
     </form>
   );
 }
@@ -262,7 +262,7 @@ function CelebrantPhotos({ notify }: { notify: (m: string) => void }) {
           <div key={p} className="group relative">
             {/* eslint-disable-next-line @next/next/no-img-element -- admin preview */}
             <img src={fileUrl(`celebrant/${p}`)} alt="" className={`aspect-square w-full rounded-xl object-cover ${i >= 4 ? "opacity-40" : ""}`} />
-            <button type="button" onClick={() => remove(p)} className="absolute left-1 top-1 rounded-full bg-night/80 px-2 text-sm" aria-label="מחיקה">✕</button>
+            <button type="button" onClick={() => remove(p)} className="absolute left-1 top-1 rounded-full bg-surface/90 px-2 text-sm" aria-label="מחיקה">✕</button>
           </div>
         ))}
       </div>

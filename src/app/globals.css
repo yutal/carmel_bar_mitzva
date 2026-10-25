@@ -1,48 +1,50 @@
 @import "tailwindcss";
 
 @theme {
-  --color-night: #070b1f;
-  --color-night-2: #0e1636;
-  --color-night-3: #18224a;
-  --color-gold: #f4d58d;
-  --color-gold-deep: #d9a93f;
-  --color-ink: #f7f4ec;
-  --color-muted: #aab0c8;
+  /* Design A · "editorial minimal", light olive */
+  --color-canvas: #f6f6ee;
+  --color-surface: #ffffff;
+  --color-olive-100: #eceedc;
+  --color-line: #dce0bf;
+  --color-accent-soft: #9aa46a;
+  --color-accent: #5e6a3a;
+  --color-ink: #2d331c;
+  --color-inverse: #2d331c;
+  --color-muted: #6b7350;
+  --color-clay: #d9875e;
+  --color-sand: #f1e4cb;
   --font-sans: var(--font-heebo), system-ui, sans-serif;
-  --font-display: var(--font-secular), var(--font-heebo), sans-serif;
+  --font-display: var(--font-frank), var(--font-heebo), serif;
 }
 
 html {
-  color-scheme: dark;
+  color-scheme: light;
 }
 
 body {
-  background:
-    radial-gradient(1200px 600px at 50% -10%, rgb(244 213 141 / 0.14), transparent 60%),
-    radial-gradient(900px 500px at 100% 100%, rgb(80 110 255 / 0.12), transparent 60%),
-    var(--color-night);
+  background: var(--color-canvas);
   color: var(--color-ink);
   min-height: 100dvh;
 }
 
 @layer components {
-  .btn-gold {
-    @apply inline-flex min-h-14 items-center justify-center gap-2 rounded-2xl bg-gradient-to-b from-gold to-gold-deep px-6 text-lg font-bold text-night shadow-[0_8px_30px_rgb(244_213_141/0.25)] transition active:scale-[0.98] disabled:opacity-50;
+  .btn-primary {
+    @apply inline-flex min-h-14 items-center justify-center gap-2 rounded-full bg-inverse px-7 text-lg font-bold text-canvas transition hover:bg-accent active:scale-[0.98] disabled:opacity-40;
   }
   .btn-ghost {
-    @apply inline-flex min-h-12 items-center justify-center gap-2 rounded-2xl border border-white/15 px-5 font-medium text-ink transition hover:bg-white/5 active:scale-[0.98] disabled:opacity-50;
+    @apply inline-flex min-h-12 items-center justify-center gap-2 rounded-full border border-line bg-surface px-5 font-medium text-ink transition hover:border-accent-soft active:scale-[0.98] disabled:opacity-40;
   }
   .field {
-    @apply w-full rounded-2xl border border-white/10 bg-night-2/80 px-4 py-3.5 text-lg text-ink placeholder:text-muted/60 outline-none transition focus:border-gold/70 focus:ring-2 focus:ring-gold/20;
+    @apply w-full rounded-2xl border border-line bg-surface px-4 py-3.5 text-lg text-ink placeholder:text-muted/60 outline-none transition focus:border-accent-soft focus:ring-4 focus:ring-accent-soft/20;
   }
   .card {
-    @apply rounded-3xl border border-white/10 bg-night-2/70 backdrop-blur;
+    @apply rounded-3xl border border-line bg-surface/80;
   }
   .chip {
-    @apply rounded-full border border-white/15 px-4 py-2.5 text-base transition active:scale-[0.97];
+    @apply rounded-full border border-line bg-surface px-4 py-2.5 text-base text-ink transition active:scale-[0.97];
   }
   .chip[aria-pressed="true"] {
-    @apply border-gold bg-gold/15 text-gold;
+    @apply border-accent bg-accent text-canvas;
   }
 }
 
