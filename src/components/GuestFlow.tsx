@@ -174,6 +174,7 @@ export default function GuestFlow() {
             <div>
               <h2 className="font-display text-[2rem] font-bold text-ink">ספרו לנו עליכם</h2>
               <p className="mt-1 text-muted">ככל שתהיו ספציפיים, התוצאה תהיה אישית יותר. מספיק לענות על אחת.</p>
+              <p className="mt-3 rounded-2xl bg-olive-100 px-4 py-3 text-sm text-accent">🎵 אם תבחרו שיר, הוא ייכתב על בסיס התשובות כאן.</p>
             </div>
             <Question label={`מה הכי אוהבים לעשות יחד עם ${name}?`} placeholder="כדורסל בחצר, פיפ״א, טיולים..." value={form.together} max={300} onChange={(v) => set("together", v)} />
             <Question label="זיכרון משותף או סיפור מצחיק" placeholder="הפעם ההיא ש..." value={form.memory} max={600} rows={4} onChange={(v) => set("memory", v)} />

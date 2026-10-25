@@ -6,15 +6,24 @@ import type { ImageProvider } from "@/lib/providers/types";
 
 const SIZES = { portrait: "1024x1536", square: "1024x1024" } as const;
 
+const LIKENESS = [
+  "Identity is the top priority: every person shown must be clearly recognisable as the person in their reference images.",
+  "Keep their exact face shape, eyes, eyebrows, nose, mouth, smile, hair colour, hairstyle, skin tone and age.",
+  "Use the references only for identity; pose, outfit, lighting and setting come from the scene below.",
+  "Show faces large enough to recognise, never hidden by helmets, masks or heavy shadow.",
+].join(" ");
+
 export const openAiImage: ImageProvider = {
-  async generate({ prompt, references, size }) {
+  async generate({ prompt, references, size, celebrantLook }) {
     const images = await Promise.all(
       references.map((r) => toFile(r.data, r.name, { type: "image/jpeg" })),
     );
     const legend = references
       .map((r, i) => `Reference image ${i + 1}: ${r.role === "celebrant" ? "the celebrant (Bar Mitzvah boy)" : "the guest"}.`)
       .join("\n");
-    const fullPrompt = `${legend}\n\n${prompt}`;
+    const fullPrompt = [legend, references.length ? LIKENESS : "", celebrantLook ? `The celebrant's appearance: ${celebrantLook}` : "", prompt]
+      .filter(Boolean)
+      .join("\n\n");
 
     const result = images.length
       ? await openai().images.edit({

@@ -225,6 +225,17 @@ function EventForm({ onSaved }: { onSaved: () => void }) {
       {field("eventTitle", "כותרת האירוע")}
       {field("eventDate", "תאריך (כפי שיופיע על הפוסטר)")}
       {field("footer", "שורת תחתית בפוסטר")}
+      <label className="block space-y-1">
+        <span className="text-sm text-muted">איך {ev.celebrantName} נראה (נכנס לכל פוסטר כדי לשמור על הדמיון)</span>
+        <textarea
+          className="field py-2.5 text-base"
+          rows={3}
+          maxLength={500}
+          placeholder="למשל: שיער חום קצר ומתולתל, עיניים חומות, גומות בחיוך, רזה וגבוה לגילו"
+          value={ev.celebrantLook}
+          onChange={(e) => setEv({ ...ev, celebrantLook: e.target.value })}
+        />
+      </label>
       <button type="submit" className="btn-primary min-h-11 w-full text-base">שמירה</button>
     </form>
   );

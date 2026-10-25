@@ -7,6 +7,7 @@ const Body = z.object({
   eventTitle: z.string().trim().min(1).max(80),
   eventDate: z.string().trim().max(40),
   footer: z.string().trim().max(80),
+  celebrantLook: z.string().trim().max(500).default(""),
 });
 
 export async function GET() {

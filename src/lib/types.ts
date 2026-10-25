@@ -93,6 +93,8 @@ export type EventSettings = {
   eventTitle: string;
   eventDate: string;
   footer: string;
+  /** Free-text appearance notes added to every image prompt to keep the likeness. */
+  celebrantLook: string;
 };
 
 export const DEFAULT_EVENT: EventSettings = {
@@ -100,4 +102,5 @@ export const DEFAULT_EVENT: EventSettings = {
   eventTitle: "בר המצווה של כרמל",
   eventDate: "",
   footer: "בר המצווה של כרמל",
+  celebrantLook: "",
 };

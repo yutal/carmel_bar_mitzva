@@ -10,7 +10,7 @@ export interface LlmProvider {
 
 export interface ImageProvider {
   /** Returns PNG/JPEG bytes. References are passed in the given order. */
-  generate(req: { prompt: string; references: ReferenceImage[]; size: "portrait" | "square" }): Promise<Buffer>;
+  generate(req: { prompt: string; references: ReferenceImage[]; size: "portrait" | "square"; celebrantLook?: string }): Promise<Buffer>;
 }
 
 export type MusicResult =

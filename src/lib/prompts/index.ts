@@ -46,8 +46,10 @@ Rules:
 - sunoPrompt: one paragraph of at most 400 characters, pasted as-is into Suno's "Song description" box.
   Write it in English, but keep names in Hebrew letters exactly as given (the celebrant's name and the guest's name).
   It must say: a song in Hebrew, for the Bar Mitzvah of <celebrant>, sung from <guest>'s point of view (their relationship),
-  the 2-3 most concrete memories, jokes or shared activities from the blessing, the main wish, and the musical style
-  (genre, tempo, mood, vocal type). Concrete details beat adjectives. A generic birthday song is a failure.
+  and the story. Build the story from the guest's answers about the celebrant, in this order of importance:
+  what they love doing together, the shared memory or funny story, and what the celebrant is best at.
+  Use the blessing only for the closing wish. Finish with the musical style (genre, tempo, mood, vocal type).
+  Concrete details beat adjectives. A generic birthday song is a failure.
 - titleHebrew: a short Hebrew song title that fits the story.
 - coverPrompt: English prompt for a square album cover that visualises the song's story; no text in the image.`;
 

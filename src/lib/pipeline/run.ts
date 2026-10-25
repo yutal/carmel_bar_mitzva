@@ -58,7 +58,7 @@ async function runImage(id: string, event: EventSettings): Promise<void> {
 
   const references = await celebrantReferences();
   if (guestPhoto) references.push({ name: "guest.jpg", data: guestPhoto, role: "guest" });
-  const art = await providers.image.generate({ prompt: s.imageConcept!.imagePrompt, references, size: "portrait" });
+  const art = await providers.image.generate({ prompt: s.imageConcept!.imagePrompt, references, size: "portrait", celebrantLook: event.celebrantLook });
   await saveFile(id, "imageRaw", "images", "_raw.png", art);
 
   const poster = await composePoster(art, {
@@ -85,7 +85,7 @@ async function runSong(id: string, event: EventSettings): Promise<void> {
   try {
     const art = s.files.imageRaw
       ? await fs.readFile(filePath(s.files.imageRaw))
-      : await providers.image.generate({ prompt: song.coverPrompt, references: await celebrantReferences(), size: "square" });
+      : await providers.image.generate({ prompt: song.coverPrompt, references: await celebrantReferences(), size: "square", celebrantLook: event.celebrantLook });
     const cover = await composeCover(art, song.titleHebrew, `מאת ${s.input.fullName} ל${event.celebrantName}`);
     await saveFile(id, "cover", "songs", "_cover.png", cover);
   } catch (err) {
