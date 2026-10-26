@@ -114,6 +114,10 @@ export function filePath(rel: string): string {
   return dataPath(rel);
 }
 
+export async function removeFile(rel: string): Promise<void> {
+  await fs.rm(dataPath(rel), { force: true });
+}
+
 async function save(s: Submission): Promise<void> {
   await writeJson(jsonPath(s.id), s);
   await writeFileAtomic(txtPath(s.id), renderText(s));

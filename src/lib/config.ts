@@ -10,6 +10,7 @@ const EnvSchema = z.object({
   IMAGE_MODEL: z.string().default("gpt-image-2"),
   IMAGE_QUALITY: z.enum(["low", "medium", "high"]).default("medium"),
   GENERATION_CONCURRENCY: z.coerce.number().int().min(1).max(10).default(3),
+  GUEST_PHOTO_RETENTION_DAYS: z.coerce.number().min(0).default(7),
 });
 
 const env = EnvSchema.parse(process.env);
@@ -22,6 +23,8 @@ export const config = {
   imageModel: env.IMAGE_MODEL,
   imageQuality: env.IMAGE_QUALITY,
   concurrency: env.GENERATION_CONCURRENCY,
+  /** Days to keep guests' original photos; 0 keeps them forever. */
+  guestPhotoRetentionDays: env.GUEST_PHOTO_RETENTION_DAYS,
   fontsDir: path.resolve(process.cwd(), "assets/fonts"),
 } as const;
 

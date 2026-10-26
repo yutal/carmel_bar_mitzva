@@ -14,6 +14,9 @@ RUN npm run build
 FROM node:22-bookworm-slim AS run
 WORKDIR /app
 ENV NODE_ENV=production NEXT_TELEMETRY_DISABLED=1 PORT=3000 HOSTNAME=0.0.0.0 DATA_DIR=/data
+# Fit a 512 MB instance: fewer glibc arenas keeps sharp/canvas memory from fragmenting,
+# and a capped V8 heap makes the GC collect before the container limit is reached.
+ENV MALLOC_ARENA_MAX=2 NODE_OPTIONS=--max-old-space-size=320
 RUN mkdir -p /data && chown node:node /data
 COPY --from=build --chown=node:node /app/.next/standalone ./
 COPY --from=build --chown=node:node /app/.next/static ./.next/static

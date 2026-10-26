@@ -225,6 +225,7 @@ Render's dashboard does not show this folder. View the data through `/admin`, an
 | Paint the poster scene and the cover | `gpt-image-2` (OpenAI Images API) | `src/lib/providers/image/openai.ts` | `IMAGE_MODEL` |
 | Image quality | `medium` | same file | `IMAGE_QUALITY` (`low`, `medium`, `high`) |
 | Generations in parallel | `3` | `src/lib/pipeline/queue.ts` | `GENERATION_CONCURRENCY` (1 to 10) |
+| Keep guests' original photos | 7 days, then deleted (posters stay) | `src/lib/storage/retention.ts` | `GUEST_PHOTO_RETENTION_DAYS` (`0` = forever) |
 | Music | Manual, through Suno | `src/lib/providers/music/manual.ts` | none |
 | Hosting | Render, Docker Web Service | `Dockerfile` | `DATA_DIR`, `PORT` |
 
@@ -402,10 +403,17 @@ flowchart LR
 
 ## Load and limits
 
-- **Web server:** the guest pages and form submission are light; one server handles dozens of guests at once.
-- **Generation:** runs in a queue, 3 at a time by default. A poster takes about a minute, so when 30 guests submit together the last one waits about 10 minutes. Guests can close the page and come back to their link.
-- **OpenAI:** your account has an images-per-minute limit that depends on its usage tier. A limit that is too low causes failures under load; those can be rerun from `/admin`. Check your tier at platform.openai.com under Limits.
-- **Memory:** the free plan has little memory. If the logs show out-of-memory errors, lower `GENERATION_CONCURRENCY` to 2 or move to a paid plan.
+Measured locally in mock mode on one CPU core, with ~250 KB phone-sized photos, every guest submitting at the same moment:
+
+| Guests at once | Submit response, median / p95 | Peak memory | All posters done (mock, 1.5 s per image) |
+| --- | --- | --- | --- |
+| 25 | 1.2 s / 1.6 s | 324 MB | 20 s |
+| 50 | 1.6 s / 2.7 s | 353 MB | 39 s |
+
+- **Web server:** comfortably handles 50 guests submitting at once on a 512 MB instance. Photo decoding is limited to two at a time, and the image includes `MALLOC_ARENA_MAX=2` and a capped V8 heap; without those, 50 guests peaked at 680 MB and would crash a 512 MB instance.
+- **Generation:** runs in a queue, 3 at a time by default. A real poster takes about a minute, so 50 guests at once means the last one waits about 15–17 minutes. Guests can close the page and come back to their link.
+- **OpenAI is the real bottleneck.** Image limits depend on the account's usage tier: Tier 1 allows 5 images per minute, Tier 2 allows 20, Tier 3 allows 50. A new account starts at Tier 1, so keep `GENERATION_CONCURRENCY` at 3 until the tier goes up. Check it at platform.openai.com under Limits.
+- **Memory:** if the logs show out-of-memory errors, lower `GENERATION_CONCURRENCY` to 2 or use a larger instance.
 
 ---
 
@@ -428,6 +436,7 @@ Logs are in the Render dashboard, on the service's **Logs** tab. **Events** show
 
 - A guest photo is sent to OpenAI only if the guest uploaded it after the consent notice. Metadata, including GPS location, is removed before saving.
 - A poster appears on the hall screen only with the guest's consent, and any poster can be hidden from `/admin`. Inappropriate content is hidden automatically.
+- Guests' original photos are deleted automatically after `GUEST_PHOTO_RETENTION_DAYS` (default 7). The check runs at start-up and every hour; the posters made from them are kept.
 - The export leaves out guest photos unless `?uploads=1` is added.
 - `/admin` and all of `/api/admin` are password-protected with a timing-safe comparison. With no password set, admin is closed entirely.
 - Keys live only in the server's environment variables, never in the code. `.env` and `/data` are never committed.
