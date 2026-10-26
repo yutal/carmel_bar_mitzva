@@ -1,6 +1,4 @@
-# See https://help.github.com/articles/ignoring-files/ for more about ignoring files.
-
-# dependencies
+# Dependencies
 /node_modules
 /.pnp
 .pnp.*
@@ -10,34 +8,48 @@
 !.yarn/releases
 !.yarn/versions
 
-# testing
-/coverage
-
-# next.js
+# Next.js build output
 /.next/
 /out/
-
-# production
 /build
-
-# misc
-.DS_Store
-*.pem
-
-# debug
-npm-debug.log*
-yarn-debug.log*
-yarn-error.log*
-.pnpm-debug.log*
-
-# env files (can opt-in for committing if needed)
-.env*
-
-# vercel
-.vercel
-
-# typescript
-*.tsbuildinfo
 next-env.d.ts
-/data
+*.tsbuildinfo
+
+# Secrets: keep keys in the host's environment variables, never in git
+.env*
 !.env.example
+*.pem
+*.key
+
+# Event data: guest submissions, photos of the celebrant, generated posters and songs
+/data/
+/data-*/
+*.zip
+
+# Personal media that must never be committed by accident
+*.heic
+*.HEIC
+*.mp3
+*.mov
+*.MOV
+*.mp4
+
+# Testing and local scratch
+/coverage
+/test-results/
+/playwright-report/
+/.stage/
+*.log
+
+# Editors and OS
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/*
+!.vscode/extensions.json
+*.swp
+
+# Deploy tooling
+.vercel
+.railway/
+docker-compose.override.yml
