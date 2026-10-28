@@ -4,7 +4,7 @@ import fs from "node:fs/promises";
 import { DIRS, dataPath, ensureDirs, readJson, writeFileAtomic, writeJson } from "./fs";
 import { submissionBaseName } from "./naming";
 import type { GuestInput, StageName, StageState, Submission, SubmissionFiles } from "@/lib/types";
-import { MUSIC_STYLES } from "@/lib/types";
+import { IMAGE_STYLES, MUSIC_STYLES } from "@/lib/types";
 
 const jsonPath = (id: string) => dataPath(DIRS.blessings, `${id}.json`);
 const txtPath = (id: string) => dataPath(DIRS.blessings, `${id}.txt`);
@@ -131,6 +131,7 @@ function renderText(s: Submission): string {
     `קשר לחוגג: ${input.relationship}`,
     `תאריך: ${new Date(s.createdAt).toLocaleString("he-IL", { timeZone: "Asia/Jerusalem" })}`,
     `חוויה: ${{ image: "תמונה", song: "שיר", both: "תמונה ושיר" }[input.experience]}`,
+    `סגנון: ${IMAGE_STYLES[input.imageStyle ?? "movie"].label}`,
     "",
     "מה הכי אוהבים לעשות יחד:",
     input.together || "-",

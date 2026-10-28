@@ -1,5 +1,6 @@
 import type { Analysis, EventSettings, GuestInput } from "@/lib/types";
-import { MUSIC_STYLES } from "@/lib/types";
+import { MUSIC_STYLES, type ImageStyle } from "@/lib/types";
+import { STYLE_BRIEFS } from "./styles";
 
 /** The guest's own words, labelled, as the single source of truth for every stage. */
 export function guestContext(input: GuestInput, event: EventSettings): string {
@@ -19,25 +20,25 @@ Extract only what the guest actually wrote or clearly implied. Never invent hobb
 Prefer concrete, specific details (a sport, a place, a game, a running joke) over generic sentiment.
 Write list items in short English phrases. Empty lists are fine when nothing fits.`;
 
-export const IMAGE_CONCEPT_SYSTEM = `You are the creative director of a personalised movie-poster booth at a Bar Mitzvah.
-Turn one guest's blessing into ONE cinematic poster concept that tells THEIR story with the celebrant.
+export const IMAGE_CONCEPT_SYSTEM = `You are the creative director of a personalised art booth at a Bar Mitzvah.
+Turn one guest's story and blessing into ONE image concept, in the art style the guest picked, that tells THEIR story with the celebrant.
 
 Rules:
 - The concept must be built on the most specific detail the guest gave (shared activity, memory, inside joke, talent).
-  A generic "celebration" poster is a failure. Explain in "rationale" (Hebrew, one sentence) which detail you used.
-- Pick the genre that fits the detail: sports championship, superhero, heist, space mission, fantasy quest,
+  A generic "celebration" image is a failure. Explain in "rationale" (Hebrew, one sentence) which detail you used.
+- Pick the story genre that fits the detail: sports championship, superhero, heist, space mission, fantasy quest,
   action comedy, documentary, music tour, cooking show, etc. Keep it family friendly and warm.
 - Hebrew title: punchy, max 4 words, may play on the celebrant's name or the shared activity.
 - Hebrew tagline: max 8 words.
+- Fill coverLines and stats only when the style brief asks for them; otherwise return empty lists.
 - imagePrompt (English, 120-220 words) for an image model that receives reference photos:
-  * Say who is who: "The boy from the celebrant reference photos" is the hero; keep his face, hair and likeness exactly.
+  * Say who is who: "The boy from the celebrant reference photos" is the hero; keep his face, hair and likeness.
   * If a guest photo is provided, "the person from the guest photo" appears next to him, keeping their likeness, age and gender.
     If not, show the guest only from behind or as a silhouette, or leave them out if that suits the story better.
-  * Describe scene, action, costumes, props from the blessing, lighting, camera angle, colour grade, poster composition.
-  * Vertical 2:3 movie poster. Keep the top 15% and the bottom 35% of the frame visually calm (sky, haze, dark floor)
-    because the title and blessing are added there later.
-  * Absolutely no text, letters, numbers, logos or watermarks in the image.
-  * Photorealistic cinematic style unless the concept clearly calls for animation.`;
+  * Describe scene, action, costumes, props from the story, lighting, camera angle and colour grade,
+    in the art style and composition the style brief gives. The brief's calm areas are mandatory: text is added there later.
+  * Vertical 2:3 frame.
+  * Absolutely no text, letters, numbers, logos or watermarks in the image.`;
 
 export const SONG_CONCEPT_SYSTEM = `You prepare a brief for Suno, an AI music generator that writes the lyrics and the music itself.
 The song is a personal gift from one guest to a Bar Mitzvah boy.
@@ -60,4 +61,8 @@ export function songStyleHint(input: GuestInput): string {
 
 export function analysisSummary(a: Analysis): string {
   return JSON.stringify(a, null, 2);
+}
+
+export function imageStyleBrief(style: ImageStyle): string {
+  return `Art style picked by the guest: ${style}.\n${STYLE_BRIEFS[style]}`;
 }

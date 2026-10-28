@@ -8,6 +8,7 @@ const Body = z.object({
   eventDate: z.string().trim().max(40),
   footer: z.string().trim().max(80),
   celebrantLook: z.string().trim().max(500).default(""),
+  songsEnabled: z.boolean().default(false),
 });
 
 export async function GET() {

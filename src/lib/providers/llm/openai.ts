@@ -10,6 +10,7 @@ import {
   SONG_CONCEPT_SYSTEM,
   analysisSummary,
   guestContext,
+  imageStyleBrief,
   songStyleHint,
 } from "@/lib/prompts";
 import { AnalysisSchema, ImageConceptSchema, SongConceptSchema } from "@/lib/types";
@@ -36,6 +37,8 @@ export const openAiLlm: LlmProvider = {
       `Analysis:\n${analysisSummary(analysis)}`,
       "",
       hasGuestPhoto ? "A guest photo IS provided." : "NO guest photo is provided.",
+      "",
+      imageStyleBrief(input.imageStyle ?? "movie"),
     ].join("\n");
     return structured(ImageConceptSchema, "image_concept", IMAGE_CONCEPT_SYSTEM, user);
   },

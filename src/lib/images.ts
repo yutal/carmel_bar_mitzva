@@ -1,4 +1,5 @@
 import "server-only";
+import os from "node:os";
 import heicConvert from "heic-convert";
 import PQueue from "p-queue";
 import sharp from "sharp";
@@ -6,10 +7,10 @@ import sharp from "sharp";
 export const MAX_UPLOAD_BYTES = 15 * 1024 * 1024;
 
 // Keep memory flat when many guests upload at once: no libvips cache, one thread
-// per image, and at most two photos decoded at the same time.
+// per image, and at most one photo per CPU (minimum two) decoded at the same time.
 sharp.cache(false);
 sharp.concurrency(1);
-const photoQueue = new PQueue({ concurrency: 2 });
+const photoQueue = new PQueue({ concurrency: Math.max(2, os.availableParallelism()) });
 
 /**
  * Re-encodes an uploaded photo: applies EXIF rotation, caps the size and

@@ -1,7 +1,7 @@
 # AI Blessing Station · Carmel's Bar Mitzvah
 
-Guests scan a QR code, tell a little about their bond with Carmel, write a blessing, and get a personal cinematic movie poster, a personal song, or both.
-The Hebrew title and blessing are drawn onto the poster by our own code, not by the image model, so the Hebrew is always correct.
+Guests scan a QR code, tell a little about their bond with Carmel, write a blessing, pick an art style, and get a personal image of themselves with Carmel (optionally with a personal song).
+The Hebrew title and blessing are drawn onto the image by our own code, not by the image model, so the Hebrew is always correct.
 Every file is stored on disk with a name like `david_cohen_20261027_201530` (Hebrew names are kept as written), and after the event everything downloads as one ZIP.
 
 ## Contents
@@ -184,7 +184,8 @@ API endpoints:
 | `/api/s/<id>` | GET | Submission status, for the result page |
 | `/api/s/<id>/file/<kind>` | GET | Poster, cover or MP3. Add `?download` to download |
 | `/api/screen` | GET | Posters allowed on the hall screen |
-| `/api/celebrant` | GET | Celebrant name and event details |
+| `/api/celebrant` | GET | Celebrant name, event details, whether songs are on |
+| `/api/health` | GET | Disk, memory and queue status, for checking a deploy |
 | `/api/admin/submissions` | GET | All submissions, for the dashboard |
 | `/api/admin/submissions/<id>/regenerate` | POST | Rerun a stage |
 | `/api/admin/submissions/<id>/song` | POST | Upload an MP3 |
@@ -285,7 +286,26 @@ An automatic music provider returns `{ kind: "audio", mp3 }` instead of `{ kind:
 
 ---
 
+## Image styles
+
+The guest picks one of six styles. Each style has an art brief (`src/lib/prompts/styles.ts`) that tells the model the look and which areas of the frame to keep calm, and a layout in `src/lib/compose/poster.ts` that draws the Hebrew text into those areas.
+
+| Key | Style | Layout drawn by our code |
+| --- | --- | --- |
+| `movie` | 🎬 Movie poster | Title on top, blessing at the bottom |
+| `animation` | ✨ 3D animated film | Same as movie |
+| `comic` | 💥 Superhero comic | Yellow title with an ink outline, blessing at the bottom |
+| `magazine` | 📰 Magazine cover | Masthead, three cover lines on the right, short blessing at the bottom |
+| `card` | ⚽ Player card | Gold frame, "13" badge, name plate, 4 stats (80–99) and a short blessing |
+| `toy` | 📦 Action figure in a box | Same as movie, on the box's header card and backing |
+
+To add a style: add it to `IMAGE_STYLES` in `src/lib/types.ts` and to `STYLE_BRIEFS`; if it needs its own text layout, add a function to `compose/poster.ts`.
+
+---
+
 ## Songs and Suno
+
+Songs are **off by default**. Turn them on in `/admin` with "allow guests to choose a song". When off, the guest only sees the image styles, and the server ignores any song request.
 
 The system does not write lyrics. It prepares a short **song description** in English, with names kept in Hebrew, based on the guest's answers on the "tell us about you" step: what they do together, a shared memory, and what Carmel is best at. Suno writes the lyrics and the music.
 
@@ -378,6 +398,10 @@ flowchart LR
 | Sleep | After 15 minutes idle; the next visit takes about a minute | Always on |
 | Use for | Testing | The event |
 
+After a deploy, open `/api/health` (public, no secrets). It shows whether `/data` is a mounted persistent disk and writable, free disk space, the instance's memory limit and CPUs, the V8 heap limit, and the queue. On a paid instance with a disk, `storage.persistentDisk` must be `true`.
+
+**Resources:** the V8 heap is set at startup to 60% of the instance's memory limit (`docker-entrypoint.sh`), and photo decoding uses all CPUs, so a larger instance is used automatically. A service with a disk runs on a single instance, so scale up (a larger instance), not out. Raise `GENERATION_CONCURRENCY` only as far as the OpenAI tier allows (see Load and limits).
+
 ### Railway (alternative)
 
 1. **New Project → Deploy from GitHub repo**, pick the repo. It builds from the Dockerfile.
@@ -410,7 +434,7 @@ Measured locally in mock mode on one CPU core, with ~250 KB phone-sized photos, 
 | 25 | 1.2 s / 1.6 s | 324 MB | 20 s |
 | 50 | 1.6 s / 2.7 s | 353 MB | 39 s |
 
-- **Web server:** comfortably handles 50 guests submitting at once on a 512 MB instance. Photo decoding is limited to two at a time, and the image includes `MALLOC_ARENA_MAX=2` and a capped V8 heap; without those, 50 guests peaked at 680 MB and would crash a 512 MB instance.
+- **Web server:** comfortably handles 50 guests submitting at once on a 512 MB instance. Photo decoding is limited to two at a time, and the image includes `MALLOC_ARENA_MAX=2` and a V8 heap sized to the instance; without those, 50 guests peaked at 680 MB and would crash a 512 MB instance.
 - **Generation:** runs in a queue, 3 at a time by default. A real poster takes about a minute, so 50 guests at once means the last one waits about 15–17 minutes. Guests can close the page and come back to their link.
 - **OpenAI is the real bottleneck.** Image limits depend on the account's usage tier: Tier 1 allows 5 images per minute, Tier 2 allows 20, Tier 3 allows 50. A new account starts at Tier 1, so keep `GENERATION_CONCURRENCY` at 3 until the tier goes up. Check it at platform.openai.com under Limits.
 - **Memory:** if the logs show out-of-memory errors, lower `GENERATION_CONCURRENCY` to 2 or use a larger instance.

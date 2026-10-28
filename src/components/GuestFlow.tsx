@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
-import { MUSIC_STYLES, type Experience, type MusicStyle } from "@/lib/types";
+import { IMAGE_STYLES, MUSIC_STYLES, type ImageStyle, type MusicStyle } from "@/lib/types";
 import { resizeImage } from "./resize-image";
 
 type Form = {
@@ -12,7 +12,8 @@ type Form = {
   memory: string;
   talent: string;
   blessing: string;
-  experience: Experience;
+  imageStyle: ImageStyle;
+  withSong: boolean;
   musicStyle: MusicStyle;
   consentScreen: boolean;
 };
@@ -24,6 +25,7 @@ type Step = (typeof STEPS)[number];
 export default function GuestFlow() {
   const router = useRouter();
   const [name, setName] = useState("כרמל");
+  const [songsEnabled, setSongsEnabled] = useState(false);
   const [step, setStep] = useState<Step>("welcome");
   const [form, setForm] = useState<Form>({
     fullName: "",
@@ -32,7 +34,8 @@ export default function GuestFlow() {
     memory: "",
     talent: "",
     blessing: "",
-    experience: "image",
+    imageStyle: "movie",
+    withSong: false,
     musicStyle: "auto",
     consentScreen: true,
   });
@@ -45,7 +48,10 @@ export default function GuestFlow() {
   useEffect(() => {
     fetch("/api/celebrant")
       .then((r) => r.json())
-      .then((d: { celebrantName?: string }) => d.celebrantName && setName(d.celebrantName))
+      .then((d: { celebrantName?: string; songsEnabled?: boolean }) => {
+        if (d.celebrantName) setName(d.celebrantName);
+        setSongsEnabled(Boolean(d.songsEnabled));
+      })
       .catch(() => undefined);
   }, []);
 
@@ -71,7 +77,9 @@ export default function GuestFlow() {
     setError(null);
     try {
       const body = new FormData();
-      for (const [k, v] of Object.entries(form)) body.set(k, String(v));
+      const { withSong, ...fields } = form;
+      for (const [k, v] of Object.entries(fields)) body.set(k, String(v));
+      body.set("experience", songsEnabled && withSong ? "both" : "image");
       body.set("consentPhoto", String(Boolean(photo)));
       if (photo) body.set("photo", await resizeImage(photo), "photo.jpg");
       const res = await fetch("/api/submissions", { method: "POST", body });
@@ -117,7 +125,7 @@ export default function GuestFlow() {
             </div>
             <span className="mx-auto h-0.5 w-14 bg-line" aria-hidden />
             <p className="text-center text-lg leading-relaxed text-muted">
-              כתבו ל{name} ברכה, ספרו זיכרון משותף, וה-AI יהפוך אותה לפוסטר קולנועי או לשיר שנכתב רק בשבילו.
+              כתבו ל{name} ברכה, ספרו זיכרון משותף, וה-AI יהפוך אותה ליצירה בסגנון שתבחרו: פוסטר של סרט, שער מגזין, כרטיס שחקן ועוד{songsEnabled ? ", ואפשר גם שיר" : ""}.
             </p>
             <button type="button" className="btn-primary w-full" onClick={() => go(1)}>
               בואו נתחיל <span aria-hidden>←</span>
@@ -127,7 +135,7 @@ export default function GuestFlow() {
               <ol className="grid grid-cols-3 gap-2.5">
                 {[
                   ["כותבים ברכה", "וזיכרון משותף"],
-                  ["ה-AI יוצר", "פוסטר או שיר"],
+                  ["ה-AI יוצר", songsEnabled ? "תמונה ושיר" : "תמונה בסגנון שבחרתם"],
                   ["מקבלים מזכרת", "מורידים ומשתפים"],
                 ].map(([title, body], i) => (
                   <li key={title} className="card space-y-1 p-3.5">
@@ -174,7 +182,9 @@ export default function GuestFlow() {
             <div>
               <h2 className="font-display text-[2rem] font-bold text-ink">ספרו לנו עליכם</h2>
               <p className="mt-1 text-muted">ככל שתהיו ספציפיים, התוצאה תהיה אישית יותר. מספיק לענות על אחת.</p>
-              <p className="mt-3 rounded-2xl bg-olive-100 px-4 py-3 text-sm text-accent">🎵 אם תבחרו שיר, הוא ייכתב על בסיס התשובות כאן.</p>
+              {songsEnabled && (
+                <p className="mt-3 rounded-2xl bg-olive-100 px-4 py-3 text-sm text-accent">🎵 אם תבחרו גם שיר, הוא ייכתב על בסיס התשובות כאן.</p>
+              )}
             </div>
             <Question label={`מה הכי אוהבים לעשות יחד עם ${name}?`} placeholder="כדורסל בחצר, פיפ״א, טיולים..." value={form.together} max={300} onChange={(v) => set("together", v)} />
             <Question label="זיכרון משותף או סיפור מצחיק" placeholder="הפעם ההיא ש..." value={form.memory} max={600} rows={4} onChange={(v) => set("memory", v)} />
@@ -199,41 +209,47 @@ export default function GuestFlow() {
 
         {step === "experience" && (
           <section className="space-y-6">
-            <h2 className="font-display text-[2rem] font-bold text-ink">מה ניצור?</h2>
-            <div className="grid gap-3">
-              {(
-                [
-                  ["image", "🎬", "פוסטר קולנועי", `את/ה ו${name} בכיכוב סרט שנולד מהברכה`],
-                  ["song", "🎵", "שיר אישי", `שיר שנוצר במיוחד ל${name} מהזיכרונות שלכם`],
-                  ["both", "✨", "גם וגם", "פוסטר ושיר"],
-                ] as const
-              ).map(([value, icon, title, desc]) => (
+            <div>
+              <h2 className="font-display text-[2rem] font-bold text-ink">באיזה סגנון?</h2>
+              <p className="mt-1 text-muted">הסיפור שלכם, בסגנון שתבחרו.</p>
+            </div>
+            <div className="grid grid-cols-2 gap-3">
+              {(Object.entries(IMAGE_STYLES) as [ImageStyle, (typeof IMAGE_STYLES)[ImageStyle]][]).map(([key, style]) => (
                 <button
-                  key={value}
+                  key={key}
                   type="button"
-                  aria-pressed={form.experience === value}
-                  onClick={() => set("experience", value)}
-                  className="card flex items-center gap-4 p-4 text-right transition aria-pressed:border-accent aria-pressed:bg-olive-100"
+                  aria-pressed={form.imageStyle === key}
+                  onClick={() => set("imageStyle", key)}
+                  className="card flex flex-col items-start gap-1.5 p-4 text-right transition aria-pressed:border-accent aria-pressed:bg-olive-100"
                 >
-                  <span className="text-3xl" aria-hidden>{icon}</span>
-                  <span>
-                    <span className="block text-lg font-bold">{title}</span>
-                    <span className="block text-sm text-muted">{desc}</span>
-                  </span>
+                  <span className="text-3xl" aria-hidden>{style.icon}</span>
+                  <span className="block text-base font-bold leading-tight">{style.label}</span>
+                  <span className="block text-sm leading-snug text-muted">{style.hint}</span>
                 </button>
               ))}
             </div>
-            {form.experience !== "image" && (
-              <fieldset>
-                <legend className="mb-3 text-muted">איזה סגנון שיר?</legend>
-                <div className="flex flex-wrap gap-2">
-                  {(Object.entries(MUSIC_STYLES) as [MusicStyle, string][]).map(([key, label]) => (
-                    <button key={key} type="button" className="chip" aria-pressed={form.musicStyle === key} onClick={() => set("musicStyle", key)}>
-                      {label}
-                    </button>
-                  ))}
-                </div>
-              </fieldset>
+            {songsEnabled && (
+              <div className="space-y-4">
+                <label className="card flex items-center gap-4 p-4">
+                  <input type="checkbox" className="size-5 accent-accent" checked={form.withSong} onChange={(e) => set("withSong", e.target.checked)} />
+                  <span>
+                    <span className="block text-lg font-bold">🎵 וגם שיר אישי</span>
+                    <span className="block text-sm text-muted">שיר שנוצר במיוחד ל{name} מהזיכרונות שלכם</span>
+                  </span>
+                </label>
+                {form.withSong && (
+                  <fieldset>
+                    <legend className="mb-3 text-muted">איזה סגנון שיר?</legend>
+                    <div className="flex flex-wrap gap-2">
+                      {(Object.entries(MUSIC_STYLES) as [MusicStyle, string][]).map(([key, label]) => (
+                        <button key={key} type="button" className="chip" aria-pressed={form.musicStyle === key} onClick={() => set("musicStyle", key)}>
+                          {label}
+                        </button>
+                      ))}
+                    </div>
+                  </fieldset>
+                )}
+              </div>
             )}
           </section>
         )}
@@ -242,10 +258,7 @@ export default function GuestFlow() {
           <section className="space-y-5">
             <div>
               <h2 className="font-display text-[2rem] font-bold text-ink">רוצים להופיע בתמונה?</h2>
-              <p className="mt-1 text-muted">
-                {form.experience === "song" ? "התמונה תשמש לעטיפת השיר. " : ""}
-                צלמו סלפי או בחרו תמונה ברורה של הפנים. אפשר גם לדלג.
-              </p>
+              <p className="mt-1 text-muted">צלמו סלפי או בחרו תמונה ברורה של הפנים, ותופיעו ביצירה לצד {name}. אפשר גם לדלג.</p>
             </div>
             {preview ? (
               <div className="relative">

@@ -5,7 +5,7 @@ import { useEffect, useState } from "react";
 import type { PublicSubmission } from "@/lib/views";
 
 const ACTIVE = new Set(["pending", "running"]);
-const MESSAGES = ["קוראים את הברכה שלך...", "מחפשים את הרגע הכי שלכם...", "כותבים תסריט...", "מלהקים את השחקנים...", "מצלמים את הסצנה...", "מוסיפים את הברכה..."];
+const MESSAGES = ["קוראים את הברכה שלך...", "מחפשים את הרגע הכי שלכם...", "כותבים תסריט...", "בוחרים את הסגנון...", "מצלמים את הסצנה...", "מוסיפים את הברכה..."];
 
 export default function ResultView({ publicId }: { publicId: string }) {
   const [data, setData] = useState<PublicSubmission | null>(null);
@@ -57,9 +57,9 @@ export default function ResultView({ publicId }: { publicId: string }) {
               <Actions url={data.image.url} title={data.image.title} />
             </figure>
           ) : imageFailed ? (
-            <Failed what="הפוסטר" />
+            <Failed what="התמונה" />
           ) : (
-            <Spinner text={MESSAGES[tick % MESSAGES.length]} sub="פוסטר לוקח בערך דקה. אפשר לסגור ולחזור לקישור הזה." />
+            <Spinner text={MESSAGES[tick % MESSAGES.length]} sub="תמונה לוקחת בערך דקה. אפשר לסגור ולחזור לקישור הזה." />
           )}
         </section>
       )}

@@ -9,6 +9,7 @@ const SIZES = { portrait: "1024x1536", square: "1024x1024" } as const;
 const LIKENESS = [
   "Identity is the top priority: every person shown must be clearly recognisable as the person in their reference images.",
   "Keep their exact face shape, eyes, eyebrows, nose, mouth, smile, hair colour, hairstyle, skin tone and age.",
+  "In an illustrated, animated or toy style, translate exactly these features into that style.",
   "Use the references only for identity; pose, outfit, lighting and setting come from the scene below.",
   "Show faces large enough to recognise, never hidden by helmets, masks or heavy shadow.",
 ].join(" ");

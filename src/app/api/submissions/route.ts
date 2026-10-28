@@ -1,6 +1,7 @@
 import { enqueue } from "@/lib/pipeline/queue";
 import { readUpload, UploadError } from "@/lib/images";
 import { jsonError } from "@/lib/http";
+import { getEvent } from "@/lib/storage/event";
 import { createSubmission, saveFile } from "@/lib/storage/submissions";
 import { GuestInputSchema } from "@/lib/types";
 
@@ -20,6 +21,7 @@ export async function POST(request: Request) {
     talent: text("talent"),
     blessing: text("blessing"),
     experience: text("experience"),
+    imageStyle: text("imageStyle") || undefined,
     musicStyle: text("musicStyle") || undefined,
     consentPhoto: text("consentPhoto") === "true",
     consentScreen: text("consentScreen") === "true",
@@ -33,7 +35,9 @@ export async function POST(request: Request) {
     return jsonError(err instanceof UploadError ? err.message : "שגיאה בהעלאת התמונה", 422);
   }
 
-  const submission = await createSubmission(parsed.data);
+  // With songs switched off, every submission is a poster, whatever an old page sent.
+  const input = (await getEvent()).songsEnabled ? parsed.data : { ...parsed.data, experience: "image" as const };
+  const submission = await createSubmission(input);
   if (photo) await saveFile(submission.id, "photo", "uploads", ".jpg", photo);
   enqueue(submission.id);
   return Response.json({ publicId: submission.publicId }, { status: 201 });

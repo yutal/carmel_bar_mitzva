@@ -61,9 +61,13 @@ async function runImage(id: string, event: EventSettings): Promise<void> {
   const art = await providers.image.generate({ prompt: s.imageConcept!.imagePrompt, references, size: "portrait", celebrantLook: event.celebrantLook });
   await saveFile(id, "imageRaw", "images", "_raw.png", art);
 
+  const concept = s.imageConcept!;
   const poster = await composePoster(art, {
-    title: s.imageConcept!.titleHebrew,
-    tagline: s.imageConcept!.taglineHebrew,
+    style: s.input.imageStyle ?? "movie",
+    title: concept.titleHebrew,
+    tagline: concept.taglineHebrew,
+    coverLines: concept.coverLines ?? [],
+    stats: concept.stats ?? [],
     blessing: s.input.blessing,
     sender: `${s.input.fullName}, ${s.input.relationship}`,
     footer: [event.footer, event.eventDate].filter(Boolean).join(" · "),

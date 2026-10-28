@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useState } from "react";
 import type { EventSettings, StageName, StageStatus, Submission } from "@/lib/types";
+import { IMAGE_STYLES } from "@/lib/types";
 
 type Filter = "all" | "failed" | "music" | "hidden";
 const STATUS_LABEL: Record<StageStatus, string> = {
@@ -18,7 +19,7 @@ const STATUS_COLOR: Record<StageStatus, string> = {
   failed: "bg-red-500/20 text-red-200",
   awaiting_music: "bg-olive-100 text-accent",
 };
-const STAGE_LABEL: Record<StageName, string> = { analysis: "ניתוח", image: "פוסטר", song: "שיר" };
+const STAGE_LABEL: Record<StageName, string> = { analysis: "ניתוח", image: "תמונה", song: "שיר" };
 const fileUrl = (rel: string, download = false) => `/api/admin/file?path=${encodeURIComponent(rel)}${download ? "&download" : ""}`;
 
 async function api<T>(url: string, init?: RequestInit): Promise<T> {
@@ -160,6 +161,7 @@ function SubmissionCard({ s, run }: { s: Submission; run: (fn: () => Promise<unk
       </div>
 
       <p className="line-clamp-3 text-sm text-muted">&quot;{s.input.blessing}&quot;</p>
+      <p className="text-xs text-muted">{IMAGE_STYLES[s.input.imageStyle ?? "movie"].icon} {IMAGE_STYLES[s.input.imageStyle ?? "movie"].label}</p>
       {s.imageConcept && <p className="text-sm"><b className="text-accent">{s.imageConcept.titleHebrew}</b> · {s.imageConcept.rationale}</p>}
       {Object.values(s.stages).map((st, i) => st?.error && <p key={i} className="text-xs text-red-300">{st.error}</p>)}
 
@@ -173,8 +175,8 @@ function SubmissionCard({ s, run }: { s: Submission; run: (fn: () => Promise<unk
       <details className="text-sm">
         <summary className="cursor-pointer text-accent">יצירה מחדש</summary>
         <div className="mt-2 flex flex-wrap gap-2">
-          {s.stages.image && <button type="button" className="btn-ghost min-h-9 px-3" onClick={() => regen("image", false)}>פוסטר, אותו רעיון</button>}
-          {s.stages.image && <button type="button" className="btn-ghost min-h-9 px-3" onClick={() => regen("image", true)}>פוסטר, רעיון חדש</button>}
+          {s.stages.image && <button type="button" className="btn-ghost min-h-9 px-3" onClick={() => regen("image", false)}>תמונה, אותו רעיון</button>}
+          {s.stages.image && <button type="button" className="btn-ghost min-h-9 px-3" onClick={() => regen("image", true)}>תמונה, רעיון חדש</button>}
           {s.stages.song && <button type="button" className="btn-ghost min-h-9 px-3" onClick={() => regen("song", true)}>תיאור שיר חדש</button>}
           <button type="button" className="btn-ghost min-h-9 px-3" onClick={() => regen("analysis", true)}>הכל מההתחלה</button>
         </div>
@@ -205,7 +207,7 @@ function EventForm({ onSaved }: { onSaved: () => void }) {
     void api<EventSettings>("/api/admin/event").then(setEv);
   }, []);
   if (!ev) return <section className="card p-5" />;
-  const field = (key: keyof EventSettings, label: string) => (
+  const field = (key: "celebrantName" | "eventTitle" | "eventDate" | "footer", label: string) => (
     <label className="block space-y-1">
       <span className="text-sm text-muted">{label}</span>
       <input className="field py-2.5 text-base" value={ev[key]} onChange={(e) => setEv({ ...ev, [key]: e.target.value })} />
@@ -223,10 +225,14 @@ function EventForm({ onSaved }: { onSaved: () => void }) {
       <h2 className="text-xl font-bold">פרטי האירוע</h2>
       {field("celebrantName", "שם החוגג")}
       {field("eventTitle", "כותרת האירוע")}
-      {field("eventDate", "תאריך (כפי שיופיע על הפוסטר)")}
-      {field("footer", "שורת תחתית בפוסטר")}
+      {field("eventDate", "תאריך (כפי שיופיע על התמונה)")}
+      {field("footer", "שורת תחתית בתמונה")}
+      <label className="flex items-center gap-3">
+        <input type="checkbox" className="size-5 accent-accent" checked={ev.songsEnabled} onChange={(e) => setEv({ ...ev, songsEnabled: e.target.checked })} />
+        <span>לאפשר לאורחים לבחור שיר (כבוי: רק תמונה)</span>
+      </label>
       <label className="block space-y-1">
-        <span className="text-sm text-muted">איך {ev.celebrantName} נראה (נכנס לכל פוסטר כדי לשמור על הדמיון)</span>
+        <span className="text-sm text-muted">איך {ev.celebrantName} נראה (נכנס לכל תמונה כדי לשמור על הדמיון)</span>
         <textarea
           className="field py-2.5 text-base"
           rows={3}

@@ -16,12 +16,23 @@ export const mockLlm: LlmProvider = {
       isAppropriate: true,
     };
   },
-  async imageConcept() {
+  async imageConcept(input) {
+    const style = input.imageStyle ?? "movie";
     return {
       genre: "sports drama",
       rationale: "מבוסס על משחקי הכדורסל שלכם, שבהם כרמל תמיד מנצח.",
       titleHebrew: "הגמר של כרמל",
       taglineHebrew: "יש אגדות שנולדות על המגרש",
+      coverLines: style === "magazine" ? ["הסוד מאחורי הזריקה המושלמת", "למה אף אחד לא מנצח אותו", "החברים מספרים הכול"] : [],
+      stats:
+        style === "card"
+          ? [
+              { label: "זריקות לסל", value: 97 },
+              { label: "צחוק", value: 94 },
+              { label: "חברות", value: 99 },
+              { label: "התמדה", value: 91 },
+            ]
+          : [],
       imagePrompt: "mock",
     };
   },

@@ -3,6 +3,18 @@ import { z } from "zod";
 export const EXPERIENCES = ["image", "song", "both"] as const;
 export type Experience = (typeof EXPERIENCES)[number];
 
+/** Image styles a guest can pick. Art direction for each lives in prompts/styles.ts. */
+export const IMAGE_STYLES = {
+  movie: { icon: "🎬", label: "פוסטר קולנועי", hint: "אתם בכיכוב סרט שנולד מהסיפור שלכם" },
+  animation: { icon: "✨", label: "סרט אנימציה", hint: "דמויות תלת־ממד, כמו בסרט מצויר" },
+  comic: { icon: "💥", label: "גיבורי־על", hint: "שער של חוברת קומיקס צבעונית" },
+  magazine: { icon: "📰", label: "שער מגזין", hint: "על השער, עם כותרות עליכם" },
+  card: { icon: "⚽", label: "כרטיס שחקן", hint: "כרטיס אספנות עם ציון ותכונות" },
+  toy: { icon: "📦", label: "בובה בקופסה", hint: "בובת אקשן באריזה, עם אביזרים מהסיפור" },
+} as const;
+export type ImageStyle = keyof typeof IMAGE_STYLES;
+const IMAGE_STYLE_KEYS = Object.keys(IMAGE_STYLES) as [ImageStyle, ...ImageStyle[]];
+
 export const MUSIC_STYLES = {
   auto: "תבחר אתה",
   emotional: "מרגש",
@@ -22,6 +34,7 @@ export const GuestInputSchema = z.object({
   talent: z.string().trim().max(300).default(""),
   blessing: z.string().trim().min(5).max(600),
   experience: z.enum(EXPERIENCES),
+  imageStyle: z.enum(IMAGE_STYLE_KEYS).default("movie"),
   musicStyle: z.enum(Object.keys(MUSIC_STYLES) as [MusicStyle, ...MusicStyle[]]).default("auto"),
   consentPhoto: z.boolean(),
   consentScreen: z.boolean(),
@@ -43,10 +56,14 @@ export type Analysis = z.infer<typeof AnalysisSchema>;
 
 /** Stages 2+3 for the image: creative direction and the image prompt. */
 export const ImageConceptSchema = z.object({
-  genre: z.string().describe("Poster genre, e.g. sports drama, superhero, fantasy adventure, space"),
+  genre: z.string().describe("Story genre, e.g. sports drama, superhero, fantasy adventure, space"),
   rationale: z.string().describe("One sentence in Hebrew: which detail of the blessing this concept is built on"),
-  titleHebrew: z.string().describe("Short Hebrew movie title, max 4 words"),
+  titleHebrew: z.string().describe("Short Hebrew title, max 4 words"),
   taglineHebrew: z.string().describe("Short Hebrew tagline, max 8 words"),
+  coverLines: z.array(z.string()).describe("Magazine style only: 3 short Hebrew cover lines, max 5 words each. Empty otherwise"),
+  stats: z
+    .array(z.object({ label: z.string(), value: z.number().int() }))
+    .describe("Player card style only: 4 Hebrew attributes (max 2 words) scored 80-99. Empty otherwise"),
   imagePrompt: z.string().describe("Detailed English prompt for the image model"),
 });
 export type ImageConcept = z.infer<typeof ImageConceptSchema>;
@@ -95,6 +112,8 @@ export type EventSettings = {
   footer: string;
   /** Free-text appearance notes added to every image prompt to keep the likeness. */
   celebrantLook: string;
+  /** Whether guests can ask for a song. Off: posters only. */
+  songsEnabled: boolean;
 };
 
 export const DEFAULT_EVENT: EventSettings = {
@@ -103,4 +122,5 @@ export const DEFAULT_EVENT: EventSettings = {
   eventDate: "",
   footer: "בר המצווה של כרמל",
   celebrantLook: "",
+  songsEnabled: false,
 };

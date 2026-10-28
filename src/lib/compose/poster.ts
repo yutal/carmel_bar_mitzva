@@ -2,10 +2,12 @@ import "server-only";
 import path from "node:path";
 import { GlobalFonts, createCanvas, loadImage, type SKRSContext2D } from "@napi-rs/canvas";
 import { config } from "@/lib/config";
+import type { ImageStyle } from "@/lib/types";
 
 const ACCENT = "#E4E9C6"; // pale olive, readable on the dark band
 const CLAY = "#E9A27E";
 const WHITE = "#FFFFFF";
+const COMIC_YELLOW = "#FFD23F";
 const TITLE_FONT = "Frank Ruhl Libre";
 const BODY_FONT = "Heebo";
 
@@ -73,14 +75,17 @@ function prepare(ctx: SKRSContext2D) {
 }
 
 export type PosterText = {
+  style: ImageStyle;
   title: string;
   tagline: string;
+  coverLines: string[];
+  stats: { label: string; value: number }[];
   blessing: string;
   sender: string;
   footer: string;
 };
 
-/** Final poster: generated art + Hebrew title, original blessing and sender, rendered here (not by the model). */
+/** Final image: generated art + Hebrew text, original blessing and sender, rendered here (not by the model). */
 export async function composePoster(art: Buffer, text: PosterText): Promise<Buffer> {
   loadFonts();
   const img = await loadImage(art);
@@ -88,50 +93,185 @@ export async function composePoster(art: Buffer, text: PosterText): Promise<Buff
   const h = img.height;
   const canvas = createCanvas(w, h);
   const ctx = canvas.getContext("2d");
-  ctx.drawImage(img, 0, 0, w, h);
 
+  if (text.style === "magazine") drawMagazine(ctx, img, w, h, text);
+  else if (text.style === "card") drawCard(ctx, img, w, h, text);
+  else drawMoviePoster(ctx, img, w, h, text);
+
+  return canvas.toBuffer("image/png");
+}
+
+type Img = Awaited<ReturnType<typeof loadImage>>;
+
+/** Footer, sender and blessing stacked upwards from `bottom`. Returns the top of the blessing. */
+function drawSignOff(ctx: SKRSContext2D, w: number, bottom: number, text: PosterText, maxLines: number, scale = 1): number {
   const cx = w / 2;
-  const textWidth = w * 0.86;
-  shade(ctx, w, 0, h * 0.24, 0.75, 0);
-  shade(ctx, w, h * 0.55, h, 0, 0.92);
-  prepare(ctx);
-
-  // Title + tagline at the top.
-  const title = fit(ctx, { text: text.title, font: (s) => `900 ${s}px "${TITLE_FONT}"`, maxSize: Math.round(w * 0.11), minSize: 48, maxLines: 2 }, textWidth);
-  ctx.fillStyle = ACCENT;
-  ctx.font = `900 ${title.size}px "${TITLE_FONT}"`;
-  const y = drawLines(ctx, title.lines, cx, h * 0.035 + title.size, title.size * 1.05);
-  if (text.tagline) {
-    ctx.fillStyle = WHITE;
-    ctx.font = `500 ${Math.round(w * 0.032)}px "${BODY_FONT}"`;
-    drawLines(ctx, [text.tagline], cx, y + w * 0.025, 0);
-  }
-
-  // Footer, then sender, then the blessing stacked upwards from the bottom.
-  const footerSize = Math.round(w * 0.026);
-  const footerY = h - h * 0.03;
+  const footerSize = Math.round(w * 0.026 * scale);
   ctx.fillStyle = ACCENT;
   ctx.font = `500 ${footerSize}px "${BODY_FONT}"`;
-  ctx.fillText(text.footer, cx, footerY);
-  ctx.fillRect(cx - w * 0.12, footerY - footerSize * 1.6, w * 0.24, 2);
+  ctx.fillText(text.footer, cx, bottom);
+  ctx.fillRect(cx - w * 0.12, bottom - footerSize * 1.6, w * 0.24, 2);
 
-  const senderSize = Math.round(w * 0.034);
-  const senderY = footerY - footerSize * 3;
+  const senderSize = Math.round(w * 0.034 * scale);
+  const senderY = bottom - footerSize * 3;
   ctx.fillStyle = CLAY;
   ctx.font = `700 ${senderSize}px "${BODY_FONT}"`;
   ctx.fillText(text.sender, cx, senderY);
 
   const blessing = fit(
     ctx,
-    { text: `"${text.blessing}"`, font: (s) => `400 ${s}px "${BODY_FONT}"`, maxSize: Math.round(w * 0.044), minSize: 24, maxLines: 7 },
-    textWidth,
+    { text: `"${text.blessing}"`, font: (s) => `400 ${s}px "${BODY_FONT}"`, maxSize: Math.round(w * 0.044 * scale), minSize: 22, maxLines },
+    w * 0.86,
   );
   const lh = blessing.size * 1.38;
+  const top = senderY - senderSize * 1.6 - (blessing.lines.length - 1) * lh;
   ctx.fillStyle = WHITE;
   ctx.font = `400 ${blessing.size}px "${BODY_FONT}"`;
-  drawLines(ctx, blessing.lines, cx, senderY - senderSize * 1.6 - (blessing.lines.length - 1) * lh, lh);
+  drawLines(ctx, blessing.lines, cx, top, lh);
+  return top - blessing.size;
+}
 
-  return canvas.toBuffer("image/png");
+/** Movie, animation, comic and toy box: title on top, blessing at the bottom. */
+function drawMoviePoster(ctx: SKRSContext2D, img: Img, w: number, h: number, text: PosterText) {
+  ctx.drawImage(img, 0, 0, w, h);
+  const cx = w / 2;
+  shade(ctx, w, 0, h * 0.24, 0.75, 0);
+  shade(ctx, w, h * 0.55, h, 0, 0.92);
+  prepare(ctx);
+
+  const comic = text.style === "comic";
+  const title = fit(ctx, { text: text.title, font: (s) => `900 ${s}px "${TITLE_FONT}"`, maxSize: Math.round(w * 0.11), minSize: 48, maxLines: 2 }, w * 0.86);
+  ctx.font = `900 ${title.size}px "${TITLE_FONT}"`;
+  const titleY = h * 0.035 + title.size;
+  if (comic) {
+    // Comic masthead: yellow letters with a heavy ink outline.
+    ctx.lineJoin = "round";
+    ctx.lineWidth = title.size * 0.14;
+    ctx.strokeStyle = "#1A1A1A";
+    title.lines.forEach((line, i) => ctx.strokeText(line, cx, titleY + i * title.size * 1.05));
+    ctx.fillStyle = COMIC_YELLOW;
+  } else {
+    ctx.fillStyle = ACCENT;
+  }
+  const y = drawLines(ctx, title.lines, cx, titleY, title.size * 1.05);
+  if (text.tagline) {
+    ctx.fillStyle = WHITE;
+    ctx.font = `500 ${Math.round(w * 0.032)}px "${BODY_FONT}"`;
+    drawLines(ctx, [text.tagline], cx, y + w * 0.025, 0);
+  }
+  drawSignOff(ctx, w, h - h * 0.03, text, 7);
+}
+
+/** Magazine cover: masthead, cover lines down the right side, blessing at the bottom. */
+function drawMagazine(ctx: SKRSContext2D, img: Img, w: number, h: number, text: PosterText) {
+  ctx.drawImage(img, 0, 0, w, h);
+  shade(ctx, w, 0, h * 0.2, 0.55, 0);
+  shade(ctx, w, h * 0.66, h, 0, 0.92);
+  prepare(ctx);
+
+  // Masthead: the title, as wide as the cover allows.
+  const mast = fit(ctx, { text: text.title, font: (s) => `900 ${s}px "${TITLE_FONT}"`, maxSize: Math.round(w * 0.16), minSize: 56, maxLines: 1 }, w * 0.92);
+  ctx.fillStyle = WHITE;
+  ctx.font = `900 ${mast.size}px "${TITLE_FONT}"`;
+  ctx.fillText(mast.lines[0], w / 2, h * 0.02 + mast.size * 0.92);
+  ctx.fillStyle = CLAY;
+  ctx.font = `700 ${Math.round(w * 0.026)}px "${BODY_FONT}"`;
+  ctx.fillText(text.tagline, w / 2, h * 0.02 + mast.size * 0.92 + w * 0.045);
+
+  // Cover lines, right-aligned in the right third.
+  ctx.textAlign = "right";
+  const x = w * 0.95;
+  const colWidth = w * 0.36;
+  let y = h * 0.3;
+  for (const [i, line] of text.coverLines.slice(0, 3).entries()) {
+    const size = Math.round(w * (i === 0 ? 0.052 : 0.04));
+    const block = fit(ctx, { text: line, font: (s) => `900 ${s}px "${BODY_FONT}"`, maxSize: size, minSize: 22, maxLines: 3 }, colWidth);
+    ctx.fillStyle = CLAY;
+    ctx.fillRect(x - w * 0.08, y, w * 0.08, Math.max(4, w * 0.006));
+    y += block.size * 1.25;
+    ctx.fillStyle = WHITE;
+    ctx.font = `900 ${block.size}px "${BODY_FONT}"`;
+    y = drawLines(ctx, block.lines, x, y, block.size * 1.12) + h * 0.03;
+  }
+  ctx.textAlign = "center";
+  drawSignOff(ctx, w, h - h * 0.03, text, 4, 0.9);
+}
+
+/** Player card: frame, art window, rating badge, name plate, stats and a short blessing, all drawn here. */
+function drawCard(ctx: SKRSContext2D, img: Img, w: number, h: number, text: PosterText) {
+  const m = w * 0.035;
+  const gold = ctx.createLinearGradient(0, 0, w, h);
+  gold.addColorStop(0, "#F6E3A1");
+  gold.addColorStop(0.45, "#C9A042");
+  gold.addColorStop(0.55, "#E8CB75");
+  gold.addColorStop(1, "#9C7424");
+  ctx.fillStyle = "#1C2010";
+  ctx.fillRect(0, 0, w, h);
+  ctx.fillStyle = gold;
+  ctx.beginPath();
+  ctx.roundRect(0, 0, w, h, w * 0.05);
+  ctx.fill();
+
+  // Art window, inset inside the gold frame.
+  ctx.save();
+  ctx.beginPath();
+  ctx.roundRect(m, m, w - 2 * m, h - 2 * m, w * 0.035);
+  ctx.clip();
+  ctx.drawImage(img, m, m, w - 2 * m, h - 2 * m);
+  shade(ctx, w, h * 0.5, h, 0, 0.96);
+  ctx.restore();
+  prepare(ctx);
+
+  // Rating badge, top right as in a real card.
+  const r = w * 0.085;
+  const bx = w - m - r * 1.25;
+  const by = m + r * 1.25;
+  ctx.fillStyle = gold;
+  ctx.beginPath();
+  ctx.arc(bx, by, r, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.shadowBlur = 0;
+  ctx.fillStyle = "#2B230C";
+  ctx.font = `900 ${Math.round(r * 0.95)}px "${BODY_FONT}"`;
+  ctx.fillText("13", bx, by + r * 0.22);
+  ctx.font = `700 ${Math.round(r * 0.26)}px "${BODY_FONT}"`;
+  ctx.fillText("בר מצווה", bx, by + r * 0.58);
+  prepare(ctx);
+
+  // Name plate.
+  const cx = w / 2;
+  const plateY = h * 0.6;
+  const title = fit(ctx, { text: text.title, font: (s) => `900 ${s}px "${TITLE_FONT}"`, maxSize: Math.round(w * 0.085), minSize: 40, maxLines: 1 }, w * 0.8);
+  ctx.fillStyle = gold;
+  ctx.fillRect(m, plateY - title.size * 0.95, w - 2 * m, title.size * 1.3);
+  ctx.shadowBlur = 0;
+  ctx.fillStyle = "#2B230C";
+  ctx.font = `900 ${title.size}px "${TITLE_FONT}"`;
+  ctx.fillText(title.lines[0], cx, plateY);
+  prepare(ctx);
+
+  // Stats, 2x2, right column first.
+  const stats = text.stats.slice(0, 4);
+  const colX = [w * 0.72, w * 0.28];
+  const valueSize = Math.round(w * 0.06);
+  const labelSize = Math.round(w * 0.03);
+  const rowY = plateY + title.size * 0.35 + valueSize * 1.2;
+  stats.forEach((st, i) => {
+    const x = colX[i % 2];
+    const y = rowY + Math.floor(i / 2) * valueSize * 1.75;
+    ctx.fillStyle = "#F2D480";
+    ctx.font = `900 ${valueSize}px "${BODY_FONT}"`;
+    ctx.fillText(String(st.value), x, y);
+    ctx.fillStyle = WHITE;
+    ctx.font = `500 ${labelSize}px "${BODY_FONT}"`;
+    ctx.fillText(st.label, x, y + labelSize * 1.25);
+  });
+  if (stats.length) {
+    ctx.fillStyle = "rgba(242,212,128,0.6)";
+    ctx.fillRect(cx - 1, rowY - valueSize, 2, valueSize * 1.75 * Math.ceil(stats.length / 2));
+  }
+
+  drawSignOff(ctx, w, h - m - h * 0.022, text, 3, 0.85);
 }
 
 /** Album cover: square art with the song title and dedication. */
