@@ -38,6 +38,8 @@ export const GuestInputSchema = z.object({
   musicStyle: z.enum(Object.keys(MUSIC_STYLES) as [MusicStyle, ...MusicStyle[]]).default("auto"),
   consentPhoto: z.boolean(),
   consentScreen: z.boolean(),
+  /** Opt-in: the finished image and blessing may be used to advertise the station. */
+  consentMarketing: z.boolean().default(false),
 });
 export type GuestInput = z.infer<typeof GuestInputSchema>;
 

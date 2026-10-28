@@ -132,6 +132,8 @@ function renderText(s: Submission): string {
     `תאריך: ${new Date(s.createdAt).toLocaleString("he-IL", { timeZone: "Asia/Jerusalem" })}`,
     `חוויה: ${{ image: "תמונה", song: "שיר", both: "תמונה ושיר" }[input.experience]}`,
     `סגנון: ${IMAGE_STYLES[input.imageStyle ?? "movie"].label}`,
+    `הסכמה למסך באולם: ${input.consentScreen ? "כן" : "לא"}`,
+    `הסכמה לפרסום ושיווק: ${input.consentMarketing ? "כן" : "לא"}`,
     "",
     "מה הכי אוהבים לעשות יחד:",
     input.together || "-",

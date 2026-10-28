@@ -192,7 +192,7 @@ API endpoints:
 | `/api/admin/submissions/<id>/visibility` | POST | Hide or show on the hall screen |
 | `/api/admin/celebrant` | GET, POST, DELETE | Photos of Carmel |
 | `/api/admin/event` | GET, PUT | Event details and the description of how Carmel looks |
-| `/api/admin/export` | GET | ZIP of everything. Add `?uploads=1` to include guest photos |
+| `/api/admin/export` | GET | ZIP of everything. Add `?uploads=1` to include guest photos, or `?marketing=1` for only the images of guests who allowed marketing use |
 
 ---
 
@@ -459,6 +459,7 @@ Logs are in the Render dashboard, on the service's **Logs** tab. **Events** show
 ## Privacy and security
 
 - A guest photo is sent to OpenAI only if the guest uploaded it after the consent notice. Metadata, including GPS location, is removed before saving.
+- Marketing use is a separate opt-in checkbox, unchecked by default. `/admin` filters these submissions and exports them as their own ZIP.
 - A poster appears on the hall screen only with the guest's consent, and any poster can be hidden from `/admin`. Inappropriate content is hidden automatically.
 - Guests' original photos are deleted automatically after `GUEST_PHOTO_RETENTION_DAYS` (default 7). The check runs at start-up and every hour; the posters made from them are kept.
 - The export leaves out guest photos unless `?uploads=1` is added.

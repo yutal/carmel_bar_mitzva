@@ -25,6 +25,7 @@ export async function POST(request: Request) {
     musicStyle: text("musicStyle") || undefined,
     consentPhoto: text("consentPhoto") === "true",
     consentScreen: text("consentScreen") === "true",
+    consentMarketing: text("consentMarketing") === "true",
   });
   if (!parsed.success) return jsonError("חסרים פרטים בטופס", 422);
 

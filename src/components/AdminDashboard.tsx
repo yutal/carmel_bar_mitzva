@@ -4,7 +4,7 @@ import { useCallback, useEffect, useState } from "react";
 import type { EventSettings, StageName, StageStatus, Submission } from "@/lib/types";
 import { IMAGE_STYLES } from "@/lib/types";
 
-type Filter = "all" | "failed" | "music" | "hidden";
+type Filter = "all" | "failed" | "music" | "hidden" | "marketing";
 const STATUS_LABEL: Record<StageStatus, string> = {
   pending: "ממתין",
   running: "רץ",
@@ -69,11 +69,13 @@ export default function AdminDashboard() {
     if (filter === "failed") return Object.values(s.stages).some((st) => st?.status === "failed");
     if (filter === "music") return s.stages.song?.status === "awaiting_music";
     if (filter === "hidden") return s.hidden || !s.input.consentScreen;
+    if (filter === "marketing") return Boolean(s.input.consentMarketing);
     return true;
   });
   const count = (f: Filter) => (f === "all" ? subs.length : subs.filter((s) => {
     if (f === "failed") return Object.values(s.stages).some((st) => st?.status === "failed");
     if (f === "music") return s.stages.song?.status === "awaiting_music";
+    if (f === "marketing") return Boolean(s.input.consentMarketing);
     return s.hidden || !s.input.consentScreen;
   }).length);
 
@@ -87,6 +89,7 @@ export default function AdminDashboard() {
         <div className="flex flex-wrap gap-2">
           <a className="btn-ghost" href="/screen" target="_blank">מסך אולם ↗</a>
           <a className="btn-primary" href="/api/admin/export">⬇️ ייצוא אלבום (ZIP)</a>
+          <a className="btn-ghost" href="/api/admin/export?marketing=1">⬇️ מאושרים לשיווק (ZIP)</a>
         </div>
       </header>
 
@@ -97,9 +100,9 @@ export default function AdminDashboard() {
 
       <section className="space-y-4">
         <div className="flex flex-wrap gap-2">
-          {(["all", "failed", "music", "hidden"] as const).map((f) => (
+          {(["all", "failed", "music", "hidden", "marketing"] as const).map((f) => (
             <button key={f} type="button" className="chip" aria-pressed={filter === f} onClick={() => setFilter(f)}>
-              {{ all: "הכל", failed: "נכשלו", music: "שירים להקלטה", hidden: "מוסתרים מהמסך" }[f]} ({count(f)})
+              {{ all: "הכל", failed: "נכשלו", music: "שירים להקלטה", hidden: "מוסתרים מהמסך", marketing: "מאושרים לשיווק" }[f]} ({count(f)})
             </button>
           ))}
         </div>
@@ -155,6 +158,7 @@ function SubmissionCard({ s, run }: { s: Submission; run: (fn: () => Promise<unk
                 {STAGE_LABEL[name]}: {STATUS_LABEL[st.status]}
               </span>
             ))}
+            {s.input.consentMarketing && <span className="rounded-full bg-olive-100 px-2 py-0.5 text-xs text-accent">מאושר לשיווק</span>}
             {(s.hidden || !s.input.consentScreen) && <span className="rounded-full bg-olive-100 px-2 py-0.5 text-xs text-muted">לא במסך</span>}
           </div>
         </div>

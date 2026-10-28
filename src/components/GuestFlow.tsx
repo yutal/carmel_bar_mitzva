@@ -16,6 +16,7 @@ type Form = {
   withSong: boolean;
   musicStyle: MusicStyle;
   consentScreen: boolean;
+  consentMarketing: boolean;
 };
 
 const RELATIONSHIPS = ["משפחה", "חבר מהכיתה", "חבר מהחוג", "חברים של ההורים", "שכנים"];
@@ -38,6 +39,7 @@ export default function GuestFlow() {
     withSong: false,
     musicStyle: "auto",
     consentScreen: true,
+    consentMarketing: false,
   });
   const [photo, setPhoto] = useState<File | null>(null);
   const [submitting, setSubmitting] = useState(false);
@@ -282,6 +284,10 @@ export default function GuestFlow() {
             <label className="flex items-start gap-3 text-muted">
               <input type="checkbox" className="mt-1 size-5 accent-accent" checked={form.consentScreen} onChange={(e) => set("consentScreen", e.target.checked)} />
               <span>אפשר להציג את היצירה שלי על המסך באולם</span>
+            </label>
+            <label className="flex items-start gap-3 text-muted">
+              <input type="checkbox" className="mt-1 size-5 accent-accent" checked={form.consentMarketing} onChange={(e) => set("consentMarketing", e.target.checked)} />
+              <span>אפשר להשתמש ביצירה שלי (כולל התמונה והברכה) כדוגמה לפרסום ושיווק של עמדת הברכות</span>
             </label>
           </section>
         )}
