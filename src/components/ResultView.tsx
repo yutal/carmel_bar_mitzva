@@ -8,7 +8,7 @@ const ACTIVE = new Set(["pending", "running"]);
 const MESSAGES = ["קוראים את הברכה שלך...", "מחפשים את הרגע הכי שלכם...", "כותבים תסריט...", "בוחרים את הסגנון...", "מצלמים את הסצנה...", "מוסיפים את הברכה..."];
 
 export default function ResultView({ publicId }: { publicId: string }) {
-  const [data, setData] = useState<PublicSubmission | null>(null);
+  const [data, setData] = useState<(PublicSubmission & { remaining: number | null }) | null>(null);
   const [missing, setMissing] = useState(false);
   const [tick, setTick] = useState(0);
 
@@ -20,7 +20,7 @@ export default function ResultView({ publicId }: { publicId: string }) {
       const res = await fetch(`/api/s/${publicId}`, { cache: "no-store" }).catch(() => null);
       if (stop) return;
       if (res?.status === 404) return setMissing(true);
-      if (res?.ok) setData((await res.json()) as PublicSubmission);
+      if (res?.ok) setData((await res.json()) as PublicSubmission & { remaining: number | null });
     }
     void poll();
     if (!busy) return;
@@ -100,7 +100,16 @@ export default function ResultView({ publicId }: { publicId: string }) {
         <footer className="mt-2 text-sm">{data.fullName}, {data.relationship}</footer>
       </blockquote>
 
-      <Link href="/" className="btn-ghost mt-8 w-full">ברכה נוספת</Link>
+      <div className="mt-8 grid gap-3">
+        {data.remaining === 0 ? (
+          <p className="text-center text-sm text-muted">יצרת את כל היצירות האפשריות. תודה שבירכת!</p>
+        ) : (
+          <Link href={`/?again=1&name=${encodeURIComponent(data.fullName)}&rel=${encodeURIComponent(data.relationship)}`} className="btn-primary w-full">
+            ✦ יצירה נוספת{data.remaining === 1 ? " (נשארה עוד אחת)" : data.remaining !== null && ` (נשארו עוד ${data.remaining})`}
+          </Link>
+        )}
+        <Link href="/" className="btn-ghost w-full">לעמוד הבית</Link>
+      </div>
     </Shell>
   );
 }

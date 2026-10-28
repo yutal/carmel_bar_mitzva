@@ -16,7 +16,7 @@ const STATUS_COLOR: Record<StageStatus, string> = {
   pending: "bg-olive-100 text-muted",
   running: "bg-blue-500/20 text-blue-200",
   done: "bg-emerald-500/20 text-emerald-200",
-  failed: "bg-red-500/20 text-red-200",
+  failed: "bg-red-500/15 text-red-800",
   awaiting_music: "bg-olive-100 text-accent",
 };
 const STAGE_LABEL: Record<StageName, string> = { analysis: "ניתוח", image: "תמונה", song: "שיר" };
@@ -167,7 +167,7 @@ function SubmissionCard({ s, run }: { s: Submission; run: (fn: () => Promise<unk
       <p className="line-clamp-3 text-sm text-muted">&quot;{s.input.blessing}&quot;</p>
       <p className="text-xs text-muted">{IMAGE_STYLES[s.input.imageStyle ?? "movie"].icon} {IMAGE_STYLES[s.input.imageStyle ?? "movie"].label}</p>
       {s.imageConcept && <p className="text-sm"><b className="text-accent">{s.imageConcept.titleHebrew}</b> · {s.imageConcept.rationale}</p>}
-      {Object.values(s.stages).map((st, i) => st?.error && <p key={i} className="text-xs text-red-300">{st.error}</p>)}
+      {Object.values(s.stages).map((st, i) => st?.error && <p key={i} className="text-xs text-red-700">{st.error}</p>)}
 
       <div className="flex flex-wrap gap-2 text-sm">
         {s.files.image && <a className="btn-ghost min-h-9 px-3" href={fileUrl(s.files.image, true)}>PNG</a>}

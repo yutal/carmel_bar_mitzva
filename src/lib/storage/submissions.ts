@@ -1,6 +1,7 @@
 import "server-only";
 import { randomBytes } from "node:crypto";
 import fs from "node:fs/promises";
+import { config } from "@/lib/config";
 import { DIRS, dataPath, ensureDirs, readJson, writeFileAtomic, writeJson } from "./fs";
 import { submissionBaseName } from "./naming";
 import type { GuestInput, StageName, StageState, Submission, SubmissionFiles } from "@/lib/types";
@@ -69,6 +70,20 @@ export async function listSubmissions(): Promise<Submission[]> {
   return items
     .filter((s): s is Submission => Boolean(s))
     .sort((a, b) => b.createdAt.localeCompare(a.createdAt));
+}
+
+/** A guest's name reduced to letters and digits, so "Dana  Cohen" and "dana cohen" count as one person. */
+export function nameKey(name: string): string {
+  return name.normalize("NFKC").toLowerCase().replace(/[^\p{L}\p{N}]+/gu, "");
+}
+
+/** How many more creations this name may make; null when there is no limit. */
+export async function remainingFor(name: string): Promise<number | null> {
+  const max = config.maxCreationsPerGuest;
+  if (!max) return null;
+  const key = nameKey(name);
+  const used = (await listSubmissions()).filter((s) => nameKey(s.input.fullName) === key).length;
+  return Math.max(0, max - used);
 }
 
 export async function findByPublicId(publicId: string): Promise<Submission | undefined> {

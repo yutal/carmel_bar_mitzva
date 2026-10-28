@@ -2,7 +2,8 @@ import { enqueue } from "@/lib/pipeline/queue";
 import { readUpload, UploadError } from "@/lib/images";
 import { jsonError } from "@/lib/http";
 import { getEvent } from "@/lib/storage/event";
-import { createSubmission, saveFile } from "@/lib/storage/submissions";
+import { config } from "@/lib/config";
+import { createSubmission, remainingFor, saveFile } from "@/lib/storage/submissions";
 import { GuestInputSchema } from "@/lib/types";
 
 export async function POST(request: Request) {
@@ -28,6 +29,9 @@ export async function POST(request: Request) {
     consentMarketing: text("consentMarketing") === "true",
   });
   if (!parsed.success) return jsonError("חסרים פרטים בטופס", 422);
+  if ((await remainingFor(parsed.data.fullName)) === 0) {
+    return jsonError(`כבר יצרת ${config.maxCreationsPerGuest} יצירות, וזה המקסימום לאורח. תודה שבירכת!`, 429);
+  }
 
   let photo: Buffer | undefined;
   try {

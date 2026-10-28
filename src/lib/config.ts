@@ -11,6 +11,7 @@ const EnvSchema = z.object({
   IMAGE_QUALITY: z.enum(["low", "medium", "high"]).default("medium"),
   GENERATION_CONCURRENCY: z.coerce.number().int().min(1).max(10).default(3),
   GUEST_PHOTO_RETENTION_DAYS: z.coerce.number().min(0).default(7),
+  MAX_CREATIONS_PER_GUEST: z.coerce.number().int().min(0).default(3),
 });
 
 const env = EnvSchema.parse(process.env);
@@ -25,6 +26,8 @@ export const config = {
   concurrency: env.GENERATION_CONCURRENCY,
   /** Days to keep guests' original photos; 0 keeps them forever. */
   guestPhotoRetentionDays: env.GUEST_PHOTO_RETENTION_DAYS,
+  /** Creations one guest (by name) may make; 0 means no limit. */
+  maxCreationsPerGuest: env.MAX_CREATIONS_PER_GUEST,
   fontsDir: path.resolve(process.cwd(), "assets/fonts"),
 } as const;
 

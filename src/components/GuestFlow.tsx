@@ -23,14 +23,14 @@ const RELATIONSHIPS = ["משפחה", "חבר מהכיתה", "חבר מהחוג",
 const STEPS = ["welcome", "who", "story", "blessing", "experience", "photo"] as const;
 type Step = (typeof STEPS)[number];
 
-export default function GuestFlow() {
+export default function GuestFlow({ again }: { again?: { fullName: string; relationship: string } }) {
   const router = useRouter();
   const [name, setName] = useState("כרמל");
   const [songsEnabled, setSongsEnabled] = useState(false);
-  const [step, setStep] = useState<Step>("welcome");
+  const [step, setStep] = useState<Step>(again ? "who" : "welcome");
   const [form, setForm] = useState<Form>({
-    fullName: "",
-    relationship: "",
+    fullName: again?.fullName ?? "",
+    relationship: again?.relationship ?? "",
     together: "",
     memory: "",
     talent: "",
@@ -65,6 +65,27 @@ export default function GuestFlow() {
     window.scrollTo({ top: 0, behavior: "smooth" });
   };
 
+  const [checking, setChecking] = useState(false);
+  /** Leaving the "who" step checks the per-guest limit, so nobody fills in everything only to be refused. */
+  async function next() {
+    if (step === "who") {
+      setChecking(true);
+      try {
+        const res = await fetch(`/api/quota?name=${encodeURIComponent(form.fullName.trim())}`, { cache: "no-store" });
+        const q = (await res.json()) as { max: number | null; remaining: number | null };
+        if (q.remaining === 0) {
+          setError(`כבר יצרת ${q.max} יצירות, וזה המקסימום לאורח. תודה שבירכת!`);
+          return;
+        }
+      } catch {
+        // If the check fails, the server still enforces the limit on submit.
+      } finally {
+        setChecking(false);
+      }
+    }
+    go(1);
+  }
+
   const canContinue: Record<Step, boolean> = {
     welcome: true,
     who: form.fullName.trim().length >= 2 && form.relationship.trim().length > 0,
@@ -87,7 +108,8 @@ export default function GuestFlow() {
       const res = await fetch("/api/submissions", { method: "POST", body });
       const data = (await res.json()) as { publicId?: string; error?: string };
       if (!res.ok || !data.publicId) throw new Error(data.error ?? "משהו השתבש");
-      router.push(`/r/${data.publicId}`);
+      // Replace, so the back button cannot return to a filled form and send it again.
+      router.replace(`/r/${data.publicId}`);
     } catch (err) {
       setError(err instanceof Error ? err.message : "משהו השתבש, נסו שוב");
       setSubmitting(false);
@@ -293,7 +315,7 @@ export default function GuestFlow() {
         )}
       </div>
 
-      {error && <p role="alert" className="mt-4 rounded-2xl bg-red-500/15 p-3 text-red-200">{error}</p>}
+      {error && <p role="alert" className="mt-4 rounded-2xl bg-red-500/10 p-3 text-red-800">{error}</p>}
 
       {step !== "welcome" && (
         <footer className="sticky bottom-0 -mx-5 mt-8 bg-gradient-to-t from-canvas via-canvas/95 to-transparent px-5 pb-4 pt-6">
@@ -302,7 +324,7 @@ export default function GuestFlow() {
               {submitting ? "שולחים..." : "צור לי ✦"}
             </button>
           ) : (
-            <button type="button" className="btn-primary w-full" disabled={!canContinue[step]} onClick={() => go(1)}>
+            <button type="button" className="btn-primary w-full" disabled={!canContinue[step] || checking} onClick={next}>
               המשך
             </button>
           )}

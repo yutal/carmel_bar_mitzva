@@ -185,6 +185,7 @@ API endpoints:
 | `/api/s/<id>/file/<kind>` | GET | Poster, cover or MP3. Add `?download` to download |
 | `/api/screen` | GET | Posters allowed on the hall screen |
 | `/api/celebrant` | GET | Celebrant name, event details, whether songs are on |
+| `/api/quota?name=` | GET | How many creations a guest name has left |
 | `/api/health` | GET | Disk, memory and queue status, for checking a deploy |
 | `/api/admin/submissions` | GET | All submissions, for the dashboard |
 | `/api/admin/submissions/<id>/regenerate` | POST | Rerun a stage |
@@ -459,6 +460,7 @@ Logs are in the Render dashboard, on the service's **Logs** tab. **Events** show
 ## Privacy and security
 
 - A guest photo is sent to OpenAI only if the guest uploaded it after the consent notice. Metadata, including GPS location, is removed before saving.
+- Each guest, matched by name, can make up to `MAX_CREATIONS_PER_GUEST` creations (default 3, 0 = no limit). The form checks this right after the name, and the server enforces it on submit.
 - Marketing use is a separate opt-in checkbox, unchecked by default. `/admin` filters these submissions and exports them as their own ZIP.
 - A poster appears on the hall screen only with the guest's consent, and any poster can be hidden from `/admin`. Inappropriate content is hidden automatically.
 - Guests' original photos are deleted automatically after `GUEST_PHOTO_RETENTION_DAYS` (default 7). The check runs at start-up and every hour; the posters made from them are kept.
