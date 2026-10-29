@@ -5,13 +5,13 @@ import sharp from "sharp";
 import { config } from "@/lib/config";
 import { composeEndCard, composeTitleCard } from "@/lib/compose/poster";
 import { isRtlText, type Lang } from "@/lib/i18n";
-import type { TranscriptSegment } from "@/lib/types";
+import type { TranscriptSegment, TranscriptWord } from "@/lib/types";
 import { run, type MediaInfo } from "./ffmpeg";
 
 // Vertical 720p: what phones play full screen, and light enough for a 1-CPU server.
-const W = 720;
-const H = 1280;
-const FPS = 30;
+export const W = 720;
+export const H = 1280;
+export const FPS = 30;
 const INTRO = 3;
 const OUTRO = 3;
 
@@ -25,6 +25,10 @@ export type ClipRequest = {
   /** Parts of the source to keep, in seconds, in order. */
   ranges: ClipRange[];
   segments: TranscriptSegment[];
+  /** Word times: with them the captions pop in word by word, the word being said lit up. */
+  words?: TranscriptWord[];
+  /** Names to colour whenever they are said, such as the celebrant's. */
+  highlight?: string[];
   poster?: Buffer;
   /** Shown on the opening card when there is no poster. */
   title: string;
@@ -37,7 +41,7 @@ export type ClipRequest = {
 };
 
 /** Poster blurred to fill the frame, or the site's olive gradient when there is no poster. */
-async function backdrop(poster: Buffer | undefined, w: number, h: number): Promise<Buffer> {
+export async function backdrop(poster: Buffer | undefined, w: number, h: number): Promise<Buffer> {
   if (!poster) {
     const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="${w}" height="${h}"><defs><linearGradient id="g" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#2d331c"/><stop offset="1" stop-color="#5e6a3a"/></linearGradient></defs><rect width="100%" height="100%" fill="url(#g)"/></svg>`;
     return sharp(Buffer.from(svg)).png().toBuffer();
@@ -45,7 +49,7 @@ async function backdrop(poster: Buffer | undefined, w: number, h: number): Promi
   return sharp(poster).resize(w, h, { fit: "cover" }).blur(40).modulate({ brightness: 0.55 }).png().toBuffer();
 }
 
-async function framed(bg: Buffer, poster: Buffer | undefined, box: { w: number; h: number; top?: number }): Promise<Buffer> {
+export async function framed(bg: Buffer, poster: Buffer | undefined, box: { w: number; h: number; top?: number }): Promise<Buffer> {
   if (!poster) return bg;
   const fg = await sharp(poster).resize(box.w, box.h, { fit: "inside" }).png().toBuffer();
   const meta = await sharp(fg).metadata();
@@ -54,7 +58,7 @@ async function framed(bg: Buffer, poster: Buffer | undefined, box: { w: number; 
   return sharp(bg).composite([{ input: fg, left: Math.round((width - meta.width!) / 2), top }]).png().toBuffer();
 }
 
-function assTime(t: number): string {
+export function assTime(t: number): string {
   const cs = Math.max(0, Math.round(t * 100));
   const h = Math.floor(cs / 360000);
   const m = Math.floor((cs % 360000) / 6000);
@@ -84,14 +88,78 @@ function captions(text: string, start: number, end: number, maxChars = 34): { st
   });
 }
 
+const GOLD = "&H004AD5FF&";
+const assEscape = (s: string) => s.replace(/[{}\\]/g, "").replace(/\n/g, " ");
+
+/** True when a spoken word is one of the names, also with a Hebrew prefix letter such as ל or ו. */
+export function isName(word: string, names: string[]): boolean {
+  const w = word.replace(/[^\p{L}]/gu, "").toLowerCase();
+  return names.some((n) => {
+    const name = n.replace(/[^\p{L}]/gu, "").toLowerCase();
+    return Boolean(name) && (w === name || (w.length === name.length + 1 && w.endsWith(name)));
+  });
+}
+
+/** Up to three words that are said together, split at pauses and at the end of a sentence. */
+function wordGroups(words: TranscriptWord[]): TranscriptWord[][] {
+  const groups: TranscriptWord[][] = [];
+  let cur: TranscriptWord[] = [];
+  for (const w of words) {
+    const prev = cur.at(-1);
+    const chars = cur.reduce((n, x) => n + x.word.length + 1, 0) + w.word.length;
+    if (prev && (cur.length >= 3 || chars > 20 || w.start - prev.end > 0.35 || /[.!?,]$/.test(prev.word))) {
+      groups.push(cur);
+      cur = [];
+    }
+    cur.push(w);
+  }
+  if (cur.length) groups.push(cur);
+  return groups;
+}
+
+/**
+ * Captions in the style of short-form video: a few words at a time, popping in as they are said,
+ * the word being said in gold and larger, names always in gold.
+ */
+function kineticEvents(req: ClipRequest): string[] {
+  const events: string[] = [];
+  const names = req.highlight ?? [];
+  let offset = INTRO;
+  for (const r of req.ranges) {
+    const inRange = req.words!.filter((w) => w.start >= r.start - 0.05 && w.end <= r.end + 0.05);
+    const groups = wordGroups(inRange);
+    groups.forEach((g, gi) => {
+      const groupEnd = Math.min(g.at(-1)!.end + 0.25, groups[gi + 1]?.[0].start ?? Infinity, r.end);
+      g.forEach((w, k) => {
+        const start = offset + w.start - r.start;
+        const end = offset + (k === g.length - 1 ? groupEnd : g[k + 1].start) - r.start;
+        if (end - start < 0.04) return;
+        const pop = k === 0 ? "{\\fscx80\\fscy80\\t(0,110,\\fscx100\\fscy100)}" : "";
+        const text = g
+          .map((x, j) => {
+            const word = assEscape(x.word);
+            if (j === k) return `{\\c${GOLD}\\fscx112\\fscy112}${word}{\\r}`;
+            if (isName(x.word, names)) return `{\\c${GOLD}}${word}{\\r}`;
+            return word;
+          })
+          .join(" ");
+        const rtl = isRtlText(g.map((x) => x.word).join(" "));
+        events.push(`Dialogue: 0,${assTime(start)},${assTime(end)},Kinetic,,0,0,0,,${pop}${rtl ? "\u200F" : ""}${text}${rtl ? "\u200F" : ""}`);
+      });
+    });
+    offset += r.end - r.start;
+  }
+  return events;
+}
+
 /**
  * Hebrew subtitles on the clip's own timeline. libass + fribidi lay them out right to left;
  * Encoding -1 asks libass for the Unicode base direction (RTL here) instead of forcing LTR.
  */
 function subtitles(req: ClipRequest, marginV: number): string {
-  const events: string[] = [];
+  const events: string[] = req.words?.length ? kineticEvents(req) : [];
   let offset = INTRO;
-  for (const r of req.ranges) {
+  for (const r of events.length ? [] : req.ranges) {
     for (const seg of req.segments) {
       const s = Math.max(seg.start, r.start);
       const e = Math.min(seg.end, r.end);
@@ -116,6 +184,7 @@ function subtitles(req: ClipRequest, marginV: number): string {
     "[V4+ Styles]",
     "Format: Name, Fontname, Fontsize, PrimaryColour, SecondaryColour, OutlineColour, BackColour, Bold, Italic, Underline, StrikeOut, ScaleX, ScaleY, Spacing, Angle, BorderStyle, Outline, Shadow, Alignment, MarginL, MarginR, MarginV, Encoding",
     `Style: Main,Heebo,50,&H00FFFFFF,&H00FFFFFF,&H00141C18,&H80000000,-1,0,0,0,100,100,0,0,1,3,1,2,50,50,${marginV},-1`,
+    `Style: Kinetic,Heebo,66,&H00FFFFFF,&H00FFFFFF,&H00141C18,&H90000000,-1,0,0,0,100,100,0,0,1,4,2,2,40,40,${marginV},-1`,
     "",
     "[Events]",
     "Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text",
@@ -124,7 +193,7 @@ function subtitles(req: ClipRequest, marginV: number): string {
   ].join("\n");
 }
 
-const AUDIO_FMT = "aresample=48000,aformat=sample_fmts=fltp:channel_layouts=stereo";
+export const AUDIO_FMT = "aresample=48000,aformat=sample_fmts=fltp:channel_layouts=stereo";
 const silence = (seconds: number, label: string) => `anullsrc=r=48000:cl=stereo,atrim=0:${seconds.toFixed(3)},aformat=sample_fmts=fltp[${label}]`;
 
 /**

@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
+import type { ChoirState } from "@/lib/lab/choir";
 import type { LabJob } from "@/lib/lab/jobs";
 import type { Submission } from "@/lib/types";
 
@@ -86,6 +87,8 @@ export default function MediaLab() {
         <NewJob posters={posters} onCreated={load} notify={notify} />
         <MusicCard music={music} setMusic={setMusic} notify={notify} />
       </div>
+
+      <ChoirCard jobs={jobs.filter((j) => j.status === "done").length} notify={notify} />
 
       <section className="space-y-4">
         <h2 className="font-display text-2xl font-bold">תוצאות</h2>
@@ -303,6 +306,78 @@ function MusicCard({ music, setMusic, notify }: { music: boolean; setMusic: (v: 
         </label>
       )}
     </div>
+  );
+}
+
+/** The "mazal tov choir": one montage of every recording that says "mazal tov". */
+function ChoirCard({ jobs, notify }: { jobs: number; notify: (m: string) => void }) {
+  const [choir, setChoir] = useState<ChoirState | null>(null);
+  const load = useCallback(async () => {
+    const d = await api<{ choir: ChoirState | null }>("/api/admin/lab/choir").catch(() => null);
+    if (d) setChoir(d.choir);
+  }, []);
+  useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- initial fetch
+    void load();
+  }, [load]);
+  const busy = choir?.status === "pending" || choir?.status === "running";
+  useEffect(() => {
+    if (!busy) return;
+    const t = setInterval(load, 3000);
+    return () => clearInterval(t);
+  }, [busy, load]);
+
+  const start = async () => {
+    try {
+      const d = await api<{ choir: ChoirState }>("/api/admin/lab/choir", { method: "POST" });
+      setChoir(d.choir);
+      if (d.choir.status === "failed") notify(d.choir.error ?? "נכשל");
+    } catch (err) {
+      notify(`שגיאה: ${err instanceof Error ? err.message : err}`);
+    }
+  };
+
+  return (
+    <section className="card grid gap-5 p-5 md:grid-cols-[minmax(0,260px)_1fr]">
+      <div>
+        {choir?.status === "done" && choir.file ? (
+          <div className="mx-auto w-full max-w-[260px] rounded-[2rem] border-8 border-inverse bg-inverse shadow-xl">
+            <video controls playsInline preload="metadata" src={`${fileUrl(choir.file)}&v=${encodeURIComponent(choir.startedAt)}`} className="aspect-[9/16] w-full rounded-[1.4rem] bg-black" />
+          </div>
+        ) : (
+          <div className="flex aspect-[9/16] w-full max-w-[260px] items-center justify-center rounded-[2rem] border border-line bg-olive-100 p-6 text-center">
+            <p className={busy ? "animate-pulse text-muted" : "text-muted"}>{busy ? `${choir?.step}…` : choir?.status === "failed" ? choir.error : "🎤"}</p>
+          </div>
+        )}
+      </div>
+      <div className="space-y-3">
+        <h2 className="font-display text-2xl font-bold">🎤 מקהלת מזל טוב</h2>
+        <p className="text-muted">
+          כל אורח שאמר &quot;מזל טוב&quot; בהקלטה נחתך בדיוק על המילים האלה. הקליפ מחבר את כולם אחד אחרי השני, הולך ומאיץ, ובסוף כל הקולות
+          יחד על פסיפס של כל הפנים. נבנה מההקלטות שכבר במעבדה, בלי קריאות נוספות ל-OpenAI.
+        </p>
+        <div className="flex flex-wrap gap-2">
+          <button type="button" className="btn-primary" disabled={busy || jobs < 2} onClick={start}>
+            {choir ? "✦ בנה מחדש" : "✦ בנה את המקהלה"}
+          </button>
+          {choir?.status === "done" && choir.file && <a className="btn-ghost" href={fileUrl(choir.file, true)}>MP4</a>}
+        </div>
+        {jobs < 2 && <p className="text-sm text-muted">צריך לפחות שתי הקלטות מוכנות במעבדה.</p>}
+        {choir && (choir.included.length > 0 || choir.skipped.length > 0) && (
+          <details className="text-sm">
+            <summary className="cursor-pointer text-accent">
+              {choir.included.length} קולות בפנים{choir.skipped.length ? ` · ${choir.skipped.length} לא נכנסו` : ""}
+              {choir.duration ? ` · ${secs(choir.duration)}` : ""}
+              {choir.buildSeconds ? ` · נבנה ב-${choir.buildSeconds}ש׳` : ""}
+            </summary>
+            <ul className="mt-2 space-y-1 text-muted">
+              {choir.included.map((c) => <li key={c.id}>✓ <bdi>{c.name}</bdi></li>)}
+              {choir.skipped.map((c) => <li key={c.id} className="text-muted/70">✗ <bdi>{c.name}</bdi>: {c.reason}</li>)}
+            </ul>
+          </details>
+        )}
+      </div>
+    </section>
   );
 }
 

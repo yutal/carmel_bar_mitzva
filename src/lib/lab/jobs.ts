@@ -15,7 +15,7 @@ import { DIRS, dataPath, readJson, writeJson } from "@/lib/storage/fs";
 import { getSubmission } from "@/lib/storage/submissions";
 import type { Lang } from "@/lib/i18n";
 import { celebrantNameIn } from "@/lib/prompts";
-import type { ClipPlan, TranscriptSegment } from "@/lib/types";
+import type { ClipPlan, TranscriptSegment, TranscriptWord } from "@/lib/types";
 
 /** Longest upload the lab accepts; guests will be asked for up to a minute. */
 const MAX_SOURCE_SECONDS = 5 * 60;
@@ -37,6 +37,8 @@ export type LabJob = {
   input: string;
   source?: { kind: "video" | "audio"; duration: number; width?: number; height?: number };
   transcript?: TranscriptSegment[];
+  /** Word times, when the transcriber gave them. */
+  words?: TranscriptWord[];
   plan?: { titleHebrew: string; quoteHebrew: string; ranges: ClipRange[] };
   clip?: { file: string; duration: number };
   withMusic?: boolean;
@@ -96,6 +98,11 @@ export async function createLabJob(file: File, guestName: string, lang: Lang, po
 export async function deleteLabJob(id: string): Promise<void> {
   if (!(await getLabJob(id))) return;
   await fs.rm(dataPath(DIRS.lab, id), { recursive: true, force: true });
+}
+
+/** Runs other lab work (such as the choir) in the same one-at-a-time line as the clips. */
+export function onLabQueue(task: () => Promise<void>): void {
+  void queue.add(task).catch((err) => console.error("[lab] task crashed", err));
 }
 
 export function enqueueLab(id: string): void {
@@ -164,6 +171,7 @@ async function processJob(id: string): Promise<void> {
     });
 
     let segments: TranscriptSegment[] = [];
+    let words: TranscriptWord[] = [];
     if (info.hasAudio) {
       const audio = path.join(dir, "audio.mp3");
       await timed(id, "extract", "מחלץ את הקול", () =>
@@ -172,9 +180,12 @@ async function processJob(id: string): Promise<void> {
       const lang = job.lang ?? "he";
       const name = celebrantNameIn(event, lang);
       const hint = lang === "en" ? `A Bar Mitzvah blessing for ${name}. Mazal tov, ${name}! ${job.guestName}` : `ברכה לבר המצווה של ${name}. מזל טוב ${name}! ${job.guestName}`;
-      segments = (await timed(id, "transcribe", "מתמלל", () => providers.transcribe.transcribe(audio, hint, lang))).segments;
+      const heard = await timed(id, "transcribe", "מתמלל", () => providers.transcribe.transcribe(audio, hint, lang));
+      segments = heard.segments;
+      words = heard.words ?? [];
       await update(id, (j) => {
         j.transcript = segments;
+        j.words = words.length ? words : undefined;
       });
     }
 
@@ -199,6 +210,8 @@ async function processJob(id: string): Promise<void> {
         info,
         ranges,
         segments,
+        words,
+        highlight: [event.celebrantName, event.celebrantNameEn].filter(Boolean),
         poster,
         title: plan?.titleHebrew ?? "",
         quote: plan?.quoteHebrew ?? "",

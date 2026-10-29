@@ -103,6 +103,9 @@ export type SongConcept = z.infer<typeof SongConceptSchema>;
 /** One timed line of a guest's spoken video or recording, in seconds from the start of the file. */
 export type TranscriptSegment = { start: number; end: number; text: string };
 
+/** One spoken word with its time, for word-by-word captions and for cutting a phrase out of a recording. */
+export type TranscriptWord = { word: string; start: number; end: number };
+
 /** Which spoken lines go into the edited clip. Ranges are inclusive transcript segment indices. */
 export const ClipPlanSchema = z.object({
   titleHebrew: z.string().describe("Short clip title in the language spoken, max 5 words"),

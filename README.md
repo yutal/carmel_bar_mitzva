@@ -216,6 +216,7 @@ API endpoints:
 | `/api/admin/celebrant` | GET, POST, DELETE | Photos of Carmel |
 | `/api/admin/event` | GET, PUT | Event details and the description of how Carmel looks |
 | `/api/admin/status` | GET, PUT | Event snapshot: creations, failures, queue, OpenAI spend and balance. PUT `{ "amountUsd": 50 }` records the current OpenAI balance |
+| `/api/admin/lab/choir` | GET, POST | The mazal tov choir: status, or build it from the lab's recordings |
 | `/api/admin/export/pdf` | GET | Album to print: a cover, then one A4 page per guest with the poster and the full blessing, oldest first. Hidden-as-inappropriate submissions are left out |
 | `/api/admin/export` | GET | ZIP of everything. Add `?uploads=1` to include guest photos, or `?marketing=1` for only the images of guests who allowed marketing use |
 
@@ -370,17 +371,28 @@ This can be done in the days after the event.
 `/admin/lab` (admin only) runs the pipeline a guest's video or voice blessing would go through, so it can be tried before it is offered to guests.
 
 1. Upload a video or audio file (up to 5 minutes, 200MB), or record up to a minute in the browser.
-2. ffmpeg extracts the voice; `whisper-1` transcribes it in Hebrew with timestamps per sentence.
+2. ffmpeg extracts the voice; `whisper-1` transcribes it in Hebrew with timestamps per sentence and per word. A recording made in the browser (Chrome writes webm without a length) gets its length from the last audio packet.
 3. `gpt-5.5` picks 1 to 3 runs of whole sentences, in their original order, up to 30 seconds, and the strongest line as a quote (`CLIP_PLAN_SYSTEM` in `src/lib/prompts/index.ts`).
 4. ffmpeg edits a vertical 720×1280 clip (`src/lib/media/clip.ts`):
    - a 3-second opening with a slow push-in on the guest's poster, or a title card when there is none;
-   - the chosen parts with Hebrew captions (libass + fribidi; landscape video sits over a blurred copy of itself; voice-only shows the poster and a live waveform);
+   - the chosen parts with captions in the style of short-form video: two or three words at a time, popping in as they are said, the word being said in gold and the celebrant's name always in gold (libass + fribidi; landscape video sits over a blurred copy of itself; voice-only shows the poster and a live waveform);
    - a closing card with the quote, the guest's name and the event;
    - loudness evened out, and optional background music that ducks under speech.
 
 Background music is uploaded once on the lab page and used for every clip. Use only music you have the right to use.
 
 Each result shows the clip, the transcript with the kept sentences highlighted, time per step and the transcription cost (about $0.006 a minute). Editing takes about 10 seconds on 4 CPUs; expect roughly 30 to 40 seconds on a 1-CPU instance. Clips run one at a time.
+
+### Mazal tov choir
+
+The "🎤 mazal tov choir" card on the lab page builds one montage from every finished recording (`src/lib/media/choir.ts`, `/api/admin/lab/choir`):
+
+1. In each transcript it finds the words "מזל טוב" (or "mazal tov"), with the celebrant's name when it follows.
+2. It cuts exactly those words from each recording into a vertical segment with the guest's name on top. Segments play one after another, cut tighter as it goes so the pace picks up.
+3. The finale plays every voice at once, each a few hundredths of a second after the last, over a mosaic of all the faces, with a large "מזל טוב כרמל!".
+4. A title card opens it and a closing card ends it; the lab's background music, if any, ducks under the voices.
+
+It makes no OpenAI calls: it reuses the word times saved with each recording. Recordings transcribed before word times were added, or with no "mazal tov" in them, are listed as left out. Building takes about 10 seconds for 4 recordings on 4 CPUs.
 
 The Docker image installs Debian's `ffmpeg`. `/api/health` reports `videoLab.ffmpeg`.
 

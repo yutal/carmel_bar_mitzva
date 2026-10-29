@@ -14,12 +14,14 @@ export const openAiTranscribe: TranscribeProvider = {
       language: lang ?? "he",
       prompt: hint,
       response_format: "verbose_json",
-      timestamp_granularities: ["segment"],
+      // Word times cost nothing extra; they drive word-by-word captions and the "mazal tov" choir.
+      timestamp_granularities: ["word", "segment"],
     });
     await recordUsage("transcribe", config.transcribeModel, { seconds: res.duration });
     return {
       duration: res.duration,
       segments: (res.segments ?? []).map((s) => ({ start: s.start, end: s.end, text: s.text.trim() })).filter((s) => s.text),
+      words: (res.words ?? []).map((w) => ({ word: w.word.trim(), start: w.start, end: w.end })).filter((w) => w.word),
     };
   },
 };

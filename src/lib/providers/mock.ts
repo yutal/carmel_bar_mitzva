@@ -2,6 +2,7 @@ import "server-only";
 import sharp from "sharp";
 import { probe } from "@/lib/media/ffmpeg";
 import type { ImageProvider, LlmProvider, TranscribeProvider } from "./types";
+import type { TranscriptWord } from "@/lib/types";
 
 /** Override with MOCK_FACES='[{"left":0.2,...}]' to try layouts with several people. */
 const MOCK_FACES = process.env.MOCK_FACES
@@ -75,10 +76,16 @@ export const mockTranscribe: TranscribeProvider = {
   async transcribe(file) {
     const { duration } = await probe(file);
     const segments = [];
+    const words: TranscriptWord[] = [];
     for (let t = 0, i = 0; t < duration - 0.5; t += 4, i++) {
-      segments.push({ start: t, end: Math.min(t + 4, duration), text: MOCK_LINES[i % MOCK_LINES.length] });
+      const seg = { start: t, end: Math.min(t + 4, duration), text: MOCK_LINES[i % MOCK_LINES.length] };
+      segments.push(seg);
+      // Words spread evenly over the line, leaving a short pause at its end.
+      const list = seg.text.split(" ");
+      const step = (seg.end - seg.start - 0.3) / list.length;
+      list.forEach((word, k) => words.push({ word, start: seg.start + k * step, end: seg.start + (k + 1) * step }));
     }
-    return { duration, segments };
+    return { duration, segments, words };
   },
 };
 
