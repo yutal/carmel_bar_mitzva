@@ -4,7 +4,8 @@ import { z } from "zod";
 export const LANGS = ["he", "en"] as const;
 export type Lang = (typeof LANGS)[number];
 
-export const EXPERIENCES = ["image", "song", "both"] as const;
+/** "blessing": the blessing alone, saved to the album with no image or song. */
+export const EXPERIENCES = ["image", "song", "both", "blessing"] as const;
 export type Experience = (typeof EXPERIENCES)[number];
 
 /** Image styles a guest can pick. Art direction for each lives in prompts/styles.ts. */
@@ -65,7 +66,7 @@ export type Analysis = z.infer<typeof AnalysisSchema>;
 /** Stages 2+3 for the image: creative direction and the image prompt. */
 export const ImageConceptSchema = z.object({
   genre: z.string().describe("Story genre, e.g. sports drama, superhero, fantasy adventure, space"),
-  rationale: z.string().describe("One sentence in the poster language: which detail of the blessing this concept is built on"),
+  rationale: z.string().describe("One sentence in the poster language: which detail of the guest's story this concept is built on"),
   titleHebrew: z.string().describe("Short title in the poster language (the field name is historical), max 4 words"),
   taglineHebrew: z.string().describe("Short tagline in the poster language, max 8 words"),
   coverLines: z.array(z.string()).describe("Magazine style only: 3 short cover lines in the poster language, max 5 words each. Empty otherwise"),

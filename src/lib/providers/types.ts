@@ -6,8 +6,11 @@ export type ReferenceImage = { name: string; data: Buffer; role: "celebrant" | "
 
 export interface LlmProvider {
   analyze(input: GuestInput, event: EventSettings): Promise<Analysis>;
-  /** The guest photo, when given, is shown to the model so it can see who is in it. */
-  imageConcept(input: GuestInput, analysis: Analysis, event: EventSettings, guestPhoto?: Buffer): Promise<ImageConcept>;
+  /**
+   * Built only from the guest's story answers, never from the blessing. The guest photo, when given, is shown
+   * to the model so it can see who is in it.
+   */
+  imageConcept(input: GuestInput, event: EventSettings, guestPhoto?: Buffer): Promise<ImageConcept>;
   songConcept(input: GuestInput, analysis: Analysis, event: EventSettings): Promise<SongConcept>;
   /** Finds every face in generated art, so the poster text can be laid out around them. */
   locateFaces(art: Buffer): Promise<FaceBox[]>;
@@ -22,7 +25,8 @@ export interface TranscribeProvider {
 
 export interface ImageProvider {
   /** Returns PNG/JPEG bytes. References are passed in the given order. */
-  generate(req: { prompt: string; references: ReferenceImage[]; size: "portrait" | "square"; celebrantLook?: string }): Promise<Buffer>;
+  /** `artStyle` is put first and last in the prompt, so photo references do not pull every style towards a photograph. */
+  generate(req: { prompt: string; references: ReferenceImage[]; size: "portrait" | "square"; celebrantLook?: string; artStyle?: string }): Promise<Buffer>;
 }
 
 export type MusicResult =

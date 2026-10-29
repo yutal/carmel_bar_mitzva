@@ -92,6 +92,7 @@ export default function AdminDashboard() {
           <a className="btn-ghost" href="/admin/lab">🎬 מעבדת וידאו וקול</a>
           <a className="btn-primary" href="/api/admin/export">⬇️ ייצוא אלבום (ZIP)</a>
           <a className="btn-ghost" href="/api/admin/export?marketing=1">⬇️ מאושרים לשיווק (ZIP)</a>
+          <a className="btn-ghost" href="/api/admin/export/pdf">📖 אלבום להדפסה (PDF)</a>
         </div>
       </header>
 
@@ -153,6 +154,14 @@ function SubmissionCard({ s, run }: { s: Submission; run: (fn: () => Promise<unk
         ) : (
           <div className="h-28 w-20 shrink-0 rounded-xl bg-olive-100" />
         )}
+        {s.files.photo && (
+          // The guest's own photo, to check the likeness of the people in the poster.
+          <a href={fileUrl(s.files.photo)} target="_blank" className="shrink-0" title="התמונה שהאורח העלה">
+            {/* eslint-disable-next-line @next/next/no-img-element -- admin preview of an upload */}
+            <img src={fileUrl(s.files.photo)} alt="התמונה שהאורח העלה" className="size-20 rounded-xl object-cover ring-2 ring-accent-soft" />
+            <span className="mt-1 block text-center text-[0.7rem] text-muted">תמונת האורח</span>
+          </a>
+        )}
         <div className="min-w-0 space-y-1">
           <h3 className="truncate text-lg font-bold">{s.input.fullName}</h3>
           <p className="text-sm text-muted">{s.input.relationship} · {new Date(s.createdAt).toLocaleTimeString("he-IL", { hour: "2-digit", minute: "2-digit" })}</p>
@@ -169,7 +178,21 @@ function SubmissionCard({ s, run }: { s: Submission; run: (fn: () => Promise<unk
       </div>
 
       <p className="line-clamp-3 text-sm text-muted">&quot;{s.input.blessing}&quot;</p>
-      <p className="text-xs text-muted">{IMAGE_STYLES[s.input.imageStyle ?? "movie"].icon} {IMAGE_STYLES[s.input.imageStyle ?? "movie"].label}</p>
+      <p className="text-xs text-muted">
+        {s.input.experience === "blessing"
+          ? "✉️ ברכה בלבד, בלי תמונה"
+          : `${IMAGE_STYLES[s.input.imageStyle ?? "movie"].icon} ${IMAGE_STYLES[s.input.imageStyle ?? "movie"].label} · ${
+              s.files.photo ? "עם תמונת אורח" : s.input.consentPhoto ? "תמונת האורח נמחקה (שמירה מוגבלת בזמן)" : "בלי תמונת אורח"
+            }`}
+      </p>
+      {s.imageConcept?.guestPhotoPeople?.length ? (
+        <details className="text-xs text-muted">
+          <summary className="cursor-pointer">מי זוהה בתמונת האורח ({s.imageConcept.guestPhotoPeople.length})</summary>
+          <ol className="mt-1 list-decimal space-y-0.5 ps-5" dir="ltr">
+            {s.imageConcept.guestPhotoPeople.map((p, i) => <li key={i}>{p}</li>)}
+          </ol>
+        </details>
+      ) : null}
       {s.imageConcept && <p className="text-sm"><b className="text-accent">{s.imageConcept.titleHebrew}</b> · {s.imageConcept.rationale}</p>}
       {Object.values(s.stages).map((st, i) => st?.error && <p key={i} className="text-xs text-red-700">{st.error}</p>)}
 
@@ -188,6 +211,12 @@ function SubmissionCard({ s, run }: { s: Submission; run: (fn: () => Promise<unk
           {s.stages.song && <button type="button" className="btn-ghost min-h-9 px-3" onClick={() => regen("song", true)}>תיאור שיר חדש</button>}
           <button type="button" className="btn-ghost min-h-9 px-3" onClick={() => regen("analysis", true)}>הכל מההתחלה</button>
         </div>
+        <ul className="mt-2 space-y-1 text-xs text-muted">
+          {s.stages.image && <li><b>אותו רעיון:</b> אותה סצנה וכותרת, ציור חדש. לפנים לא דומות או פרט שיצא עקום.</li>}
+          {s.stages.image && <li><b>רעיון חדש:</b> המודל כותב סצנה וכותרת חדשות מאותו סיפור, ואז מצייר.</li>}
+          <li><b>הכל מההתחלה:</b> גם קריאת הסיפור מחדש. כשהמודל הבין לא נכון או הסתיר בטעות.</li>
+          <li>כל יצירה מחדש עולה כסף כמו יצירה חדשה.</li>
+        </ul>
       </details>
 
       {s.songConcept && s.stages.song?.status !== "done" && (

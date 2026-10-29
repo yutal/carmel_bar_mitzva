@@ -17,14 +17,21 @@ const LIKENESS = [
 ].join(" ");
 
 export const openAiImage: ImageProvider = {
-  async generate({ prompt, references, size, celebrantLook }) {
+  async generate({ prompt, references, size, celebrantLook, artStyle }) {
     const images = await Promise.all(
       references.map((r) => toFile(r.data, r.name, { type: "image/jpeg" })),
     );
     const legend = references
       .map((r, i) => `Reference image ${i + 1}: ${r.label ?? (r.role === "celebrant" ? "the celebrant (Bar Mitzvah boy)" : "the guest photo")}.`)
       .join("\n");
-    const fullPrompt = [legend, references.length ? LIKENESS : "", celebrantLook ? `The celebrant's appearance: ${celebrantLook}` : "", prompt]
+    const fullPrompt = [
+      artStyle ? `ART STYLE, the most important instruction: ${artStyle}` : "",
+      legend,
+      references.length ? LIKENESS : "",
+      celebrantLook ? `The celebrant's appearance: ${celebrantLook}` : "",
+      prompt,
+      artStyle ? `Remember: the whole image is ${artStyle}` : "",
+    ]
       .filter(Boolean)
       .join("\n\n");
 

@@ -56,11 +56,9 @@ export const openAiLlm: LlmProvider = {
   analyze(input, event) {
     return structured(AnalysisSchema, "analysis", ANALYSIS_SYSTEM, guestContext(input, event));
   },
-  imageConcept(input, analysis, event, guestPhoto) {
+  imageConcept(input, event, guestPhoto) {
     const user = [
-      guestContext(input, event),
-      "",
-      `Analysis:\n${analysisSummary(analysis)}`,
+      guestContext(input, event, { blessing: false }),
       "",
       event.celebrantLook ? `How the celebrant looks: ${event.celebrantLook}` : "",
       guestPhoto ? "The guest photo is attached." : "NO guest photo is provided.",

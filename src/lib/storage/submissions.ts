@@ -38,8 +38,8 @@ async function uniqueId(base: string): Promise<string> {
 export async function createSubmission(input: GuestInput): Promise<Submission> {
   await ensureDirs();
   const id = await uniqueId(submissionBaseName(input.fullName, new Date()));
-  const wantsImage = input.experience !== "song";
-  const wantsSong = input.experience !== "image";
+  const wantsImage = input.experience === "image" || input.experience === "both";
+  const wantsSong = input.experience === "song" || input.experience === "both";
   const submission: Submission = {
     id,
     publicId: randomBytes(12).toString("base64url"),
@@ -83,12 +83,24 @@ export async function remainingFor(name: string): Promise<number | null> {
   const max = config.maxCreationsPerGuest;
   if (!max) return null;
   const key = nameKey(name);
-  const used = (await listSubmissions()).filter((s) => nameKey(s.input.fullName) === key).length;
+  // A blessing on its own costs nothing to make, so it does not count towards the limit.
+  const used = (await listSubmissions()).filter((s) => nameKey(s.input.fullName) === key && s.input.experience !== "blessing").length;
   return Math.max(0, max - used);
 }
 
+// Every guest's result page asks for its submission every few seconds; remember where each public id lives
+// instead of reading every record on each request.
+const byPublicId = new Map<string, string>();
+
 export async function findByPublicId(publicId: string): Promise<Submission | undefined> {
-  return (await listSubmissions()).find((s) => s.publicId === publicId);
+  const known = byPublicId.get(publicId);
+  if (known) {
+    const s = await getSubmission(known);
+    if (s?.publicId === publicId) return s;
+  }
+  const found = (await listSubmissions()).find((s) => s.publicId === publicId);
+  if (found) byPublicId.set(publicId, found.id);
+  return found;
 }
 
 export function updateSubmission(
@@ -146,7 +158,7 @@ function renderText(s: Submission): string {
     `שם: ${input.fullName}`,
     `קשר לחוגג: ${input.relationship}`,
     `תאריך: ${new Date(s.createdAt).toLocaleString("he-IL", { timeZone: "Asia/Jerusalem" })}`,
-    `חוויה: ${{ image: "תמונה", song: "שיר", both: "תמונה ושיר" }[input.experience]}`,
+    `חוויה: ${{ image: "תמונה", song: "שיר", both: "תמונה ושיר", blessing: "ברכה בלבד" }[input.experience]}`,
     `סגנון: ${IMAGE_STYLES[input.imageStyle ?? "movie"].label}`,
     `שפה: ${LANG_INFO[input.lang ?? "he"].label}`,
     `הסכמה למסך באולם: ${input.consentScreen ? "כן" : "לא"}`,

@@ -2,18 +2,18 @@ import "server-only";
 import path from "node:path";
 import { GlobalFonts, createCanvas, loadImage, type SKRSContext2D } from "@napi-rs/canvas";
 import { config } from "@/lib/config";
-import { isRtlText } from "@/lib/i18n";
+import { isRtlText, type Lang } from "@/lib/i18n";
 import type { FaceBox, ImageStyle } from "@/lib/types";
 
 const ACCENT = "#E4E9C6"; // pale olive, readable on the dark band
 const CLAY = "#E9A27E";
 const WHITE = "#FFFFFF";
 const COMIC_YELLOW = "#FFD23F";
-const TITLE_FONT = "Frank Ruhl Libre";
-const BODY_FONT = "Heebo";
+export const TITLE_FONT = "Frank Ruhl Libre";
+export const BODY_FONT = "Heebo";
 
 let fontsLoaded = false;
-function loadFonts() {
+export function loadFonts() {
   if (fontsLoaded) return;
   GlobalFonts.registerFromPath(path.join(config.fontsDir, "FrankRuhlLibre.ttf"), TITLE_FONT);
   GlobalFonts.registerFromPath(path.join(config.fontsDir, "Heebo.ttf"), BODY_FONT);
@@ -22,7 +22,7 @@ function loadFonts() {
 
 type TextBlock = { text: string; font: (size: number) => string; maxSize: number; minSize: number; maxLines: number };
 
-function wrap(ctx: SKRSContext2D, text: string, maxWidth: number): string[] {
+export function wrap(ctx: SKRSContext2D, text: string, maxWidth: number): string[] {
   const lines: string[] = [];
   for (const paragraph of text.split(/\n+/)) {
     let line = "";
@@ -55,7 +55,7 @@ function fit(ctx: SKRSContext2D, block: TextBlock, maxWidth: number): { size: nu
 }
 
 /** Each line gets its own base direction, so Hebrew and English (or a mix) keep punctuation on the right side. */
-function fillText(ctx: SKRSContext2D, text: string, x: number, y: number) {
+export function fillText(ctx: SKRSContext2D, text: string, x: number, y: number) {
   ctx.direction = isRtlText(text) ? "rtl" : "ltr";
   ctx.fillText(text, x, y);
 }
@@ -65,7 +65,7 @@ function strokeText(ctx: SKRSContext2D, text: string, x: number, y: number) {
   ctx.strokeText(text, x, y);
 }
 
-function drawLines(ctx: SKRSContext2D, lines: string[], x: number, y: number, lineHeight: number): number {
+export function drawLines(ctx: SKRSContext2D, lines: string[], x: number, y: number, lineHeight: number): number {
   // One direction for the whole paragraph, from its first letter, like a browser would.
   ctx.direction = isRtlText(lines.join(" ")) ? "rtl" : "ltr";
   lines.forEach((line, i) => ctx.fillText(line, x, y + i * lineHeight));
@@ -94,11 +94,21 @@ export type PosterText = {
   tagline: string;
   coverLines: string[];
   stats: { label: string; value: number }[];
-  blessing: string;
+  /** "With love, <name> · <relationship>". The blessing itself is not printed: it lives on the result page and in the album. */
   sender: string;
   footer: string;
   /** Faces in the art; text is laid out so it never covers one. */
   faces?: FaceBox[];
+  /** Language of the creation; picks the fixed words drawn on it. */
+  lang?: Lang;
+  /** Magazine style: the magazine's name, i.e. the celebrant's name. */
+  masthead?: string;
+};
+
+/** Fixed words drawn on the creations, per language. */
+const POSTER_WORDS: Record<Lang, { issue: string; badge: string }> = {
+  he: { issue: "גיליון מיוחד · בר מצווה · 13", badge: "בר מצווה" },
+  en: { issue: "SPECIAL ISSUE · BAR MITZVAH · 13", badge: "BAR MITZVAH" },
 };
 
 type Box = { x0: number; y0: number; x1: number; y1: number };
@@ -117,7 +127,7 @@ function faceBoxes(faces: FaceBox[] | undefined, w: number, h: number): Box[] {
 const facesTop = (faces: Box[], h: number) => Math.min(h, ...faces.map((f) => f.y0));
 const facesBottom = (faces: Box[]) => Math.max(0, ...faces.map((f) => f.y1));
 
-/** Final image: generated art + text (Hebrew or English), original blessing and sender, rendered here (not by the model). */
+/** Final image: generated art + title and sign-off (Hebrew or English), rendered here (not by the model). */
 export async function composePoster(art: Buffer, text: PosterText): Promise<Buffer> {
   loadFonts();
   const img = await loadImage(art);
@@ -135,11 +145,11 @@ export async function composePoster(art: Buffer, text: PosterText): Promise<Buff
 
 type Img = Awaited<ReturnType<typeof loadImage>>;
 
-/** Footer, sender and blessing stacked upwards from `bottom`. Returns the top of the blessing. */
-function drawSignOff(ctx: SKRSContext2D, w: number, bottom: number, text: PosterText, maxLines: number, scale = 1, draw = true): number {
+/** Footer and sender stacked upwards from `bottom`. Returns the top of the sender line. */
+function drawSignOff(ctx: SKRSContext2D, w: number, bottom: number, text: PosterText, scale = 1, draw = true): number {
   const cx = w / 2;
   const footerSize = Math.round(w * 0.026 * scale);
-  const senderSize = Math.round(w * 0.034 * scale);
+  const senderSize = Math.round(w * 0.036 * scale);
   const senderY = bottom - footerSize * 3;
   if (draw) {
     ctx.fillStyle = ACCENT;
@@ -150,36 +160,23 @@ function drawSignOff(ctx: SKRSContext2D, w: number, bottom: number, text: Poster
     ctx.font = `700 ${senderSize}px "${BODY_FONT}"`;
     fillText(ctx, text.sender, cx, senderY);
   }
-
-  const blessing = fit(
-    ctx,
-    { text: `"${text.blessing}"`, font: (s) => `400 ${s}px "${BODY_FONT}"`, maxSize: Math.round(w * 0.044 * scale), minSize: 22, maxLines },
-    w * 0.86,
-  );
-  const lh = blessing.size * 1.38;
-  const top = senderY - senderSize * 1.6 - (blessing.lines.length - 1) * lh;
-  if (draw) {
-    ctx.fillStyle = WHITE;
-    ctx.font = `400 ${blessing.size}px "${BODY_FONT}"`;
-    drawLines(ctx, blessing.lines, cx, top, lh);
-  }
-  return top - blessing.size;
+  return senderY - senderSize;
 }
 
-/** The sign-off, made smaller (never shortened) until the blessing clears every face. Returns its top. */
-function placeSignOff(ctx: SKRSContext2D, w: number, bottom: number, text: PosterText, maxLines: number, scale: number, faces: Box[]): number {
+/** The sign-off, made smaller until it clears every face. Returns its top. */
+function placeSignOff(ctx: SKRSContext2D, w: number, bottom: number, text: PosterText, scale: number, faces: Box[]): number {
   const low = facesBottom(faces);
   let chosen = scale * 0.65;
   for (let sc = scale; sc >= scale * 0.65; sc -= 0.05) {
-    if (drawSignOff(ctx, w, bottom, text, maxLines, sc, false) >= low) {
+    if (drawSignOff(ctx, w, bottom, text, sc, false) >= low) {
       chosen = sc;
       break;
     }
   }
-  return drawSignOff(ctx, w, bottom, text, maxLines, chosen);
+  return drawSignOff(ctx, w, bottom, text, chosen);
 }
 
-/** Movie, animation, comic and toy box: title on top, blessing at the bottom, both kept off the faces. */
+/** Movie, animation, comic and toy box: title on top, sign-off at the bottom, both kept off the faces. */
 function drawMoviePoster(ctx: SKRSContext2D, img: Img, w: number, h: number, text: PosterText) {
   ctx.drawImage(img, 0, 0, w, h);
   const cx = w / 2;
@@ -220,7 +217,7 @@ function drawMoviePoster(ctx: SKRSContext2D, img: Img, w: number, h: number, tex
     ctx.font = `500 ${taglineSize}px "${BODY_FONT}"`;
     drawLines(ctx, [tagline], cx, y + w * 0.025, 0);
   }
-  placeSignOff(ctx, w, h - h * 0.03, text, 7, 1, faces);
+  placeSignOff(ctx, w, h - h * 0.03, text, 1, faces);
 }
 
 type CoverSpot = { x: number; align: "left" | "right"; y: number; scale: number; count: number };
@@ -260,44 +257,81 @@ function findCoverSpot(ctx: SKRSContext2D, lines: string[], w: number, h: number
   return undefined;
 }
 
-/** Magazine cover: masthead, cover lines in whichever side column is free of faces, blessing at the bottom. */
+const MAGAZINE_RED = "#E03A2F";
+
+/**
+ * Magazine cover: the celebrant's name as the masthead, an issue line above it, the concept title as the
+ * main headline at the bottom, and cover lines in whichever side column is free of faces.
+ */
 function drawMagazine(ctx: SKRSContext2D, img: Img, w: number, h: number, text: PosterText) {
   ctx.drawImage(img, 0, 0, w, h);
   const faces = faceBoxes(text.faces, w, h);
-  shade(ctx, w, 0, h * 0.2, 0.55, 0);
-  shade(ctx, w, h * 0.66, h, 0, 0.92);
+  shade(ctx, w, 0, h * 0.2, 0.4, 0);
+  shade(ctx, w, h * 0.58, h, 0, 0.94);
   prepare(ctx);
+  const words = POSTER_WORDS[text.lang ?? "he"];
 
-  // Masthead: the title, as wide as the cover allows, but ending above the highest face.
+  // Issue line, then the masthead as big as one line allows. Hair may overlap the masthead; faces may not.
   const ceiling = facesTop(faces, h);
-  const taglineGap = w * 0.045;
-  let mast = { size: 0, lines: [] as string[] };
-  for (let max = Math.round(w * 0.16); max >= Math.round(w * 0.08); max -= 4) {
-    mast = fit(ctx, { text: text.title, font: (s) => `900 ${s}px "${TITLE_FONT}"`, maxSize: max, minSize: Math.round(w * 0.08), maxLines: 1 }, w * 0.92);
-    if (h * 0.02 + mast.size * 0.92 + taglineGap + w * 0.01 <= ceiling) break;
-  }
-  const mastBase = h * 0.02 + mast.size * 0.92;
+  const issueSize = Math.round(w * 0.022);
+  const issueY = h * 0.014 + issueSize;
   ctx.fillStyle = WHITE;
-  ctx.font = `900 ${mast.size}px "${TITLE_FONT}"`;
-  fillText(ctx, mast.lines[0], w / 2, mastBase);
-  const showTagline = mastBase + taglineGap + w * 0.01 <= ceiling;
-  if (showTagline) {
-    ctx.fillStyle = CLAY;
-    ctx.font = `700 ${Math.round(w * 0.026)}px "${BODY_FONT}"`;
-    fillText(ctx, text.tagline, w / 2, mastBase + taglineGap);
-  }
+  ctx.font = `700 ${issueSize}px "${BODY_FONT}"`;
+  fillText(ctx, words.issue, w / 2, issueY);
+  const masthead = text.masthead ?? text.title;
+  const mastFont = (size: number) => `900 ${size}px "${BODY_FONT}"`;
+  // One word is never wrapped, so size it by its measured width: as wide as the cover, at most 30% of the width tall.
+  ctx.font = mastFont(100);
+  let mastSize = Math.max(Math.round(w * 0.1), Math.min(Math.round(w * 0.3), Math.floor((100 * w * 0.94) / ctx.measureText(masthead).width)));
+  while (mastSize > w * 0.1 && issueY + mastSize * 0.86 > ceiling) mastSize -= 4;
+  const mastBase = issueY + mastSize * 0.86;
+  ctx.fillStyle = MAGAZINE_RED;
+  ctx.font = mastFont(mastSize);
+  fillText(ctx, masthead, w / 2, mastBase);
 
-  const signOffTop = placeSignOff(ctx, w, h - h * 0.03, text, 4, 0.9, faces);
+  const signOffTop = placeSignOff(ctx, w, h - h * 0.03, text, 0.9, faces);
+
+  // Headline (the concept title) and tagline above the sign-off: smaller, then without the tagline, until clear of faces.
+  const low = facesBottom(faces);
+  const taglineSize = Math.round(w * 0.03);
+  const headFont = (size: number) => `900 ${size}px "${TITLE_FONT}"`;
+  let head = { size: 0, lines: [] as string[] };
+  let tagline = text.tagline;
+  let headTop = signOffTop;
+  const measure = () => {
+    const height = head.size * 0.8 + (head.lines.length - 1) * head.size * 1.02 + (tagline ? taglineSize * 1.5 : 0);
+    headTop = signOffTop - h * 0.02 - height;
+  };
+  for (const withTagline of [true, false]) {
+    tagline = withTagline ? text.tagline : "";
+    for (let max = Math.round(w * 0.09); max >= Math.round(w * 0.05); max -= 4) {
+      head = fit(ctx, { text: text.title, font: headFont, maxSize: max, minSize: Math.round(w * 0.05), maxLines: 2 }, w * 0.9);
+      measure();
+      if (headTop >= low) break;
+    }
+    if (headTop >= low) break;
+  }
+  // No room below the faces: the headline joins the cover lines, which find a free column.
+  const coverLines = headTop >= low ? text.coverLines.slice(0, 3) : [text.title, ...text.coverLines].slice(0, 3);
+  if (headTop >= low) {
+    ctx.fillStyle = WHITE;
+    ctx.font = headFont(head.size);
+    const y = drawLines(ctx, head.lines, w / 2, headTop + head.size * 0.8, head.size * 1.02);
+    if (tagline) {
+      ctx.fillStyle = CLAY;
+      ctx.font = `700 ${taglineSize}px "${BODY_FONT}"`;
+      fillText(ctx, tagline, w / 2, y - head.size * 1.02 + taglineSize * 1.5);
+    }
+  }
 
   // Cover lines only where they cover no one; with no free spot they are left out.
   const colWidth = w * 0.36;
-  const lines = text.coverLines.slice(0, 3);
-  const spot = lines.length ? findCoverSpot(ctx, lines, w, h, mastBase + taglineGap + h * 0.03, signOffTop - h * 0.02, faces, colWidth) : undefined;
+  const spot = coverLines.length ? findCoverSpot(ctx, coverLines, w, h, mastBase + h * 0.03, Math.min(headTop, signOffTop) - h * 0.02, faces, colWidth) : undefined;
   if (spot) {
     ctx.textAlign = spot.align;
     let y = spot.y;
-    for (const { block } of coverStack(ctx, lines.slice(0, spot.count), w, h, colWidth, spot.scale)) {
-      ctx.fillStyle = CLAY;
+    for (const { block } of coverStack(ctx, coverLines.slice(0, spot.count), w, h, colWidth, spot.scale)) {
+      ctx.fillStyle = MAGAZINE_RED;
       ctx.fillRect(spot.align === "right" ? spot.x - w * 0.08 : spot.x, y, w * 0.08, Math.max(4, w * 0.006));
       y += block.size * 1.25;
       ctx.fillStyle = WHITE;
@@ -308,7 +342,7 @@ function drawMagazine(ctx: SKRSContext2D, img: Img, w: number, h: number, text: 
   }
 }
 
-/** Player card: frame, art window, rating badge, name plate, stats and a short blessing, all drawn here. */
+/** Player card: frame, art window, rating badge, name plate, stats and the sign-off, all drawn here. */
 function drawCard(ctx: SKRSContext2D, img: Img, w: number, h: number, text: PosterText) {
   const m = w * 0.035;
   const gold = ctx.createLinearGradient(0, 0, w, h);
@@ -346,7 +380,7 @@ function drawCard(ctx: SKRSContext2D, img: Img, w: number, h: number, text: Post
   ctx.font = `900 ${Math.round(r * 0.95)}px "${BODY_FONT}"`;
   fillText(ctx, "13", bx, by + r * 0.22);
   ctx.font = `700 ${Math.round(r * 0.26)}px "${BODY_FONT}"`;
-  fillText(ctx, "בר מצווה", bx, by + r * 0.58);
+  fillText(ctx, POSTER_WORDS[text.lang ?? "he"].badge, bx, by + r * 0.58);
   prepare(ctx);
 
   // Name plate.
@@ -382,7 +416,7 @@ function drawCard(ctx: SKRSContext2D, img: Img, w: number, h: number, text: Post
     ctx.fillRect(cx - 1, rowY - valueSize, 2, valueSize * 1.75 * Math.ceil(stats.length / 2));
   }
 
-  drawSignOff(ctx, w, h - m - h * 0.022, text, 3, 0.85);
+  drawSignOff(ctx, w, h - m - h * 0.022, text, 0.85);
 }
 
 /** Album cover: square art with the song title and dedication. */

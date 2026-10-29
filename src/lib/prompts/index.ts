@@ -7,7 +7,7 @@ import { STYLE_BRIEFS } from "./styles";
 export const celebrantNameIn = (event: EventSettings, lang: Lang) => (lang === "en" && event.celebrantNameEn) || event.celebrantName;
 
 /** The guest's own words, labelled, as the single source of truth for every stage. */
-export function guestContext(input: GuestInput, event: EventSettings): string {
+export function guestContext(input: GuestInput, event: EventSettings, opts: { blessing?: boolean } = {}): string {
   const lang = LANG_INFO[input.lang ?? "he"].english;
   return [
     `Celebrant: ${event.celebrantName} (in English: ${event.celebrantNameEn || event.celebrantName}), a 13-year-old boy celebrating his Bar Mitzvah.`,
@@ -18,8 +18,10 @@ export function guestContext(input: GuestInput, event: EventSettings): string {
     `What they love doing together: ${input.together || "(not answered)"}`,
     `A shared memory or funny story: ${input.memory || "(not answered)"}`,
     `What ${event.celebrantName} is best at: ${input.talent || "(not answered)"}`,
-    `The blessing (verbatim, in the guest's own language): ${input.blessing}`,
-  ].join("\n");
+    opts.blessing === false ? "" : `The blessing (verbatim, in the guest's own language): ${input.blessing}`,
+  ]
+    .filter(Boolean)
+    .join("\n");
 }
 
 export const ANALYSIS_SYSTEM = `You analyse a personal Bar Mitzvah blessing written by a guest, in Hebrew, English or any other language.
@@ -28,7 +30,9 @@ Prefer concrete, specific details (a sport, a place, a game, a running joke) ove
 Write list items in short English phrases. Empty lists are fine when nothing fits.`;
 
 export const IMAGE_CONCEPT_SYSTEM = `You are the creative director of a personalised art booth at a Bar Mitzvah.
-Turn one guest's story and blessing into ONE image concept, in the art style the guest picked, that tells THEIR story with the celebrant.
+Turn one guest's story (their answers about what they do together, a shared memory and the celebrant's talent) into ONE
+image concept, in the art style the guest picked, that tells THEIR story with the celebrant. You do not see the blessing
+on purpose: the image is built from the story answers alone.
 
 Rules:
 - The concept must be built on the most specific detail the guest gave (shared activity, memory, inside joke, talent).
@@ -55,6 +59,8 @@ Rules:
     in the prompt in plain words (e.g. "both faces in the left half, between 20% and 55% of the height").
   * Describe scene, action, costumes, props from the story, lighting, camera angle and colour grade,
     in the art style and composition the style brief gives. The brief's calm areas are mandatory: text is added there later.
+  * Start imagePrompt with the style brief's rendering in plain words (e.g. "A still from a 3D animated family film:"),
+    and describe every person in that rendering. Only the movie and magazine styles are photographic.
   * Vertical 2:3 frame.
   * Absolutely no text, letters, numbers, logos or watermarks in the image.`;
 

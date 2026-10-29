@@ -45,10 +45,10 @@ Every file is stored on disk with a name like `david_cohen_20261027_201530` (Heb
 
 | Path | For | What it does |
 | --- | --- | --- |
-| `/` | Guests, on their phones | Step-by-step form: who you are, tell us about you, blessing, what to receive, photo |
-| `/r/<id>` | The guest | Personal result page: poster to download and share, the song when ready, the blessing |
-| `/screen` | Projector or TV in the hall | Slideshow of posters, a new one every 10 seconds, with a large QR code |
-| `/admin` | The organiser | Carmel's photos, event details, all submissions, regenerate, hide, Suno, ZIP export |
+| `/` | Guests, on their phones | Step-by-step form: who you are, tell us about you, blessing, what to receive, photo. A "blessing only" link on the welcome screen skips the creation and the photo |
+| `/r/<id>` | The guest | Personal result page: place in line and estimated wait, then the poster to download and share, the song when ready, the blessing. "Done" shows a thank-you screen with a close button |
+| `/screen` | Projector or TV in the hall | Slideshow of posters with their blessings, and blessing-only slides, with a large QR code |
+| `/admin` | The organiser | Carmel's photos, event details, all submissions with the guest's photo, regenerate, hide, Suno, ZIP export, PDF album |
 
 Log in to `/admin` with the user `admin` and the password set in `ADMIN_PASSWORD`.
 
@@ -123,14 +123,14 @@ sequenceDiagram
     API->>Disk: save JSON + photo (EXIF and GPS removed)
     API->>Queue: enqueue
     API-->>Guest: link to /r/id
-    loop every 3 seconds
+    loop every 4 seconds
         Guest->>API: GET status
     end
     Queue->>LLM: analyse the blessing
-    Queue->>LLM: poster concept (genre, Hebrew title, scene prompt)
+    Queue->>LLM: poster concept from the story answers only (genre, title, scene prompt)
     Queue->>IMG: scene + up to 4 photos of Carmel + guest photo
     IMG-->>Queue: artwork without text
-    Queue->>Canvas: add Hebrew title, tagline, blessing
+    Queue->>Canvas: add title, tagline and the guest's name
     Canvas->>Disk: poster PNG
     Queue->>LLM: Suno song description (if a song was chosen)
     Queue->>Disk: description + square cover
@@ -147,12 +147,17 @@ flowchart TD
     B -->|poster| I["image<br/>concept, generate, compose"]
     B -->|song| S["song<br/>Suno description + cover"]
     B -->|both| I --> S
+    B -->|blessing only| D3["done<br/>shown as text on the hall screen"]
     S --> W["awaiting_music<br/>organiser makes it in Suno"]
     W -->|MP3 uploaded| D["done"]
     I --> D2["done"]
 ```
 
 Each stage is `pending`, `running`, `done`, `failed` or `awaiting_music`. A failed stage can be rerun from `/admin`.
+
+The image is built only from the guest's story ("tell us about you": what they do together, a shared memory, Carmel's talent). The blessing is not sent to the image concept and is not printed on the poster; it appears next to the poster on the result page, the hall screen and in the PDF album. Blessing-only submissions skip the photo, the quota and the queue.
+
+While a poster waits, the result page shows the guest's place in line and an estimated time (`queuePosition` in `src/lib/pipeline/queue.ts`: guests ahead divided by the concurrency, times the median of recent run times). Once it runs, it shows the step under way: reading the story, painting, finishing. A wait that is explained and has a visible end feels shorter, so guests stay or come back to their link.
 
 ---
 
@@ -200,7 +205,7 @@ API endpoints:
 | `/api/submissions` | POST | New submission, including the photo |
 | `/api/s/<id>` | GET | Submission status, for the result page |
 | `/api/s/<id>/file/<kind>` | GET | Poster, cover or MP3. Add `?download` to download |
-| `/api/screen` | GET | Posters allowed on the hall screen |
+| `/api/screen` | GET | Posters and blessings allowed on the hall screen |
 | `/api/celebrant` | GET | Celebrant name, event details, whether songs are on |
 | `/api/quota?name=` | GET | How many creations a guest name has left |
 | `/api/health` | GET | Disk, memory and queue status, for checking a deploy |
@@ -211,6 +216,7 @@ API endpoints:
 | `/api/admin/celebrant` | GET, POST, DELETE | Photos of Carmel |
 | `/api/admin/event` | GET, PUT | Event details and the description of how Carmel looks |
 | `/api/admin/status` | GET, PUT | Event snapshot: creations, failures, queue, OpenAI spend and balance. PUT `{ "amountUsd": 50 }` records the current OpenAI balance |
+| `/api/admin/export/pdf` | GET | Album to print: a cover, then one A4 page per guest with the poster and the full blessing, oldest first. Hidden-as-inappropriate submissions are left out |
 | `/api/admin/export` | GET | ZIP of everything. Add `?uploads=1` to include guest photos, or `?marketing=1` for only the images of guests who allowed marketing use |
 
 ---
@@ -323,12 +329,14 @@ The guest picks one of six styles. Each style has an art brief (`src/lib/prompts
 
 | Key | Style | Layout drawn by our code |
 | --- | --- | --- |
-| `movie` | 🎬 Movie poster | Title on top, blessing at the bottom |
+| `movie` | 🎬 Movie poster | Title on top, "with love, guest · relationship" at the bottom |
 | `animation` | ✨ 3D animated film | Same as movie |
-| `comic` | 💥 Superhero comic | Yellow title with an ink outline, blessing at the bottom |
-| `magazine` | 📰 Magazine cover | Masthead, three cover lines on the right, short blessing at the bottom |
-| `card` | ⚽ Player card | Gold frame, "13" badge, name plate, 4 stats (80–99) and a short blessing |
+| `comic` | 💥 Superhero comic | Yellow title with an ink outline, sign-off at the bottom |
+| `magazine` | 📰 Magazine cover | Issue line, large red masthead with Carmel's name, cover lines, headline and tagline above the sign-off |
+| `card` | ⚽ Player card | Gold frame, "13" badge, name plate, 4 stats (80–99) and the sign-off |
 | `toy` | 📦 Action figure in a box | Same as movie, on the box's header card and backing |
+
+Each style also has a rendering line (`STYLE_RENDER` in `styles.ts`), sent to the image model first and repeated last, so an animated film looks like a 3D animated still and not a photograph, and a magazine cover is a studio shoot on a plain backdrop and not an outdoor movie scene.
 
 To add a style: add it to `IMAGE_STYLES` in `src/lib/types.ts` and to `STYLE_BRIEFS`; if it needs its own text layout, add a function to `compose/poster.ts`.
 
@@ -479,7 +487,8 @@ flowchart LR
 
 - **Day before:** switch to the paid plan with a disk, upload 3 clear photos of Carmel, fill in "how Carmel looks", make a test poster, and print the QR code for the tables.
 - **During the event:** `/screen` full-screen on the projector, `/admin` on your phone. Do not change settings in Render. The "event status" panel at the top of `/admin` shows posters done, the queue, failures, the OpenAI spend and how many more posters the balance covers. Enter the balance from platform.openai.com (Billing) before the event and after every top-up; the panel turns red when it will not last for the queue plus another 20 guests.
-- **After the event:** produce the songs in Suno, upload the MP3s, download the ZIP. Once you have checked it, you can cancel the plan.
+- **Hall screen:** checks for new creations every 15 seconds (one small request; 15 s keeps it current without load). A new creation jumps the line with a "new!" badge so the guest sees it within a minute. Each slide stays 10 to 20 seconds, longer for a longer blessing, and the blessing sits beside the poster.
+- **After the event:** produce the songs in Suno, upload the MP3s, download the ZIP and the PDF album (`📖 album to print` in `/admin`). Once you have checked it, you can cancel the plan.
 
 ---
 

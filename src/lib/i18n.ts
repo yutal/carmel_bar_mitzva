@@ -43,7 +43,11 @@ type Strings = {
   qTalent: (name: string) => string;
   pTalent: string;
   blessingTitle: (name: string) => string;
-  blessingHint: string;
+  blessingHint: (name: string) => string;
+  blessingOnly: string;
+  blessingOnlyHint: string;
+  sendBlessing: string;
+  consentScreenBlessing: string;
   blessingPlaceholder: (name: string) => string;
   styleTitle: string;
   styleHint: string;
@@ -69,8 +73,11 @@ type Strings = {
   loading: string;
   notFound: string;
   creationOf: (name: string) => string;
-  progress: string[];
+  phases: Record<"queued" | "story" | "painting" | "finishing", string>;
+  queueAhead: (ahead: number) => string;
+  eta: (seconds: number) => string;
   imageWait: string;
+  blessingSaved: string;
   songBy: (name: string) => string;
   songInProduction: string;
   preparingSong: string;
@@ -78,7 +85,15 @@ type Strings = {
   failedHint: string;
   download: string;
   share: string;
+  shareText: string;
+  linkCopied: string;
   finish: string;
+  thanksTitle: (guest: string) => string;
+  thanksBody: (onScreen: boolean) => string;
+  thanksKeep: string;
+  close: string;
+  closeHint: string;
+  backHome: string;
 };
 
 const he: Strings = {
@@ -114,7 +129,11 @@ const he: Strings = {
   qTalent: (name) => `במה ${name} הכי טוב?`,
   pTalent: "לנצח אותי בכל משחק",
   blessingTitle: (name) => `הברכה שלכם ל${name}`,
-  blessingHint: "הברכה תופיע מילה במילה על היצירה.",
+  blessingHint: (name) => `הברכה נשמרת מילה במילה באלבום של ${name}, ומוצגת ליד היצירה.`,
+  blessingOnly: "רק ברכה, בלי תמונה",
+  blessingOnlyHint: "כותבים ברכה, והיא נשמרת באלבום. דקה אחת.",
+  sendBlessing: "שליחת הברכה ✦",
+  consentScreenBlessing: "אפשר להציג את הברכה שלי על המסך באולם",
   blessingPlaceholder: (name) => `${name} יקר, מאחלים לך...`,
   styleTitle: "באיזה סגנון?",
   styleHint: "הסיפור שלכם, בסגנון שתבחרו.",
@@ -146,8 +165,11 @@ const he: Strings = {
   loading: "טוען...",
   notFound: "היצירה לא נמצאה.",
   creationOf: (name) => `היצירה של ${name}`,
-  progress: ["קוראים את הברכה שלך...", "מחפשים את הרגע הכי שלכם...", "כותבים תסריט...", "בוחרים את הסגנון...", "מצלמים את הסצנה...", "מוסיפים את הברכה..."],
-  imageWait: "תמונה לוקחת בערך דקה. אפשר לסגור ולחזור לקישור הזה.",
+  phases: { queued: "בתור ליצירה", story: "קוראים את הסיפור שלכם", painting: "מציירים את הסצנה", finishing: "מוסיפים כותרת וחתימה" },
+  queueAhead: (n) => (n === 0 ? "אתם הבאים בתור" : n === 1 ? "יצירה אחת לפניכם" : `${n} יצירות לפניכם`),
+  eta: (s) => (s < 90 ? "מוכן בעוד כדקה" : `מוכן בעוד כ-${Math.ceil(s / 60)} דקות`),
+  imageWait: "אפשר לסגור את הדף ולחזור לקישור הזה. היצירה תחכה לכם כאן.",
+  blessingSaved: "הברכה נשמרה 💛",
   songBy: (name) => `שיר מאת ${name}`,
   songInProduction: "🎵 השיר שלך בהפקה. הוא יגיע לקישור הזה ולאלבום של בר המצווה אחרי האירוע.",
   preparingSong: "מכינים את השיר...",
@@ -155,7 +177,15 @@ const he: Strings = {
   failedHint: "הצוות יקבל התראה וינסה שוב. הברכה שלך נשמרה.",
   download: "⬇️ הורדה",
   share: "📤 שיתוף",
-  finish: "סיום וחזרה לעמוד הבית",
+  shareText: "היצירה שלי לבר המצווה",
+  linkCopied: "הקישור הועתק",
+  finish: "סיום",
+  thanksTitle: (guest) => `תודה, ${guest}!`,
+  thanksBody: (onScreen) => `הברכה שלכם נשמרה באלבום של בר המצווה${onScreen ? ", ועוד רגע היא תופיע על המסך באולם" : ""}.`,
+  thanksKeep: "הקישור הזה תמיד יחזיר אתכם ליצירה.",
+  close: "סגירה",
+  closeHint: "אפשר לסגור את הלשונית 🙂",
+  backHome: "לעמוד הראשי",
 };
 
 const en: Strings = {
@@ -191,7 +221,11 @@ const en: Strings = {
   qTalent: (name) => `What is ${name} best at?`,
   pTalent: "Beating me at every game",
   blessingTitle: (name) => `Your blessing for ${name}`,
-  blessingHint: "Your blessing appears word for word on the creation.",
+  blessingHint: (name) => `Your blessing is kept word for word in ${name}'s album and shown next to your creation.`,
+  blessingOnly: "Just a blessing, no image",
+  blessingOnlyHint: "Write a blessing and it is saved in the album. One minute.",
+  sendBlessing: "Send my blessing ✦",
+  consentScreenBlessing: "My blessing may be shown on the screen at the party",
   blessingPlaceholder: (name) => `Dear ${name}, we wish you...`,
   styleTitle: "Which style?",
   styleHint: "Your story, in the style you pick.",
@@ -223,8 +257,11 @@ const en: Strings = {
   loading: "Loading...",
   notFound: "This creation was not found.",
   creationOf: (name) => `${name}'s creation`,
-  progress: ["Reading your blessing...", "Finding your moment together...", "Writing the script...", "Choosing the look...", "Shooting the scene...", "Adding your blessing..."],
-  imageWait: "An image takes about a minute. You can close this page and come back to this link.",
+  phases: { queued: "In line", story: "Reading your story", painting: "Painting the scene", finishing: "Adding the title and signature" },
+  queueAhead: (n) => (n === 0 ? "You're next" : n === 1 ? "1 creation ahead of you" : `${n} creations ahead of you`),
+  eta: (s) => (s < 90 ? "Ready in about a minute" : `Ready in about ${Math.ceil(s / 60)} minutes`),
+  imageWait: "You can close this page and come back to this link. Your creation will be waiting here.",
+  blessingSaved: "Your blessing is saved 💛",
   songBy: (name) => `A song by ${name}`,
   songInProduction: "🎵 Your song is in production. It will arrive at this link and in the Bar Mitzvah album after the party.",
   preparingSong: "Preparing the song...",
@@ -232,7 +269,15 @@ const en: Strings = {
   failedHint: "The team has been notified and will try again. Your blessing is saved.",
   download: "⬇️ Download",
   share: "📤 Share",
-  finish: "Done, back to the start",
+  shareText: "My creation for the Bar Mitzvah",
+  linkCopied: "Link copied",
+  finish: "Done",
+  thanksTitle: (guest) => `Thank you, ${guest}!`,
+  thanksBody: (onScreen) => `Your blessing is saved in the Bar Mitzvah album${onScreen ? ", and in a moment it will appear on the screen at the party" : ""}.`,
+  thanksKeep: "This link will always bring you back to your creation.",
+  close: "Close",
+  closeHint: "You can close this tab now 🙂",
+  backHome: "Back to the start",
 };
 
 export const STRINGS: Record<Lang, Strings> = { he, en };

@@ -9,12 +9,24 @@ export type PublicSubmission = {
   relationship: string;
   blessing: string;
   experience: Submission["input"]["experience"];
+  /** Whether it goes up on the hall screen once ready. */
+  onScreen: boolean;
   stages: { analysis: StageState["status"]; image?: StageState["status"]; song?: StageState["status"] };
+  /** While waiting for a free slot: creations ahead and a rough estimate. */
+  queue?: { ahead: number; etaSeconds: number };
+  /** While the image is being made: which part of the work is under way. */
+  phase?: "story" | "painting" | "finishing";
   image?: { title: string; tagline: string; rationale: string; url?: string };
   song?: { title: string; coverUrl?: string; audioUrl?: string };
 };
 
-export function toPublic(s: Submission): PublicSubmission {
+function imagePhase(s: Submission): PublicSubmission["phase"] {
+  if (s.stages.image?.status !== "running" && s.stages.analysis.status !== "running") return undefined;
+  if (!s.imageConcept) return "story";
+  return s.files.imageRaw ? "finishing" : "painting";
+}
+
+export function toPublic(s: Submission, queue?: PublicSubmission["queue"]): PublicSubmission {
   const base = `/api/s/${s.publicId}/file`;
   return {
     publicId: s.publicId,
@@ -23,6 +35,9 @@ export function toPublic(s: Submission): PublicSubmission {
     relationship: s.input.relationship,
     blessing: s.input.blessing,
     experience: s.input.experience,
+    onScreen: s.input.consentScreen && !s.hidden,
+    ...(queue && { queue }),
+    phase: imagePhase(s),
     stages: {
       analysis: s.stages.analysis.status,
       image: s.stages.image?.status,

@@ -30,7 +30,7 @@ export async function POST(request: Request) {
     consentMarketing: text("consentMarketing") === "true",
   });
   if (!parsed.success) return jsonError("חסרים פרטים בטופס", 422);
-  if ((await remainingFor(parsed.data.fullName)) === 0) {
+  if (parsed.data.experience !== "blessing" && (await remainingFor(parsed.data.fullName)) === 0) {
     return jsonError(`כבר יצרת ${config.maxCreationsPerGuest} יצירות, וזה המקסימום לאורח. תודה שבירכת!`, 429);
   }
 
@@ -41,8 +41,9 @@ export async function POST(request: Request) {
     return jsonError(err instanceof UploadError ? err.message : "שגיאה בהעלאת התמונה", 422);
   }
 
-  // With songs switched off, every submission is a poster, whatever an old page sent.
-  const input = (await getEvent()).songsEnabled ? parsed.data : { ...parsed.data, experience: "image" as const };
+  // With songs switched off, a song request becomes a poster, whatever an old page sent.
+  const songsOff = !(await getEvent()).songsEnabled && (parsed.data.experience === "song" || parsed.data.experience === "both");
+  const input = songsOff ? { ...parsed.data, experience: "image" as const } : parsed.data;
   const submission = await createSubmission(input);
   if (photo) await saveFile(submission.id, "photo", "uploads", ".jpg", photo);
   enqueue(submission.id);

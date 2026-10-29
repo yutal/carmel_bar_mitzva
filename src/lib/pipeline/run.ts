@@ -2,6 +2,7 @@ import "server-only";
 import fs from "node:fs/promises";
 import { composeCover, composePoster } from "@/lib/compose/poster";
 import { celebrantNameIn } from "@/lib/prompts";
+import { STYLE_RENDER } from "@/lib/prompts/styles";
 import { providers } from "@/lib/providers";
 import type { ReferenceImage } from "@/lib/providers/types";
 import { celebrantPhotoPath, getEvent, listCelebrantPhotos } from "@/lib/storage/event";
@@ -51,7 +52,7 @@ async function runImage(id: string, event: EventSettings): Promise<void> {
   const guestPhoto = s.files.photo && s.input.consentPhoto ? await fs.readFile(filePath(s.files.photo)) : undefined;
 
   if (!s.imageConcept) {
-    const concept = await providers.llm.imageConcept(s.input, s.analysis!, event, guestPhoto);
+    const concept = await providers.llm.imageConcept(s.input, event, guestPhoto);
     s = await updateSubmission(id, (x) => {
       x.imageConcept = concept;
     });
@@ -59,7 +60,13 @@ async function runImage(id: string, event: EventSettings): Promise<void> {
 
   const references = await celebrantReferences();
   if (guestPhoto) references.push({ name: "guest.jpg", data: guestPhoto, role: "guest", label: guestPhotoLabel(s.imageConcept!.guestPhotoPeople ?? []) });
-  const art = await providers.image.generate({ prompt: s.imageConcept!.imagePrompt, references, size: "portrait", celebrantLook: event.celebrantLook });
+  const art = await providers.image.generate({
+    prompt: s.imageConcept!.imagePrompt,
+    references,
+    size: "portrait",
+    celebrantLook: event.celebrantLook,
+    artStyle: STYLE_RENDER[s.input.imageStyle ?? "movie"],
+  });
   await saveFile(id, "imageRaw", "images", "_raw.png", art);
 
   // Where the faces are, so no title or text lands on someone. A failed lookup falls back to the fixed layout.
@@ -74,15 +81,17 @@ async function runImage(id: string, event: EventSettings): Promise<void> {
   }
 
   const concept = s.imageConcept!;
+  const lang = s.input.lang ?? "he";
   const poster = await composePoster(art, {
     style: s.input.imageStyle ?? "movie",
     title: concept.titleHebrew,
     tagline: concept.taglineHebrew,
     coverLines: concept.coverLines ?? [],
     stats: concept.stats ?? [],
-    blessing: s.input.blessing,
-    sender: `${s.input.fullName}, ${s.input.relationship}`,
-    footer: [(s.input.lang === "en" && event.footerEn) || event.footer, event.eventDate].filter(Boolean).join(" · "),
+    sender: `${lang === "en" ? "With love," : "באהבה,"} ${s.input.fullName} · ${s.input.relationship}`,
+    lang,
+    masthead: lang === "en" ? celebrantNameIn(event, "en").toUpperCase() : event.celebrantName,
+    footer: [(lang === "en" && event.footerEn) || event.footer, event.eventDate].filter(Boolean).join(" · "),
     faces,
   });
   await saveFile(id, "image", "images", ".png", poster);

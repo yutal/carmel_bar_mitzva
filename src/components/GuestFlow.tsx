@@ -22,6 +22,8 @@ type Form = {
 
 const STEPS = ["welcome", "who", "story", "blessing", "experience", "photo"] as const;
 type Step = (typeof STEPS)[number];
+// "Just a blessing": no story, style or photo, so no image is made.
+const BLESSING_STEPS: readonly Step[] = ["welcome", "who", "blessing"];
 
 export default function GuestFlow({ again, lang = "he" }: { again?: { fullName: string; relationship: string }; lang?: Lang }) {
   const router = useRouter();
@@ -32,6 +34,9 @@ export default function GuestFlow({ again, lang = "he" }: { again?: { fullName: 
   const [songsEnabled, setSongsEnabled] = useState(false);
   const [maxCreations, setMaxCreations] = useState<number | null>(null);
   const [step, setStep] = useState<Step>(again ? "who" : "welcome");
+  const [blessingOnly, setBlessingOnly] = useState(false);
+  const steps = blessingOnly ? BLESSING_STEPS : STEPS;
+  const lastStep = steps[steps.length - 1];
   const [form, setForm] = useState<Form>({
     fullName: again?.fullName ?? "",
     relationship: again?.relationship ?? "",
@@ -63,17 +68,19 @@ export default function GuestFlow({ again, lang = "he" }: { again?: { fullName: 
   }, []);
 
   const set = <K extends keyof Form>(key: K, value: Form[K]) => setForm((f) => ({ ...f, [key]: value }));
-  const index = STEPS.indexOf(step);
+  const index = steps.indexOf(step);
   const go = (delta: number) => {
     setError(null);
-    setStep(STEPS[Math.min(STEPS.length - 1, Math.max(0, index + delta))]);
+    const target = steps[Math.min(steps.length - 1, Math.max(0, index + delta))];
+    if (target === "welcome") setBlessingOnly(false);
+    setStep(target);
     window.scrollTo({ top: 0, behavior: "smooth" });
   };
 
   const [checking, setChecking] = useState(false);
   /** Leaving the "who" step checks the per-guest limit, so nobody fills in everything only to be refused. */
   async function next() {
-    if (step === "who") {
+    if (step === "who" && !blessingOnly) {
       setChecking(true);
       try {
         const res = await fetch(`/api/quota?name=${encodeURIComponent(form.fullName.trim())}`, { cache: "no-store" });
@@ -107,10 +114,10 @@ export default function GuestFlow({ again, lang = "he" }: { again?: { fullName: 
       const body = new FormData();
       const { withSong, ...fields } = form;
       for (const [k, v] of Object.entries(fields)) body.set(k, String(v));
-      body.set("experience", songsEnabled && withSong ? "both" : "image");
+      body.set("experience", blessingOnly ? "blessing" : songsEnabled && withSong ? "both" : "image");
       body.set("lang", lang);
-      body.set("consentPhoto", String(Boolean(photo)));
-      if (photo) body.set("photo", await resizeImage(photo), "photo.jpg");
+      body.set("consentPhoto", String(Boolean(photo) && !blessingOnly));
+      if (photo && !blessingOnly) body.set("photo", await resizeImage(photo), "photo.jpg");
       const res = await fetch("/api/submissions", { method: "POST", body });
       const data = (await res.json()) as { publicId?: string; error?: string };
       if (!res.ok || !data.publicId) throw new Error(data.error ?? t.genericError);
@@ -130,7 +137,7 @@ export default function GuestFlow({ again, lang = "he" }: { again?: { fullName: 
             {t.back}
           </button>
           <div className="flex flex-1 gap-1.5" aria-hidden>
-            {STEPS.slice(1).map((s, i) => (
+            {steps.slice(1).map((s, i) => (
               <span key={s} className={`h-1.5 flex-1 rounded-full ${i < index ? "bg-accent-soft" : "bg-line"}`} />
             ))}
           </div>
@@ -142,7 +149,7 @@ export default function GuestFlow({ again, lang = "he" }: { again?: { fullName: 
           <section className="flex flex-1 flex-col gap-6">
             <div className="flex items-center justify-between">
               <span className="text-sm font-medium tracking-[0.2em] text-muted">{t.station}</span>
-              <nav className="flex gap-1 text-sm" aria-label="Language">
+              <nav className="relative z-10 flex gap-1 text-sm" aria-label="Language">
                 {LANGS.map((l) => (
                   // A plain link: a full load starts the flow fresh in the other language.
                   <a
@@ -157,7 +164,7 @@ export default function GuestFlow({ again, lang = "he" }: { again?: { fullName: 
               </nav>
             </div>
             <div className="text-center">
-              <p className="font-display text-[clamp(10rem,58vw,15rem)] font-black leading-[0.82] tracking-tight text-accent-soft" aria-hidden>
+              <p className="pointer-events-none font-display text-[clamp(10rem,58vw,15rem)] font-black leading-[0.82] tracking-tight text-accent-soft" aria-hidden>
                 13
               </p>
               <h1 className="mt-2 font-display leading-none">
@@ -169,9 +176,21 @@ export default function GuestFlow({ again, lang = "he" }: { again?: { fullName: 
             <p className="text-center text-lg leading-relaxed text-muted">
               {t.intro(name, songsEnabled)}
             </p>
-            <button type="button" className="btn-primary w-full" onClick={() => go(1)}>
-              {t.start} <span aria-hidden>{t.forwardArrow}</span>
-            </button>
+            <div className="space-y-2">
+              <button type="button" className="btn-primary w-full" onClick={() => go(1)}>
+                {t.start} <span aria-hidden>{t.forwardArrow}</span>
+              </button>
+              <button
+                type="button"
+                className="w-full py-2 text-center text-accent underline underline-offset-4"
+                onClick={() => {
+                  setBlessingOnly(true);
+                  setStep("who");
+                }}
+              >
+                {t.blessingOnly}
+              </button>
+            </div>
             <div className="space-y-3">
               <p className="text-sm font-bold tracking-[0.2em] text-accent-soft">{t.howItWorks}</p>
               <ol className="grid grid-cols-3 gap-2.5">
@@ -233,7 +252,7 @@ export default function GuestFlow({ again, lang = "he" }: { again?: { fullName: 
         {step === "blessing" && (
           <section className="space-y-4">
             <h2 className="font-display text-[2rem] font-bold text-ink">{t.blessingTitle(name)}</h2>
-            <p className="text-muted">{t.blessingHint}</p>
+            <p className="text-muted">{blessingOnly ? t.blessingOnlyHint : t.blessingHint(name)}</p>
             <textarea
               className="field min-h-48 leading-relaxed"
               value={form.blessing}
@@ -242,6 +261,12 @@ export default function GuestFlow({ again, lang = "he" }: { again?: { fullName: 
               placeholder={t.blessingPlaceholder(name)}
             />
             <p className="text-end text-sm text-muted">{form.blessing.length}/600</p>
+            {blessingOnly && (
+              <label className="flex items-start gap-3 text-muted">
+                <input type="checkbox" className="mt-1 size-5 accent-accent" checked={form.consentScreen} onChange={(e) => set("consentScreen", e.target.checked)} />
+                <span>{t.consentScreenBlessing}</span>
+              </label>
+            )}
           </section>
         )}
 
@@ -333,9 +358,9 @@ export default function GuestFlow({ again, lang = "he" }: { again?: { fullName: 
 
       {step !== "welcome" && (
         <footer className="sticky bottom-0 -mx-5 mt-8 bg-gradient-to-t from-canvas via-canvas/95 to-transparent px-5 pb-4 pt-6">
-          {step === "photo" ? (
-            <button type="button" className="btn-primary w-full" disabled={submitting} onClick={submit}>
-              {submitting ? t.sending : t.create}
+          {step === lastStep ? (
+            <button type="button" className="btn-primary w-full" disabled={submitting || !canContinue[step]} onClick={submit}>
+              {submitting ? t.sending : blessingOnly ? t.sendBlessing : t.create}
             </button>
           ) : (
             <button type="button" className="btn-primary w-full" disabled={!canContinue[step] || checking} onClick={next}>

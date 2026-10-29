@@ -1,6 +1,29 @@
 import type { ImageStyle } from "@/lib/types";
 
 /**
+ * How each style must be rendered, in one line. The image model gets it first and last, because the reference
+ * photos otherwise pull every style towards a photograph.
+ */
+export const STYLE_RENDER: Record<ImageStyle, string> = {
+  movie: "a photorealistic cinematic movie-poster photograph with dramatic film lighting and a rich colour grade.",
+  animation:
+    "a still from a 3D animated family feature film (the look of a modern Pixar or DreamWorks film): stylised 3D characters with " +
+    "slightly larger heads and expressive eyes, smooth stylised skin, soft global illumination, saturated colours. " +
+    "It is NOT a photograph and NOT photorealistic; every person, including the ones from the photos, is a 3D animated character.",
+  comic:
+    "a hand-drawn superhero comic-book cover illustration: bold black ink outlines, flat vivid colours, halftone dots, action lines. " +
+    "It is NOT a photograph; every person is drawn in comic style.",
+  magazine:
+    "a glossy celebrity magazine cover photograph shot in a photo studio: one seamless, plain, single-colour paper backdrop, " +
+    "softbox fashion lighting, waist-up portrait looking at the camera. NOT an outdoor scene, NOT a movie scene, no landscape behind them.",
+  card:
+    "the art of a premium sports trading card: a dynamic hero shot of an athlete in action, stadium lights and light rays, glossy energetic colours.",
+  toy:
+    "a product photograph of a plastic action figure sealed in a retail blister box: the people are moulded plastic toy figures " +
+    "with painted faces, NOT real people.",
+};
+
+/**
  * Art direction per image style. Each brief keeps the areas where our code later
  * draws text calm, so the layouts in compose/poster.ts stay readable.
  */
@@ -25,7 +48,8 @@ Faces: every face sits between 18% and 62% of the frame height.`,
   magazine: `Format: the cover photo of a glossy celebrity magazine starring the celebrant.
 Look: studio fashion photography, waist-up portrait, confident pose, clean seamless backdrop in one colour that suits the story,
 props from the story in hand. The guest, if shown, stands slightly behind him.
-Calm areas: the top 20% is plain backdrop (the masthead goes there; hair may overlap it, faces may not); the bottom 25% is calm.
+Calm areas: the top 20% is plain backdrop (the magazine name goes there in huge letters; hair may overlap it, faces may not);
+the bottom 30% is calm (the cover headline goes there).
 Faces and cover lines (cover lines are printed later on the backdrop beside the people, never on a face):
 - one or two people: put every face in the left 60% of the frame, so the right third between 25% and 65% height is clean backdrop;
 - three or more: group them tightly, faces in a band between 22% and 50% height, and leave clean backdrop down one side below
