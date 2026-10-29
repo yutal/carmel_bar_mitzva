@@ -16,13 +16,13 @@ Every file is stored on disk with a name like `david_cohen_20261027_201530` (Heb
 8. [Songs and Suno](#songs-and-suno)
 9. [Video and voice lab](#video-and-voice-lab)
 10. [Languages](#languages)
-10. [Design](#design)
-11. [Running locally](#running-locally)
-12. [Deployment](#deployment)
-13. [Event day](#event-day)
-14. [Load and limits](#load-and-limits)
-15. [Troubleshooting](#troubleshooting)
-16. [Privacy and security](#privacy-and-security)
+11. [Design](#design)
+12. [Running locally](#running-locally)
+13. [Deployment](#deployment)
+14. [Event day](#event-day)
+15. [Load and limits](#load-and-limits)
+16. [Troubleshooting](#troubleshooting)
+17. [Privacy and security](#privacy-and-security)
 
 ---
 
@@ -37,7 +37,7 @@ Every file is stored on disk with a name like `david_cohen_20261027_201530` (Heb
 
 Log in to `/admin` with the user `admin` and the password set in `ADMIN_PASSWORD`.
 
-The guest-facing UI is Hebrew, right-to-left, and mobile-first.
+The guest-facing UI is mobile-first, in Hebrew (right-to-left) by default or English with `?lang=en`; see [Languages](#languages).
 
 ---
 
@@ -465,17 +465,22 @@ flowchart LR
 
 ## Load and limits
 
-Measured locally in mock mode on one CPU core, with ~250 KB phone-sized photos, every guest submitting at the same moment:
+Measured locally in mock mode on one CPU core with the V8 heap sized for 2 GB (the Render Standard instance), ~250 KB phone-sized photos on half the submissions, and every guest submitting at the same moment. `MOCK_IMAGE_DELAY_MS=20000` stands in for the real image model.
 
-| Guests at once | Submit response, median / p95 | Peak memory | All posters done (mock, 1.5 s per image) |
-| --- | --- | --- | --- |
-| 25 | 1.2 s / 1.6 s | 324 MB | 20 s |
-| 50 | 1.6 s / 2.7 s | 353 MB | 39 s |
+| Guests at once | `GENERATION_CONCURRENCY` | Submit response, p95 | Peak memory | All posters done |
+| --- | --- | --- | --- | --- |
+| 60 | 3 | 2.9 s | 456 MB | 7 min |
+| 120 | 10 | 6.4 s | 635 MB | 4.7 min |
 
-- **Web server:** comfortably handles 50 guests submitting at once on a 512 MB instance. Photo decoding is limited to two at a time, and the image includes `MALLOC_ARENA_MAX=2` and a V8 heap sized to the instance; without those, 50 guests peaked at 680 MB and would crash a 512 MB instance.
-- **Generation:** runs in a queue, 3 at a time by default. A real poster takes about a minute, so 50 guests at once means the last one waits about 15–17 minutes. Guests can close the page and come back to their link.
-- **OpenAI is the real bottleneck.** Image limits depend on the account's usage tier: Tier 1 allows 5 images per minute, Tier 2 allows 20, Tier 3 allows 50. A new account starts at Tier 1, so keep `GENERATION_CONCURRENCY` at 3 until the tier goes up. Check it at platform.openai.com under Limits.
-- **Memory:** if the logs show out-of-memory errors, lower `GENERATION_CONCURRENCY` to 2 or use a larger instance.
+300 page loads at the same moment all succeeded, in about 3.3 s each. No request failed in any run.
+
+- **Web server:** not the bottleneck. A Standard instance (2 GB, 1 CPU) takes 120 guests submitting at once with room to spare. Photo decoding is limited to two at a time, and the image sets `MALLOC_ARENA_MAX=2` and a V8 heap sized to the instance.
+- **Generation:** runs in a queue. A real poster takes about a minute, so with 60 guests at once and `GENERATION_CONCURRENCY=3` the last one waits about 20 minutes. On a Standard instance 6 to 8 is a good setting, if OpenAI allows it. Guests can close the page and come back to their link.
+- **OpenAI is the real bottleneck.** Image limits depend on the account's usage tier: Tier 1 allows 5 images per minute, Tier 2 allows 20, Tier 3 allows 50. Keep `GENERATION_CONCURRENCY` at 3 on Tier 1. Check the tier at platform.openai.com under Limits.
+- **Scaling:** a service with a persistent disk runs as one instance on Render, and the queue and files live on that instance, so autoscaling does not apply. For a bigger event, switch to a larger instance for the day; Render charges by the second.
+- **Memory:** if the logs show out-of-memory errors, lower `GENERATION_CONCURRENCY` or use a larger instance.
+
+To repeat the test: `AI_PROVIDER=mock MOCK_IMAGE_DELAY_MS=20000 taskset -c 0 node --max-old-space-size=1228 .next/standalone/server.js`, then send concurrent page loads and multipart submissions to `/api/submissions` and poll each result until it is done.
 
 ---
 

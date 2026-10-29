@@ -86,7 +86,8 @@ export const mockImage: ImageProvider = {
   async generate({ size }) {
     const [w, h] = size === "portrait" ? [1024, 1536] : [1024, 1024];
     const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="${w}" height="${h}"><defs><linearGradient id="g" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#1b2a6b"/><stop offset="1" stop-color="#c76b2a"/></linearGradient></defs><rect width="100%" height="100%" fill="url(#g)"/>${MOCK_FACES.map((f) => `<ellipse cx="${((f.left + f.right) / 2) * w}" cy="${((f.top + f.bottom) / 2) * h}" rx="${((f.right - f.left) / 2) * w}" ry="${((f.bottom - f.top) / 2) * h}" fill="#e0a07c" stroke="#222" stroke-width="6"/>`).join("")}</svg>`;
-    await new Promise((r) => setTimeout(r, 1500));
+    // MOCK_IMAGE_DELAY_MS stands in for the real model's time per image, e.g. in load tests.
+    await new Promise((r) => setTimeout(r, Number(process.env.MOCK_IMAGE_DELAY_MS) || 1500));
     return sharp(Buffer.from(svg)).png().toBuffer();
   },
 };
