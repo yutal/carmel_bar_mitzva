@@ -157,6 +157,7 @@ async function processJob(id: string): Promise<void> {
     const event = await getEvent();
     const info = await timed(id, "probe", "בודק את הקובץ", () => probe(input));
     if (!info.hasAudio && !info.video) throw new Error("הקובץ לא נראה כמו וידאו או הקלטה");
+    if (!(info.duration > 0)) throw new Error("לא הצלחתי לקרוא את אורך הקובץ");
     if (info.duration > MAX_SOURCE_SECONDS) throw new Error("הקובץ ארוך מ-5 דקות");
     await update(id, (j) => {
       j.source = { kind: info.video ? "video" : "audio", duration: info.duration, ...info.video };

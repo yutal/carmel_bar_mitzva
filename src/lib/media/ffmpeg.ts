@@ -50,11 +50,24 @@ export async function probe(file: string): Promise<MediaInfo> {
     const rotation = Math.abs(Number(v.side_data_list?.find((d) => d.rotation !== undefined)?.rotation ?? v.tags?.rotate ?? 0));
     video = rotation % 180 === 90 ? { width: v.height!, height: v.width! } : { width: v.width!, height: v.height! };
   }
+  let duration = Number(json.format?.duration);
+  // A recording made in the browser (Chrome's MediaRecorder webm) has no duration in its header: read it from the last packet.
+  if (!(duration > 0)) duration = await lastPacketEnd(file);
   return {
-    duration: Number(json.format?.duration ?? 0),
+    duration,
     video,
     hasAudio: streams.some((s) => s.codec_type === "audio"),
   };
+}
+
+async function lastPacketEnd(file: string): Promise<number> {
+  const out = await run("ffprobe", ["-v", "error", "-show_entries", "packet=pts_time,duration_time", "-of", "csv=p=0", file], { timeoutMs: 60_000 });
+  let end = 0;
+  for (const line of out.split("\n")) {
+    const [pts, dur] = line.split(",").map(Number);
+    if (pts + (dur || 0) > end) end = pts + (dur || 0);
+  }
+  return Math.round(end * 100) / 100;
 }
 
 export async function ffmpegAvailable(): Promise<boolean> {
