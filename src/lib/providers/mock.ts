@@ -1,6 +1,7 @@
 import "server-only";
 import sharp from "sharp";
-import type { ImageProvider, LlmProvider } from "./types";
+import { probe } from "@/lib/media/ffmpeg";
+import type { ImageProvider, LlmProvider, TranscribeProvider } from "./types";
 
 /** Offline providers for local development and tests (AI_PROVIDER=mock). */
 export const mockLlm: LlmProvider = {
@@ -43,6 +44,32 @@ export const mockLlm: LlmProvider = {
       sunoPrompt: `Upbeat Israeli pop song in Hebrew for the Bar Mitzvah of ${event.celebrantName}, sung by ${input.fullName} (${input.relationship}). Basketball games in the yard where ${event.celebrantName} always wins. 120 bpm, electric guitar, warm male vocals.`,
       coverPrompt: "mock",
     };
+  },
+  async clipPlan(segments, { maxSeconds }) {
+    let last = 0;
+    while (last + 1 < segments.length && segments[last + 1].end - segments[0].start <= maxSeconds) last++;
+    return { titleHebrew: "ברכה מכל הלב", quoteHebrew: segments[1]?.text ?? segments[0]?.text ?? "", ranges: [{ first: 0, last }] };
+  },
+};
+
+const MOCK_LINES = [
+  "היי כרמל, מזל טוב!",
+  "אני כל כך גאה בך ביום הזה",
+  "זוכר את המשחק בחצר כשניצחת את כולנו?",
+  "שתמיד תמשיך לחייך ככה",
+  "ושתגשים את כל החלומות שלך",
+  "אוהבים אותך מאוד, מזל טוב!",
+];
+
+/** Fake Hebrew lines every four seconds across the real length of the file. */
+export const mockTranscribe: TranscribeProvider = {
+  async transcribe(file) {
+    const { duration } = await probe(file);
+    const segments = [];
+    for (let t = 0, i = 0; t < duration - 0.5; t += 4, i++) {
+      segments.push({ start: t, end: Math.min(t + 4, duration), text: MOCK_LINES[i % MOCK_LINES.length] });
+    }
+    return { duration, segments };
   },
 };
 

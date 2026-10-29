@@ -12,6 +12,8 @@ const EnvSchema = z.object({
   GENERATION_CONCURRENCY: z.coerce.number().int().min(1).max(10).default(3),
   GUEST_PHOTO_RETENTION_DAYS: z.coerce.number().min(0).default(7),
   MAX_CREATIONS_PER_GUEST: z.coerce.number().int().min(0).default(3),
+  TRANSCRIBE_MODEL: z.string().default("whisper-1"),
+  CLIP_MAX_SECONDS: z.coerce.number().min(5).max(120).default(30),
 });
 
 const env = EnvSchema.parse(process.env);
@@ -28,6 +30,10 @@ export const config = {
   guestPhotoRetentionDays: env.GUEST_PHOTO_RETENTION_DAYS,
   /** Creations one guest (by name) may make; 0 means no limit. */
   maxCreationsPerGuest: env.MAX_CREATIONS_PER_GUEST,
+  /** Must return segment timestamps (verbose_json); gpt-4o-transcribe does not. */
+  transcribeModel: env.TRANSCRIBE_MODEL,
+  /** Longest part of a guest's video or recording kept in the edited clip. */
+  clipMaxSeconds: env.CLIP_MAX_SECONDS,
   fontsDir: path.resolve(process.cwd(), "assets/fonts"),
   /** Celebrant photos and look.txt shipped with the app, copied into DATA_DIR on startup. */
   celebrantSeedDir: path.resolve(process.cwd(), "assets/celebrant"),

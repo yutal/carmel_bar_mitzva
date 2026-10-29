@@ -1,4 +1,4 @@
-import type { Analysis, EventSettings, GuestInput, ImageConcept, SongConcept } from "@/lib/types";
+import type { Analysis, ClipPlan, EventSettings, GuestInput, ImageConcept, SongConcept, TranscriptSegment } from "@/lib/types";
 
 /** `label` replaces the default one-line description of the image in the prompt. */
 export type ReferenceImage = { name: string; data: Buffer; role: "celebrant" | "guest"; label?: string };
@@ -8,6 +8,13 @@ export interface LlmProvider {
   /** The guest photo, when given, is shown to the model so it can see who is in it. */
   imageConcept(input: GuestInput, analysis: Analysis, event: EventSettings, guestPhoto?: Buffer): Promise<ImageConcept>;
   songConcept(input: GuestInput, analysis: Analysis, event: EventSettings): Promise<SongConcept>;
+  /** Picks the strongest spoken lines of a guest's video or recording for a short clip. */
+  clipPlan(segments: TranscriptSegment[], ctx: { guestName: string; celebrantName: string; maxSeconds: number }): Promise<ClipPlan>;
+}
+
+export interface TranscribeProvider {
+  /** `hint` carries names and words the speaker is likely to say, to spell them right. */
+  transcribe(audioFile: string, hint: string): Promise<{ duration: number; segments: TranscriptSegment[] }>;
 }
 
 export interface ImageProvider {

@@ -12,5 +12,8 @@ export async function GET(request: Request) {
   } catch {
     return jsonError("נתיב לא חוקי");
   }
-  return sendFile(abs, { download: params.has("download") ? rel.split("/").pop() : undefined });
+  return sendFile(abs, {
+    download: params.has("download") ? rel.split("/").pop() : undefined,
+    range: request.headers.get("range"),
+  });
 }

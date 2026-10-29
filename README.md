@@ -14,13 +14,14 @@ Every file is stored on disk with a name like `david_cohen_20261027_201530` (Heb
 6. [Models and services](#models-and-services)
 7. [Guide: changing models](#guide-changing-models)
 8. [Songs and Suno](#songs-and-suno)
-9. [Design](#design)
-10. [Running locally](#running-locally)
-11. [Deployment](#deployment)
-12. [Event day](#event-day)
-13. [Load and limits](#load-and-limits)
-14. [Troubleshooting](#troubleshooting)
-15. [Privacy and security](#privacy-and-security)
+9. [Video and voice lab](#video-and-voice-lab)
+10. [Design](#design)
+11. [Running locally](#running-locally)
+12. [Deployment](#deployment)
+13. [Event day](#event-day)
+14. [Load and limits](#load-and-limits)
+15. [Troubleshooting](#troubleshooting)
+16. [Privacy and security](#privacy-and-security)
 
 ---
 
@@ -212,7 +213,9 @@ Everything lives under `DATA_DIR`, which is `/data` on the server:
 ├── images/<name>_<time>.png           finished poster
 ├── songs/<name>_<time>_suno.txt       song description for Suno
 ├── songs/<name>_<time>_cover.png      square cover
-└── songs/<name>_<time>.mp3            the song, once uploaded
+├── songs/<name>_<time>.mp3            the song, once uploaded
+├── lab/music.m4a                      background music for lab clips
+└── lab/<date>_<id>/                   one lab run: input, audio.mp3, job.json, clip.mp4
 ```
 
 Render's dashboard does not show this folder. View the data through `/admin`, and download everything with the "export album (ZIP)" button.
@@ -229,6 +232,8 @@ Render's dashboard does not show this folder. View the data through `/admin`, an
 | Generations in parallel | `3` | `src/lib/pipeline/queue.ts` | `GENERATION_CONCURRENCY` (1 to 10) |
 | Keep guests' original photos | 7 days, then deleted (posters stay) | `src/lib/storage/retention.ts` | `GUEST_PHOTO_RETENTION_DAYS` (`0` = forever) |
 | Music | Manual, through Suno | `src/lib/providers/music/manual.ts` | none |
+| Transcribe spoken blessings (lab) | `whisper-1` with segment timestamps, Hebrew | `src/lib/providers/transcribe/openai.ts` | `TRANSCRIBE_MODEL` |
+| Longest edited clip (lab) | 30 seconds | `src/lib/lab/jobs.ts` | `CLIP_MAX_SECONDS` |
 | Hosting | Render, Docker Web Service | `Dockerfile` | `DATA_DIR`, `PORT` |
 
 All prompts live in one file, `src/lib/prompts/index.ts`. To change the style of posters or songs, start there.
@@ -322,6 +327,27 @@ Suno has no official API, so the last step is manual:
 4. Back in `/admin`, click "upload MP3" on that submission. The song appears on the guest's page immediately.
 
 This can be done in the days after the event.
+
+---
+
+## Video and voice lab
+
+`/admin/lab` (admin only) runs the pipeline a guest's video or voice blessing would go through, so it can be tried before it is offered to guests.
+
+1. Upload a video or audio file (up to 5 minutes, 200MB), or record up to a minute in the browser.
+2. ffmpeg extracts the voice; `whisper-1` transcribes it in Hebrew with timestamps per sentence.
+3. `gpt-5.5` picks 1 to 3 runs of whole sentences, in their original order, up to 30 seconds, and the strongest line as a quote (`CLIP_PLAN_SYSTEM` in `src/lib/prompts/index.ts`).
+4. ffmpeg edits a vertical 720×1280 clip (`src/lib/media/clip.ts`):
+   - a 3-second opening with a slow push-in on the guest's poster, or a title card when there is none;
+   - the chosen parts with Hebrew captions (libass + fribidi; landscape video sits over a blurred copy of itself; voice-only shows the poster and a live waveform);
+   - a closing card with the quote, the guest's name and the event;
+   - loudness evened out, and optional background music that ducks under speech.
+
+Background music is uploaded once on the lab page and used for every clip. Use only music you have the right to use.
+
+Each result shows the clip, the transcript with the kept sentences highlighted, time per step and the transcription cost (about $0.006 a minute). Editing takes about 10 seconds on 4 CPUs; expect roughly 30 to 40 seconds on a 1-CPU instance. Clips run one at a time.
+
+The Docker image installs Debian's `ffmpeg`. `/api/health` reports `videoLab.ffmpeg`.
 
 ---
 

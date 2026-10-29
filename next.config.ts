@@ -11,6 +11,8 @@ const nextConfig: NextConfig = {
   experimental: {
     // Guest photos from phones can be large; the API resizes them on arrival.
     serverActions: { bodySizeLimit: "15mb" },
+    // Requests to /admin pass through proxy.ts, which caps bodies at 10MB by default; lab videos are larger.
+    proxyClientMaxBodySize: "200mb",
   },
   turbopack: {
     rules: {

@@ -17,6 +17,8 @@ ENV NODE_ENV=production NEXT_TELEMETRY_DISABLED=1 PORT=3000 HOSTNAME=0.0.0.0 DAT
 # Fewer glibc arenas keep sharp/canvas memory from fragmenting. The V8 heap is sized
 # to the instance's memory limit in docker-entrypoint.sh.
 ENV MALLOC_ARENA_MAX=2
+# ffmpeg edits the video & voice clips. Debian's build includes libass + fribidi for Hebrew captions.
+RUN apt-get update && apt-get install -y --no-install-recommends ffmpeg && rm -rf /var/lib/apt/lists/*
 RUN mkdir -p /data && chown node:node /data
 COPY --from=build --chown=node:node /app/.next/standalone ./
 COPY --from=build --chown=node:node /app/.next/static ./.next/static

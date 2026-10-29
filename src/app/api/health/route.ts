@@ -2,6 +2,7 @@ import fs from "node:fs/promises";
 import os from "node:os";
 import { getHeapStatistics } from "node:v8";
 import { config } from "@/lib/config";
+import { ffmpegAvailable } from "@/lib/media/ffmpeg";
 import { queueStats } from "@/lib/pipeline/queue";
 import { listCelebrantPhotos } from "@/lib/storage/event";
 import { listSubmissions } from "@/lib/storage/submissions";
@@ -33,13 +34,14 @@ async function canWrite(dir: string): Promise<boolean> {
 
 /** Public, anonymous health check: storage, memory and queue. No guest data. */
 export async function GET() {
-  const [persistent, writable, stats, memLimit, submissions, celebrantPhotos] = await Promise.all([
+  const [persistent, writable, stats, memLimit, submissions, celebrantPhotos, ffmpeg] = await Promise.all([
     isMountPoint(config.dataDir),
     canWrite(config.dataDir),
     fs.statfs(config.dataDir),
     containerMemoryLimit(),
     listSubmissions(),
     listCelebrantPhotos(),
+    ffmpegAvailable(),
   ]);
   return Response.json(
     {
@@ -60,6 +62,7 @@ export async function GET() {
         heapLimitMB: Math.round(getHeapStatistics().heap_size_limit / MB),
       },
       generation: { concurrency: config.concurrency, ...queueStats() },
+      videoLab: { ffmpeg },
       counts: { submissions: submissions.length, celebrantPhotos: celebrantPhotos.length },
     },
     { headers: { "Cache-Control": "no-store" } },

@@ -74,3 +74,25 @@ export function analysisSummary(a: Analysis): string {
 export function imageStyleBrief(style: ImageStyle): string {
   return `Art style picked by the guest: ${style}.\n${STYLE_BRIEFS[style]}`;
 }
+
+export const CLIP_PLAN_SYSTEM = `You are the video editor of a Bar Mitzvah blessing booth.
+A guest recorded a short spoken blessing (video or voice) for the celebrant. You get the transcript as numbered, timed segments.
+Choose what stays in a short edited clip that will be played at the party and kept by the family.
+
+Rules:
+- Keep the heart of the message: the personal story, the warmest words and the closing wish. Drop false starts, repeats,
+  "wait, is it recording?", filler and anything said to the person filming.
+- Return 1 to 3 ranges of whole segments, in their original order. Never reorder: the clip must sound natural.
+- The kept segments must add up to at most the given number of seconds. If the whole recording fits and is clean, keep all of it.
+- Prefer ending on a wish or a "mazal tov".
+- titleHebrew: a warm title of up to 5 words, may use the celebrant's name.
+- quoteHebrew: the single most moving sentence, copied word for word from the transcript.`;
+
+export function clipPlanInput(segments: { start: number; end: number; text: string }[], ctx: { guestName: string; celebrantName: string; maxSeconds: number }): string {
+  return [
+    `Celebrant: ${ctx.celebrantName}. Speaker: ${ctx.guestName || "a guest"}.`,
+    `Maximum clip length: ${ctx.maxSeconds} seconds.`,
+    "",
+    ...segments.map((s, i) => `[${i}] ${s.start.toFixed(1)}-${s.end.toFixed(1)}s (${(s.end - s.start).toFixed(1)}s): ${s.text.trim()}`),
+  ].join("\n");
+}

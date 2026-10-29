@@ -6,14 +6,16 @@ import { openai } from "@/lib/providers/openai-client";
 import type { LlmProvider } from "@/lib/providers/types";
 import {
   ANALYSIS_SYSTEM,
+  CLIP_PLAN_SYSTEM,
   IMAGE_CONCEPT_SYSTEM,
   SONG_CONCEPT_SYSTEM,
   analysisSummary,
+  clipPlanInput,
   guestContext,
   imageStyleBrief,
   songStyleHint,
 } from "@/lib/prompts";
-import { AnalysisSchema, ImageConceptSchema, SongConceptSchema } from "@/lib/types";
+import { AnalysisSchema, ClipPlanSchema, ImageConceptSchema, SongConceptSchema } from "@/lib/types";
 
 async function structured<S extends z.ZodType>(
   schema: S,
@@ -62,5 +64,7 @@ export const openAiLlm: LlmProvider = {
   songConcept(input, analysis, event) {
     const user = [guestContext(input, event), "", `Analysis:\n${analysisSummary(analysis)}`, "", songStyleHint(input)].join("\n");
     return structured(SongConceptSchema, "song_concept", SONG_CONCEPT_SYSTEM, user);
+  },  clipPlan(segments, ctx) {
+    return structured(ClipPlanSchema, "clip_plan", CLIP_PLAN_SYSTEM, clipPlanInput(segments, ctx));
   },
 };

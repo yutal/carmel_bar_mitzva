@@ -295,3 +295,58 @@ export async function composeCover(art: Buffer, title: string, byline: string): 
   ctx.fillText(byline, size / 2, bottom);
   return canvas.toBuffer("image/png");
 }
+
+/** Closing card of an edited blessing clip: the guest's strongest line, their name and the event. */
+export async function composeEndCard(background: Buffer, text: { quote: string; sender: string; footer: string }): Promise<Buffer> {
+  loadFonts();
+  const bg = await loadImage(background);
+  const [w, h] = [bg.width, bg.height];
+  const canvas = createCanvas(w, h);
+  const ctx = canvas.getContext("2d");
+  ctx.drawImage(bg, 0, 0, w, h);
+  ctx.fillStyle = "rgba(24,28,14,0.55)";
+  ctx.fillRect(0, 0, w, h);
+  prepare(ctx);
+
+  const maxWidth = w * 0.8;
+  const quote = text.quote
+    ? fit(ctx, { text: `״${text.quote}״`, font: (s) => `700 ${s}px "${TITLE_FONT}"`, maxSize: Math.round(w * 0.075), minSize: 36, maxLines: 6 }, maxWidth)
+    : { size: 0, lines: [] as string[] };
+  const senderSize = Math.round(w * 0.045);
+  const quoteHeight = quote.lines.length * quote.size * 1.2;
+  let y = h * 0.46 - quoteHeight / 2 + quote.size;
+  ctx.fillStyle = ACCENT;
+  ctx.font = `700 ${quote.size}px "${TITLE_FONT}"`;
+  y = drawLines(ctx, quote.lines, w / 2, y, quote.size * 1.2);
+
+  ctx.fillStyle = WHITE;
+  ctx.font = `500 ${senderSize}px "${BODY_FONT}"`;
+  ctx.fillText(`באהבה, ${text.sender}`, w / 2, y + senderSize * 1.4);
+
+  ctx.fillStyle = CLAY;
+  ctx.font = `700 ${Math.round(w * 0.04)}px "${TITLE_FONT}"`;
+  ctx.fillText(text.footer, w / 2, h - h * 0.07);
+  return canvas.toBuffer("image/png");
+}
+
+/** Opening card of a clip when the guest has no poster: the clip's title and who it is from. */
+export async function composeTitleCard(background: Buffer, text: { title: string; from: string; footer: string }): Promise<Buffer> {
+  loadFonts();
+  const bg = await loadImage(background);
+  const [w, h] = [bg.width, bg.height];
+  const canvas = createCanvas(w, h);
+  const ctx = canvas.getContext("2d");
+  ctx.drawImage(bg, 0, 0, w, h);
+  prepare(ctx);
+  ctx.fillStyle = CLAY;
+  ctx.font = `700 ${Math.round(w * 0.045)}px "${TITLE_FONT}"`;
+  ctx.fillText(text.footer, w / 2, h * 0.3);
+  const t = fit(ctx, { text: text.title, font: (s) => `900 ${s}px "${TITLE_FONT}"`, maxSize: Math.round(w * 0.13), minSize: 48, maxLines: 3 }, w * 0.84);
+  ctx.fillStyle = ACCENT;
+  ctx.font = `900 ${t.size}px "${TITLE_FONT}"`;
+  const y = drawLines(ctx, t.lines, w / 2, h * 0.5 - ((t.lines.length - 1) * t.size * 1.05) / 2, t.size * 1.05);
+  ctx.fillStyle = WHITE;
+  ctx.font = `500 ${Math.round(w * 0.045)}px "${BODY_FONT}"`;
+  ctx.fillText(text.from, w / 2, y + w * 0.04);
+  return canvas.toBuffer("image/png");
+}

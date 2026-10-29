@@ -11,6 +11,7 @@ export const DIRS = {
   images: "images",
   songs: "songs",
   exports: "exports",
+  lab: "lab",
 } as const;
 export type DirName = keyof typeof DIRS;
 
