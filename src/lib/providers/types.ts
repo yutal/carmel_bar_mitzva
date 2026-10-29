@@ -1,4 +1,4 @@
-import type { Analysis, ClipPlan, EventSettings, GuestInput, ImageConcept, SongConcept, TranscriptSegment } from "@/lib/types";
+import type { Analysis, ClipPlan, EventSettings, FaceBox, GuestInput, ImageConcept, SongConcept, TranscriptSegment } from "@/lib/types";
 
 /** `label` replaces the default one-line description of the image in the prompt. */
 export type ReferenceImage = { name: string; data: Buffer; role: "celebrant" | "guest"; label?: string };
@@ -8,6 +8,8 @@ export interface LlmProvider {
   /** The guest photo, when given, is shown to the model so it can see who is in it. */
   imageConcept(input: GuestInput, analysis: Analysis, event: EventSettings, guestPhoto?: Buffer): Promise<ImageConcept>;
   songConcept(input: GuestInput, analysis: Analysis, event: EventSettings): Promise<SongConcept>;
+  /** Finds every face in generated art, so the poster text can be laid out around them. */
+  locateFaces(art: Buffer): Promise<FaceBox[]>;
   /** Picks the strongest spoken lines of a guest's video or recording for a short clip. */
   clipPlan(segments: TranscriptSegment[], ctx: { guestName: string; celebrantName: string; maxSeconds: number }): Promise<ClipPlan>;
 }

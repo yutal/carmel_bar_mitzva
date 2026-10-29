@@ -3,6 +3,11 @@ import sharp from "sharp";
 import { probe } from "@/lib/media/ffmpeg";
 import type { ImageProvider, LlmProvider, TranscribeProvider } from "./types";
 
+/** Override with MOCK_FACES='[{"left":0.2,...}]' to try layouts with several people. */
+const MOCK_FACES = process.env.MOCK_FACES
+  ? (JSON.parse(process.env.MOCK_FACES) as { left: number; top: number; right: number; bottom: number }[])
+  : [{ left: 0.32, top: 0.36, right: 0.68, bottom: 0.6 }];
+
 /** Offline providers for local development and tests (AI_PROVIDER=mock). */
 export const mockLlm: LlmProvider = {
   async analyze() {
@@ -45,6 +50,10 @@ export const mockLlm: LlmProvider = {
       coverPrompt: "mock",
     };
   },
+  // Matches MOCK_FACES drawn by mockImage, so layouts can be checked offline.
+  async locateFaces() {
+    return MOCK_FACES;
+  },
   async clipPlan(segments, { maxSeconds }) {
     let last = 0;
     while (last + 1 < segments.length && segments[last + 1].end - segments[0].start <= maxSeconds) last++;
@@ -76,7 +85,7 @@ export const mockTranscribe: TranscribeProvider = {
 export const mockImage: ImageProvider = {
   async generate({ size }) {
     const [w, h] = size === "portrait" ? [1024, 1536] : [1024, 1024];
-    const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="${w}" height="${h}"><defs><linearGradient id="g" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#1b2a6b"/><stop offset="1" stop-color="#c76b2a"/></linearGradient></defs><rect width="100%" height="100%" fill="url(#g)"/><circle cx="${w / 2}" cy="${h / 2}" r="${w / 4}" fill="#e08a2c" stroke="#222" stroke-width="8"/></svg>`;
+    const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="${w}" height="${h}"><defs><linearGradient id="g" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#1b2a6b"/><stop offset="1" stop-color="#c76b2a"/></linearGradient></defs><rect width="100%" height="100%" fill="url(#g)"/>${MOCK_FACES.map((f) => `<ellipse cx="${((f.left + f.right) / 2) * w}" cy="${((f.top + f.bottom) / 2) * h}" rx="${((f.right - f.left) / 2) * w}" ry="${((f.bottom - f.top) / 2) * h}" fill="#e0a07c" stroke="#222" stroke-width="6"/>`).join("")}</svg>`;
     await new Promise((r) => setTimeout(r, 1500));
     return sharp(Buffer.from(svg)).png().toBuffer();
   },

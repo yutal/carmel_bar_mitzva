@@ -27,6 +27,7 @@ export default function GuestFlow({ again }: { again?: { fullName: string; relat
   const router = useRouter();
   const [name, setName] = useState("כרמל");
   const [songsEnabled, setSongsEnabled] = useState(false);
+  const [maxCreations, setMaxCreations] = useState<number | null>(null);
   const [step, setStep] = useState<Step>(again ? "who" : "welcome");
   const [form, setForm] = useState<Form>({
     fullName: again?.fullName ?? "",
@@ -50,9 +51,10 @@ export default function GuestFlow({ again }: { again?: { fullName: string; relat
   useEffect(() => {
     fetch("/api/celebrant")
       .then((r) => r.json())
-      .then((d: { celebrantName?: string; songsEnabled?: boolean }) => {
+      .then((d: { celebrantName?: string; songsEnabled?: boolean; maxCreations?: number | null }) => {
         if (d.celebrantName) setName(d.celebrantName);
         setSongsEnabled(Boolean(d.songsEnabled));
+        setMaxCreations(d.maxCreations ?? null);
       })
       .catch(() => undefined);
   }, []);
@@ -170,7 +172,11 @@ export default function GuestFlow({ again }: { again?: { fullName: string; relat
                 ))}
               </ol>
             </div>
-            <p className="text-center text-xs text-accent-soft">לוקח בערך 2 דקות · כל היצירות נשמרות באלבום של {name}</p>
+            <p className="text-center text-xs text-accent-soft">
+              לוקח בערך 2 דקות
+              {maxCreations && ` · עד ${maxCreations === 1 ? "יצירה אחת" : `${maxCreations} יצירות`} לכל אורח`}
+              {` · כל היצירות נשמרות באלבום של ${name}`}
+            </p>
           </section>
         )}
 
@@ -205,10 +211,10 @@ export default function GuestFlow({ again }: { again?: { fullName: string; relat
           <section className="space-y-6">
             <div>
               <h2 className="font-display text-[2rem] font-bold text-ink">ספרו לנו עליכם</h2>
-              <p className="mt-1 text-muted">ככל שתהיו ספציפיים, התוצאה תהיה אישית יותר. מספיק לענות על אחת.</p>
-              {songsEnabled && (
-                <p className="mt-3 rounded-2xl bg-olive-100 px-4 py-3 text-sm text-accent">🎵 אם תבחרו גם שיר, הוא ייכתב על בסיס התשובות כאן.</p>
-              )}
+              <p className="mt-3 rounded-2xl bg-olive-100 px-4 py-3 text-accent">
+                🎨 <strong>מהתשובות כאן נבנית התמונה שלכם:</strong> הסצנה, הכותרת והפרטים שבה{songsEnabled ? ", וגם השיר אם תבחרו בו" : ""}.
+              </p>
+              <p className="mt-2 text-muted">ככל שתהיו ספציפיים, התוצאה תהיה אישית יותר. מספיק לענות על אחת.</p>
             </div>
             <Question label={`מה הכי אוהבים לעשות יחד עם ${name}?`} placeholder="כדורסל בחצר, פיפ״א, טיולים..." value={form.together} max={300} onChange={(v) => set("together", v)} />
             <Question label="זיכרון משותף או סיפור מצחיק" placeholder="הפעם ההיא ש..." value={form.memory} max={600} rows={4} onChange={(v) => set("memory", v)} />

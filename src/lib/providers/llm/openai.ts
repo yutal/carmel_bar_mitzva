@@ -7,6 +7,7 @@ import type { LlmProvider } from "@/lib/providers/types";
 import {
   ANALYSIS_SYSTEM,
   CLIP_PLAN_SYSTEM,
+  FACE_MAP_SYSTEM,
   IMAGE_CONCEPT_SYSTEM,
   SONG_CONCEPT_SYSTEM,
   analysisSummary,
@@ -15,7 +16,8 @@ import {
   imageStyleBrief,
   songStyleHint,
 } from "@/lib/prompts";
-import { AnalysisSchema, ClipPlanSchema, ImageConceptSchema, SongConceptSchema } from "@/lib/types";
+import sharp from "sharp";
+import { AnalysisSchema, ClipPlanSchema, FaceMapSchema, ImageConceptSchema, SongConceptSchema } from "@/lib/types";
 
 async function structured<S extends z.ZodType>(
   schema: S,
@@ -64,7 +66,13 @@ export const openAiLlm: LlmProvider = {
   songConcept(input, analysis, event) {
     const user = [guestContext(input, event), "", `Analysis:\n${analysisSummary(analysis)}`, "", songStyleHint(input)].join("\n");
     return structured(SongConceptSchema, "song_concept", SONG_CONCEPT_SYSTEM, user);
-  },  clipPlan(segments, ctx) {
+  },  async locateFaces(art) {
+    // A 1024px JPEG is plenty to find faces and keeps the request small.
+    const jpeg = await sharp(art).resize(1024, 1024, { fit: "inside" }).jpeg({ quality: 85 }).toBuffer();
+    const { faces } = await structured(FaceMapSchema, "face_map", FACE_MAP_SYSTEM, "Locate every face in this image.", jpeg);
+    return faces;
+  },
+  clipPlan(segments, ctx) {
     return structured(ClipPlanSchema, "clip_plan", CLIP_PLAN_SYSTEM, clipPlanInput(segments, ctx));
   },
 };

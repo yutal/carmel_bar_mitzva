@@ -73,6 +73,18 @@ export const ImageConceptSchema = z.object({
 });
 export type ImageConcept = z.infer<typeof ImageConceptSchema>;
 
+/** A face in the generated art, as fractions of the image width and height (0 = left/top, 1 = right/bottom). */
+export const FaceBoxSchema = z.object({
+  left: z.number(),
+  top: z.number(),
+  right: z.number(),
+  bottom: z.number(),
+});
+export type FaceBox = z.infer<typeof FaceBoxSchema>;
+export const FaceMapSchema = z.object({
+  faces: z.array(FaceBoxSchema).describe("Every face in the image, from the eyebrows to the chin and ear to ear"),
+});
+
 /** Stage 2 for the song: a brief that Suno turns into lyrics and music (we never write the lyrics). */
 export const SongConceptSchema = z.object({
   titleHebrew: z.string(),
@@ -118,6 +130,8 @@ export type Submission = {
   analysis?: Analysis;
   imageConcept?: ImageConcept;
   songConcept?: SongConcept;
+  /** Faces found in the generated art; the poster text is laid out around them. */
+  faces?: FaceBox[];
   files: SubmissionFiles;
 };
 

@@ -43,6 +43,9 @@ Rules:
     If not, show the guest only from behind or as a silhouette, or leave them out if that suits the story better.
   * Composition with several people: every face is large, front-facing or three-quarter, unobstructed and well lit;
     nobody is cropped, turned away, hidden behind another person or in deep shadow. The celebrant stays the hero in front.
+  * Hebrew text is printed on the image later in fixed places (see the style brief). Plan where every face goes for the
+    number of people in the scene, so no face falls where text will be printed, and repeat the brief's face placement
+    in the prompt in plain words (e.g. "both faces in the left half, between 20% and 55% of the height").
   * Describe scene, action, costumes, props from the story, lighting, camera angle and colour grade,
     in the art style and composition the style brief gives. The brief's calm areas are mandatory: text is added there later.
   * Vertical 2:3 frame.
@@ -96,3 +99,9 @@ export function clipPlanInput(segments: { start: number; end: number; text: stri
     ...segments.map((s, i) => `[${i}] ${s.start.toFixed(1)}-${s.end.toFixed(1)}s (${(s.end - s.start).toFixed(1)}s): ${s.text.trim()}`),
   ].join("\n");
 }
+
+export const FACE_MAP_SYSTEM = `You locate faces in an illustration or photo so that text can be placed without covering anyone.
+Return a box for EVERY human or character face, including small ones in the background, cartoon, comic and toy faces.
+Each box spans from the eyebrows to the chin and from ear to ear, as fractions of the image width and height
+(left/right from 0 at the left edge to 1 at the right edge; top/bottom from 0 at the top to 1 at the bottom).
+Be generous rather than tight. Hair, bodies and props are not faces. If there are no faces, return an empty list.`;

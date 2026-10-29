@@ -2,7 +2,7 @@ import "server-only";
 import path from "node:path";
 import { GlobalFonts, createCanvas, loadImage, type SKRSContext2D } from "@napi-rs/canvas";
 import { config } from "@/lib/config";
-import type { ImageStyle } from "@/lib/types";
+import type { FaceBox, ImageStyle } from "@/lib/types";
 
 const ACCENT = "#E4E9C6"; // pale olive, readable on the dark band
 const CLAY = "#E9A27E";
@@ -83,7 +83,25 @@ export type PosterText = {
   blessing: string;
   sender: string;
   footer: string;
+  /** Faces in the art; text is laid out so it never covers one. */
+  faces?: FaceBox[];
 };
+
+type Box = { x0: number; y0: number; x1: number; y1: number };
+
+/** Face boxes in pixels, with a margin so letters do not touch a chin or an ear. */
+function faceBoxes(faces: FaceBox[] | undefined, w: number, h: number): Box[] {
+  return (faces ?? []).map((f) => ({
+    x0: Math.max(0, Math.min(f.left, f.right) * w - w * 0.03),
+    x1: Math.min(w, Math.max(f.left, f.right) * w + w * 0.03),
+    y0: Math.max(0, Math.min(f.top, f.bottom) * h - h * 0.02),
+    y1: Math.min(h, Math.max(f.top, f.bottom) * h + h * 0.02),
+  }));
+}
+
+/** Highest point of any face, or the bottom of the image when there are none. */
+const facesTop = (faces: Box[], h: number) => Math.min(h, ...faces.map((f) => f.y0));
+const facesBottom = (faces: Box[]) => Math.max(0, ...faces.map((f) => f.y1));
 
 /** Final image: generated art + Hebrew text, original blessing and sender, rendered here (not by the model). */
 export async function composePoster(art: Buffer, text: PosterText): Promise<Buffer> {
@@ -104,19 +122,20 @@ export async function composePoster(art: Buffer, text: PosterText): Promise<Buff
 type Img = Awaited<ReturnType<typeof loadImage>>;
 
 /** Footer, sender and blessing stacked upwards from `bottom`. Returns the top of the blessing. */
-function drawSignOff(ctx: SKRSContext2D, w: number, bottom: number, text: PosterText, maxLines: number, scale = 1): number {
+function drawSignOff(ctx: SKRSContext2D, w: number, bottom: number, text: PosterText, maxLines: number, scale = 1, draw = true): number {
   const cx = w / 2;
   const footerSize = Math.round(w * 0.026 * scale);
-  ctx.fillStyle = ACCENT;
-  ctx.font = `500 ${footerSize}px "${BODY_FONT}"`;
-  ctx.fillText(text.footer, cx, bottom);
-  ctx.fillRect(cx - w * 0.12, bottom - footerSize * 1.6, w * 0.24, 2);
-
   const senderSize = Math.round(w * 0.034 * scale);
   const senderY = bottom - footerSize * 3;
-  ctx.fillStyle = CLAY;
-  ctx.font = `700 ${senderSize}px "${BODY_FONT}"`;
-  ctx.fillText(text.sender, cx, senderY);
+  if (draw) {
+    ctx.fillStyle = ACCENT;
+    ctx.font = `500 ${footerSize}px "${BODY_FONT}"`;
+    ctx.fillText(text.footer, cx, bottom);
+    ctx.fillRect(cx - w * 0.12, bottom - footerSize * 1.6, w * 0.24, 2);
+    ctx.fillStyle = CLAY;
+    ctx.font = `700 ${senderSize}px "${BODY_FONT}"`;
+    ctx.fillText(text.sender, cx, senderY);
+  }
 
   const blessing = fit(
     ctx,
@@ -125,22 +144,50 @@ function drawSignOff(ctx: SKRSContext2D, w: number, bottom: number, text: Poster
   );
   const lh = blessing.size * 1.38;
   const top = senderY - senderSize * 1.6 - (blessing.lines.length - 1) * lh;
-  ctx.fillStyle = WHITE;
-  ctx.font = `400 ${blessing.size}px "${BODY_FONT}"`;
-  drawLines(ctx, blessing.lines, cx, top, lh);
+  if (draw) {
+    ctx.fillStyle = WHITE;
+    ctx.font = `400 ${blessing.size}px "${BODY_FONT}"`;
+    drawLines(ctx, blessing.lines, cx, top, lh);
+  }
   return top - blessing.size;
 }
 
-/** Movie, animation, comic and toy box: title on top, blessing at the bottom. */
+/** The sign-off, made smaller (never shortened) until the blessing clears every face. Returns its top. */
+function placeSignOff(ctx: SKRSContext2D, w: number, bottom: number, text: PosterText, maxLines: number, scale: number, faces: Box[]): number {
+  const low = facesBottom(faces);
+  let chosen = scale * 0.65;
+  for (let sc = scale; sc >= scale * 0.65; sc -= 0.05) {
+    if (drawSignOff(ctx, w, bottom, text, maxLines, sc, false) >= low) {
+      chosen = sc;
+      break;
+    }
+  }
+  return drawSignOff(ctx, w, bottom, text, maxLines, chosen);
+}
+
+/** Movie, animation, comic and toy box: title on top, blessing at the bottom, both kept off the faces. */
 function drawMoviePoster(ctx: SKRSContext2D, img: Img, w: number, h: number, text: PosterText) {
   ctx.drawImage(img, 0, 0, w, h);
   const cx = w / 2;
+  const faces = faceBoxes(text.faces, w, h);
   shade(ctx, w, 0, h * 0.24, 0.75, 0);
   shade(ctx, w, h * 0.55, h, 0, 0.92);
   prepare(ctx);
 
+  // Largest title (and tagline) whose block ends above the highest face.
+  const ceiling = facesTop(faces, h);
+  const taglineSize = Math.round(w * 0.032);
+  let title = { size: 0, lines: [] as string[] };
+  let tagline = text.tagline;
+  const blockBottom = () => h * 0.035 + title.size + (title.lines.length - 1) * title.size * 1.05 + (tagline ? w * 0.025 + taglineSize * 0.3 : title.size * 0.25);
+  for (let max = Math.round(w * 0.11); max >= Math.round(w * 0.06); max -= 4) {
+    title = fit(ctx, { text: text.title, font: (s) => `900 ${s}px "${TITLE_FONT}"`, maxSize: max, minSize: Math.round(w * 0.06), maxLines: 2 }, w * 0.86);
+    if (blockBottom() <= ceiling) break;
+  }
+  // A face very high in the frame: the tagline gives way before anything lands on it.
+  if (blockBottom() > ceiling) tagline = "";
+
   const comic = text.style === "comic";
-  const title = fit(ctx, { text: text.title, font: (s) => `900 ${s}px "${TITLE_FONT}"`, maxSize: Math.round(w * 0.11), minSize: 48, maxLines: 2 }, w * 0.86);
   ctx.font = `900 ${title.size}px "${TITLE_FONT}"`;
   const titleY = h * 0.035 + title.size;
   if (comic) {
@@ -154,47 +201,97 @@ function drawMoviePoster(ctx: SKRSContext2D, img: Img, w: number, h: number, tex
     ctx.fillStyle = ACCENT;
   }
   const y = drawLines(ctx, title.lines, cx, titleY, title.size * 1.05);
-  if (text.tagline) {
+  if (tagline) {
     ctx.fillStyle = WHITE;
-    ctx.font = `500 ${Math.round(w * 0.032)}px "${BODY_FONT}"`;
-    drawLines(ctx, [text.tagline], cx, y + w * 0.025, 0);
+    ctx.font = `500 ${taglineSize}px "${BODY_FONT}"`;
+    drawLines(ctx, [tagline], cx, y + w * 0.025, 0);
   }
-  drawSignOff(ctx, w, h - h * 0.03, text, 7);
+  placeSignOff(ctx, w, h - h * 0.03, text, 7, 1, faces);
 }
 
-/** Magazine cover: masthead, cover lines down the right side, blessing at the bottom. */
+type CoverSpot = { x: number; align: "left" | "right"; y: number; scale: number; count: number };
+
+/** Heights of the cover-line stack at a given scale, using the same sizes it is drawn with. */
+function coverStack(ctx: SKRSContext2D, lines: string[], w: number, h: number, colWidth: number, scale: number) {
+  return lines.map((line, i) => {
+    const size = Math.round(w * (i === 0 ? 0.052 : 0.04) * scale);
+    const block = fit(ctx, { text: line, font: (s) => `900 ${s}px "${BODY_FONT}"`, maxSize: size, minSize: Math.min(size, 20), maxLines: 3 }, colWidth);
+    return { block, height: block.size * 1.25 + block.lines.length * block.size * 1.12 + h * 0.03 };
+  });
+}
+
+/**
+ * Finds room for the cover lines in the right or left column, between the masthead and the sign-off,
+ * where no face is. Prefers the right side, more lines and larger text. Undefined when nothing fits.
+ */
+function findCoverSpot(ctx: SKRSContext2D, lines: string[], w: number, h: number, top: number, bottom: number, faces: Box[], colWidth: number): CoverSpot | undefined {
+  const columns = [
+    { x: w * 0.95, align: "right" as const, x0: w * 0.95 - colWidth, x1: w * 0.95 },
+    { x: w * 0.05, align: "left" as const, x0: w * 0.05, x1: w * 0.05 + colWidth },
+  ];
+  for (let count = Math.min(3, lines.length); count >= 1; count--) {
+    for (let scale = 1; scale >= 0.6; scale -= 0.1) {
+      const height = coverStack(ctx, lines.slice(0, count), w, h, colWidth, scale).reduce((n, b) => n + b.height, 0);
+      for (const col of columns) {
+        // Walk down the column: start at the top, jump below any face in the way.
+        let y = Math.max(top, h * 0.24);
+        for (let guard = 0; guard < 10 && y + height <= bottom; guard++) {
+          const clash = faces.find((f) => f.x0 < col.x1 && col.x0 < f.x1 && f.y0 < y + height && y < f.y1);
+          if (!clash) return { x: col.x, align: col.align, y, scale, count };
+          y = clash.y1;
+        }
+      }
+    }
+  }
+  return undefined;
+}
+
+/** Magazine cover: masthead, cover lines in whichever side column is free of faces, blessing at the bottom. */
 function drawMagazine(ctx: SKRSContext2D, img: Img, w: number, h: number, text: PosterText) {
   ctx.drawImage(img, 0, 0, w, h);
+  const faces = faceBoxes(text.faces, w, h);
   shade(ctx, w, 0, h * 0.2, 0.55, 0);
   shade(ctx, w, h * 0.66, h, 0, 0.92);
   prepare(ctx);
 
-  // Masthead: the title, as wide as the cover allows.
-  const mast = fit(ctx, { text: text.title, font: (s) => `900 ${s}px "${TITLE_FONT}"`, maxSize: Math.round(w * 0.16), minSize: 56, maxLines: 1 }, w * 0.92);
+  // Masthead: the title, as wide as the cover allows, but ending above the highest face.
+  const ceiling = facesTop(faces, h);
+  const taglineGap = w * 0.045;
+  let mast = { size: 0, lines: [] as string[] };
+  for (let max = Math.round(w * 0.16); max >= Math.round(w * 0.08); max -= 4) {
+    mast = fit(ctx, { text: text.title, font: (s) => `900 ${s}px "${TITLE_FONT}"`, maxSize: max, minSize: Math.round(w * 0.08), maxLines: 1 }, w * 0.92);
+    if (h * 0.02 + mast.size * 0.92 + taglineGap + w * 0.01 <= ceiling) break;
+  }
+  const mastBase = h * 0.02 + mast.size * 0.92;
   ctx.fillStyle = WHITE;
   ctx.font = `900 ${mast.size}px "${TITLE_FONT}"`;
-  ctx.fillText(mast.lines[0], w / 2, h * 0.02 + mast.size * 0.92);
-  ctx.fillStyle = CLAY;
-  ctx.font = `700 ${Math.round(w * 0.026)}px "${BODY_FONT}"`;
-  ctx.fillText(text.tagline, w / 2, h * 0.02 + mast.size * 0.92 + w * 0.045);
-
-  // Cover lines, right-aligned in the right third.
-  ctx.textAlign = "right";
-  const x = w * 0.95;
-  const colWidth = w * 0.36;
-  let y = h * 0.3;
-  for (const [i, line] of text.coverLines.slice(0, 3).entries()) {
-    const size = Math.round(w * (i === 0 ? 0.052 : 0.04));
-    const block = fit(ctx, { text: line, font: (s) => `900 ${s}px "${BODY_FONT}"`, maxSize: size, minSize: 22, maxLines: 3 }, colWidth);
+  ctx.fillText(mast.lines[0], w / 2, mastBase);
+  const showTagline = mastBase + taglineGap + w * 0.01 <= ceiling;
+  if (showTagline) {
     ctx.fillStyle = CLAY;
-    ctx.fillRect(x - w * 0.08, y, w * 0.08, Math.max(4, w * 0.006));
-    y += block.size * 1.25;
-    ctx.fillStyle = WHITE;
-    ctx.font = `900 ${block.size}px "${BODY_FONT}"`;
-    y = drawLines(ctx, block.lines, x, y, block.size * 1.12) + h * 0.03;
+    ctx.font = `700 ${Math.round(w * 0.026)}px "${BODY_FONT}"`;
+    ctx.fillText(text.tagline, w / 2, mastBase + taglineGap);
   }
-  ctx.textAlign = "center";
-  drawSignOff(ctx, w, h - h * 0.03, text, 4, 0.9);
+
+  const signOffTop = placeSignOff(ctx, w, h - h * 0.03, text, 4, 0.9, faces);
+
+  // Cover lines only where they cover no one; with no free spot they are left out.
+  const colWidth = w * 0.36;
+  const lines = text.coverLines.slice(0, 3);
+  const spot = lines.length ? findCoverSpot(ctx, lines, w, h, mastBase + taglineGap + h * 0.03, signOffTop - h * 0.02, faces, colWidth) : undefined;
+  if (spot) {
+    ctx.textAlign = spot.align;
+    let y = spot.y;
+    for (const { block } of coverStack(ctx, lines.slice(0, spot.count), w, h, colWidth, spot.scale)) {
+      ctx.fillStyle = CLAY;
+      ctx.fillRect(spot.align === "right" ? spot.x - w * 0.08 : spot.x, y, w * 0.08, Math.max(4, w * 0.006));
+      y += block.size * 1.25;
+      ctx.fillStyle = WHITE;
+      ctx.font = `900 ${block.size}px "${BODY_FONT}"`;
+      y = drawLines(ctx, block.lines, spot.x, y, block.size * 1.12) + h * 0.03;
+    }
+    ctx.textAlign = "center";
+  }
 }
 
 /** Player card: frame, art window, rating badge, name plate, stats and a short blessing, all drawn here. */
