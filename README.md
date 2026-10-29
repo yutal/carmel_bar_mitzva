@@ -46,7 +46,7 @@ Every file is stored on disk with a name like `david_cohen_20261027_201530` (Heb
 | Path | For | What it does |
 | --- | --- | --- |
 | `/` | Guests, on their phones | Step-by-step form: who you are, tell us about you, blessing, what to receive, photo. A "blessing only" link on the welcome screen skips the creation and the photo |
-| `/r/<id>` | The guest | Personal result page: place in line and estimated wait, then the poster to download and share, the song when ready, the blessing. "Done" shows a thank-you screen with a close button |
+| `/r/<id>` | The guest | Personal result page: creation number, place in line and estimated wait, then the poster to download and share, the song when ready, the blessing. "Done" appears once the creation is ready and shows a thank-you screen with a close button |
 | `/screen` | Projector or TV in the hall | Slideshow of posters with their blessings, and blessing-only slides, with a large QR code |
 | `/admin` | The organiser | Carmel's photos, event details, all submissions with the guest's photo, regenerate, hide, Suno, ZIP export, PDF album |
 
@@ -257,6 +257,7 @@ Render's dashboard does not show this folder. View the data through `/admin`, an
 | Image quality | `medium` | same file | `IMAGE_QUALITY` (`low`, `medium`, `high`) |
 | Generations in parallel | `3` | `src/lib/pipeline/queue.ts` | `GENERATION_CONCURRENCY` (1 to 10) |
 | Keep guests' original photos | 7 days, then deleted (posters stay) | `src/lib/storage/retention.ts` | `GUEST_PHOTO_RETENTION_DAYS` (`0` = forever) |
+| A guest's personal link works | 7 hours after the creation; hall-screen images keep working | `src/lib/storage/submissions.ts` | `RESULT_LINK_HOURS` (`0` = forever) |
 | Music | Manual, through Suno | `src/lib/providers/music/manual.ts` | none |
 | Transcribe spoken blessings (lab) | `whisper-1` with segment timestamps, Hebrew | `src/lib/providers/transcribe/openai.ts` | `TRANSCRIBE_MODEL` |
 | Longest edited clip (lab) | 30 seconds | `src/lib/lab/jobs.ts` | `CLIP_MAX_SECONDS` |
@@ -336,6 +337,8 @@ The guest picks one of six styles. Each style has an art brief (`src/lib/prompts
 | `magazine` | 📰 Magazine cover | Issue line, large red masthead with Carmel's name, cover lines, headline and tagline above the sign-off |
 | `card` | ⚽ Player card | Gold frame, "13" badge, name plate, 4 stats (80–99) and the sign-off |
 | `toy` | 📦 Action figure in a box | Same as movie, on the box's header card and backing |
+
+For the player card and the animated film, where the image model tended to invent extra people (teammates, a crowd, side characters), the brief and the rendering line also fix the cast: only the celebrant and the people in the guest's photo, with the exact head count, and likeness put ahead of the style (`castLine` in `src/lib/pipeline/run.ts`). The other styles are unchanged.
 
 Each style also has a rendering line (`STYLE_RENDER` in `styles.ts`), sent to the image model first and repeated last, so an animated film looks like a 3D animated still and not a photograph, and a magazine cover is a studio shoot on a plain backdrop and not an outdoor movie scene.
 
@@ -553,6 +556,7 @@ Logs are in the Render dashboard, on the service's **Logs** tab. **Events** show
 - Marketing use is a separate opt-in checkbox, unchecked by default. `/admin` filters these submissions and exports them as their own ZIP.
 - A poster appears on the hall screen only with the guest's consent, and any poster can be hidden from `/admin`. Inappropriate content is hidden automatically.
 - Guests' original photos are deleted automatically after `GUEST_PHOTO_RETENTION_DAYS` (default 7). The check runs at start-up and every hour; the posters made from them are kept.
+- Each guest gets a link with a random 16-character id (96 bits), so links cannot be guessed or listed; the site is marked noindex. The link stops working `RESULT_LINK_HOURS` after the creation (default 7, enough for the evening). Images of creations shown on the hall screen keep loading after that, so the slideshow is not affected; MP3s uploaded later are not reachable through an expired link. The organiser keeps everything in `/admin` and the ZIP.
 - The export leaves out guest photos unless `?uploads=1` is added.
 - `/admin` and all of `/api/admin` are password-protected with a timing-safe comparison. With no password set, admin is closed entirely.
 - Keys live only in the server's environment variables, never in the code. `.env` and `/data` are never committed.

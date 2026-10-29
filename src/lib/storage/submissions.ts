@@ -35,6 +35,16 @@ async function uniqueId(base: string): Promise<string> {
   }
 }
 
+const g = globalThis as unknown as { __nextNumber?: Promise<number> };
+
+/** The next running number, counted from the submissions on disk at startup and then kept in memory. */
+function nextNumber(): Promise<number> {
+  const prev = g.__nextNumber ?? fs.readdir(dataPath(DIRS.blessings)).then((n) => n.filter((f) => f.endsWith(".json")).length);
+  const next = prev.then((n) => n + 1);
+  g.__nextNumber = next;
+  return next;
+}
+
 export async function createSubmission(input: GuestInput): Promise<Submission> {
   await ensureDirs();
   const id = await uniqueId(submissionBaseName(input.fullName, new Date()));
@@ -43,6 +53,7 @@ export async function createSubmission(input: GuestInput): Promise<Submission> {
   const submission: Submission = {
     id,
     publicId: randomBytes(12).toString("base64url"),
+    number: await nextNumber(),
     createdAt: new Date().toISOString(),
     input,
     hidden: false,
@@ -92,7 +103,23 @@ export async function remainingFor(name: string): Promise<number | null> {
 // instead of reading every record on each request.
 const byPublicId = new Map<string, string>();
 
-export async function findByPublicId(publicId: string): Promise<Submission | undefined> {
+/** A guest's link stops working this many hours after the creation; the organiser keeps everything in /admin. */
+function linkExpired(s: Submission): boolean {
+  return config.resultLinkHours > 0 && Date.now() - Date.parse(s.createdAt) > config.resultLinkHours * 3600_000;
+}
+
+/**
+ * The submission behind a guest's link, or nothing once the link has expired.
+ * `forScreen` still finds a creation that is shown on the hall screen, so the slideshow keeps its images.
+ */
+export async function findByPublicId(publicId: string, opts: { forScreen?: boolean } = {}): Promise<Submission | undefined> {
+  const s = await lookupPublicId(publicId);
+  if (!s) return undefined;
+  if (!linkExpired(s)) return s;
+  return opts.forScreen && s.input.consentScreen && !s.hidden ? s : undefined;
+}
+
+async function lookupPublicId(publicId: string): Promise<Submission | undefined> {
   const known = byPublicId.get(publicId);
   if (known) {
     const s = await getSubmission(known);

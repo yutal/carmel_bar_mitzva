@@ -133,6 +133,8 @@ export type SubmissionFiles = {
 export type Submission = {
   id: string;
   publicId: string;
+  /** Running number of the creation at the event, shown to the guest like a ticket number. */
+  number?: number;
   createdAt: string;
   input: GuestInput;
   hidden: boolean;

@@ -9,7 +9,9 @@ export const STYLE_RENDER: Record<ImageStyle, string> = {
   animation:
     "a still from a 3D animated family feature film (the look of a modern Pixar or DreamWorks film): stylised 3D characters with " +
     "slightly larger heads and expressive eyes, smooth stylised skin, soft global illumination, saturated colours. " +
-    "It is NOT a photograph and NOT photorealistic; every person, including the ones from the photos, is a 3D animated character.",
+    "It is NOT a photograph and NOT photorealistic; every person, including the ones from the photos, is a 3D animated character " +
+    "who is still instantly recognisable as that real person: same face shape, hair colour and cut, skin tone, glasses, age and gender. " +
+    "The cast is only the people from the reference photos: no invented characters, sidekicks, extra kids, parents or background people.",
   comic:
     "a hand-drawn superhero comic-book cover illustration: bold black ink outlines, flat vivid colours, halftone dots, action lines. " +
     "It is NOT a photograph; every person is drawn in comic style.",
@@ -17,7 +19,9 @@ export const STYLE_RENDER: Record<ImageStyle, string> = {
     "a glossy celebrity magazine cover photograph shot in a photo studio: one seamless, plain, single-colour paper backdrop, " +
     "softbox fashion lighting, waist-up portrait looking at the camera. NOT an outdoor scene, NOT a movie scene, no landscape behind them.",
   card:
-    "the art of a premium sports trading card: a dynamic hero shot of an athlete in action, stadium lights and light rays, glossy energetic colours.",
+    "the art of a premium sports trading card: a dynamic hero shot with stadium lights and light rays, glossy energetic colours. " +
+    "The only people are the ones from the reference photos, posed together as one team: no teammates, opponents, referees, " +
+    "fans or crowd; the stands behind them are empty, dark and blurred into lights.",
   toy:
     "a product photograph of a plastic action figure sealed in a retail blister box: the people are moulded plastic toy figures " +
     "with painted faces, NOT real people.",
@@ -36,6 +40,9 @@ Faces: every face sits between 18% and 62% of the frame height.`,
   animation: `Format: a poster for a 3D animated family feature film.
 Look: stylised 3D characters with expressive eyes, soft global illumination, saturated friendly colours.
 Translate each person's real features into the style: same hair colour and cut, skin tone, glasses, smile and age.
+Cast: only the celebrant and every person from the guest photo. With no guest photo, the celebrant alone (the guest may appear
+from behind). Never add characters the guest did not send: no friends, siblings, sidekicks, mascots, crowds or people in the background.
+Name the cast in imagePrompt and say "no other people".
 Calm areas: keep the top 15% and the bottom 35% of the frame visually calm.
 Faces: every face sits between 18% and 62% of the frame height.`,
 
@@ -60,6 +67,9 @@ Also write coverLines: 3 short cover lines in the poster language about the cele
   card: `Format: the artwork of a premium collectible sports player card; the celebrant is the star player.
 Look: dynamic hero portrait from the waist up, stadium or arena lights, light rays, glossy energetic colours,
 the sport or activity from the story (if there is none, pick the celebrant's talent).
+Cast: the celebrant and every person from the guest photo, side by side as one team, all from the waist up, all faces visible.
+With no guest photo, the celebrant alone. Never add teammates, opponents, referees, coaches, fans or a crowd; the stands are empty.
+Name the cast in imagePrompt and say "no other people".
 Composition: subject centred, head in the upper third; no border, frame, badges or numbers (our code draws the card).
 Faces: every face sits between 12% and 50% of the frame height; the top-right corner stays clear (a badge goes there).
 Calm areas: the bottom 30% of the frame is soft, dark and plain.

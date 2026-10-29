@@ -73,6 +73,7 @@ type Strings = {
   loading: string;
   notFound: string;
   creationOf: (name: string) => string;
+  ticket: (n: number) => string;
   phases: Record<"queued" | "story" | "painting" | "finishing", string>;
   queueAhead: (ahead: number) => string;
   eta: (seconds: number) => string;
@@ -90,7 +91,6 @@ type Strings = {
   finish: string;
   thanksTitle: (guest: string) => string;
   thanksBody: (onScreen: boolean) => string;
-  thanksKeep: string;
   close: string;
   closeHint: string;
   backHome: string;
@@ -163,12 +163,13 @@ const he: Strings = {
   sending: "שולחים...",
   genericError: "משהו השתבש, נסו שוב",
   loading: "טוען...",
-  notFound: "היצירה לא נמצאה.",
+  notFound: "היצירה לא נמצאה, או שתוקף הקישור עבר.",
   creationOf: (name) => `היצירה של ${name}`,
+  ticket: (n) => `יצירה מס׳ ${n}`,
   phases: { queued: "בתור ליצירה", story: "קוראים את הסיפור שלכם", painting: "מציירים את הסצנה", finishing: "מוסיפים כותרת וחתימה" },
   queueAhead: (n) => (n === 0 ? "אתם הבאים בתור" : n === 1 ? "יצירה אחת לפניכם" : `${n} יצירות לפניכם`),
   eta: (s) => (s < 90 ? "מוכן בעוד כדקה" : `מוכן בעוד כ-${Math.ceil(s / 60)} דקות`),
-  imageWait: "אפשר לסגור את הדף ולחזור לקישור הזה. היצירה תחכה לכם כאן.",
+  imageWait: "אפשר לסגור את הדף ולחזור לקישור הזה בהמשך הערב.",
   blessingSaved: "הברכה נשמרה 💛",
   songBy: (name) => `שיר מאת ${name}`,
   songInProduction: "🎵 השיר שלך בהפקה. הוא יגיע לקישור הזה ולאלבום של בר המצווה אחרי האירוע.",
@@ -182,7 +183,6 @@ const he: Strings = {
   finish: "סיום",
   thanksTitle: (guest) => `תודה, ${guest}!`,
   thanksBody: (onScreen) => `הברכה שלכם נשמרה באלבום של בר המצווה${onScreen ? ", ועוד רגע היא תופיע על המסך באולם" : ""}.`,
-  thanksKeep: "הקישור הזה תמיד יחזיר אתכם ליצירה.",
   close: "סגירה",
   closeHint: "אפשר לסגור את הלשונית 🙂",
   backHome: "לעמוד הראשי",
@@ -255,12 +255,13 @@ const en: Strings = {
   sending: "Sending...",
   genericError: "Something went wrong, please try again",
   loading: "Loading...",
-  notFound: "This creation was not found.",
+  notFound: "This creation was not found, or the link has expired.",
   creationOf: (name) => `${name}'s creation`,
+  ticket: (n) => `Creation #${n}`,
   phases: { queued: "In line", story: "Reading your story", painting: "Painting the scene", finishing: "Adding the title and signature" },
   queueAhead: (n) => (n === 0 ? "You're next" : n === 1 ? "1 creation ahead of you" : `${n} creations ahead of you`),
   eta: (s) => (s < 90 ? "Ready in about a minute" : `Ready in about ${Math.ceil(s / 60)} minutes`),
-  imageWait: "You can close this page and come back to this link. Your creation will be waiting here.",
+  imageWait: "You can close this page and come back to this link later this evening.",
   blessingSaved: "Your blessing is saved 💛",
   songBy: (name) => `A song by ${name}`,
   songInProduction: "🎵 Your song is in production. It will arrive at this link and in the Bar Mitzvah album after the party.",
@@ -274,7 +275,6 @@ const en: Strings = {
   finish: "Done",
   thanksTitle: (guest) => `Thank you, ${guest}!`,
   thanksBody: (onScreen) => `Your blessing is saved in the Bar Mitzvah album${onScreen ? ", and in a moment it will appear on the screen at the party" : ""}.`,
-  thanksKeep: "This link will always bring you back to your creation.",
   close: "Close",
   closeHint: "You can close this tab now 🙂",
   backHome: "Back to the start",

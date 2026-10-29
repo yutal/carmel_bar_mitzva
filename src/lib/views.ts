@@ -4,6 +4,7 @@ import type { StageState, Submission } from "@/lib/types";
 /** What a guest (or the hall screen) may see of a submission. */
 export type PublicSubmission = {
   publicId: string;
+  number?: number;
   lang: Lang;
   fullName: string;
   relationship: string;
@@ -30,6 +31,7 @@ export function toPublic(s: Submission, queue?: PublicSubmission["queue"]): Publ
   const base = `/api/s/${s.publicId}/file`;
   return {
     publicId: s.publicId,
+    number: s.number,
     lang: s.input.lang ?? "he",
     fullName: s.input.fullName,
     relationship: s.input.relationship,

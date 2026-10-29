@@ -7,7 +7,7 @@ import { providers } from "@/lib/providers";
 import type { ReferenceImage } from "@/lib/providers/types";
 import { celebrantPhotoPath, getEvent, listCelebrantPhotos } from "@/lib/storage/event";
 import { filePath, getSubmission, saveFile, setStage, updateSubmission } from "@/lib/storage/submissions";
-import type { EventSettings, StageName, Submission } from "@/lib/types";
+import type { EventSettings, ImageStyle, StageName, Submission } from "@/lib/types";
 
 const MAX_CELEBRANT_REFS = 5;
 
@@ -65,7 +65,7 @@ async function runImage(id: string, event: EventSettings): Promise<void> {
     references,
     size: "portrait",
     celebrantLook: event.celebrantLook,
-    artStyle: STYLE_RENDER[s.input.imageStyle ?? "movie"],
+    artStyle: STYLE_RENDER[s.input.imageStyle ?? "movie"] + castLine(s.input.imageStyle ?? "movie", guestPhoto ? (s.imageConcept!.guestPhotoPeople ?? []).length || 1 : 0),
   });
   await saveFile(id, "imageRaw", "images", "_raw.png", art);
 
@@ -126,6 +126,18 @@ async function runSong(id: string, event: EventSettings): Promise<void> {
     return;
   }
   await setStage(id, "song", "awaiting_music");
+}
+
+/**
+ * The exact head count, for the styles where the image model tends to invent people (a team on a player card,
+ * extra characters in an animated film). The other styles are left as they are.
+ */
+function castLine(style: ImageStyle, guests: number): string {
+  if (style !== "card" && style !== "animation") return "";
+  const cast = guests
+    ? `Exactly ${guests + 1} people in the image: the celebrant and the ${guests === 1 ? "person" : `${guests} people`} from the guest photo.`
+    : "Only one face in the image, the celebrant's; the guest may appear only from behind.";
+  return ` ${cast} Count them; nobody else appears anywhere in the frame. Recognising each real person matters more than the style.`;
 }
 
 function guestPhotoLabel(people: string[]): string {

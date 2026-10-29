@@ -11,6 +11,7 @@ const EnvSchema = z.object({
   IMAGE_QUALITY: z.enum(["low", "medium", "high"]).default("medium"),
   GENERATION_CONCURRENCY: z.coerce.number().int().min(1).max(10).default(3),
   GUEST_PHOTO_RETENTION_DAYS: z.coerce.number().min(0).default(7),
+  RESULT_LINK_HOURS: z.coerce.number().min(0).default(7),
   MAX_CREATIONS_PER_GUEST: z.coerce.number().int().min(0).default(3),
   TRANSCRIBE_MODEL: z.string().default("whisper-1"),
   CLIP_MAX_SECONDS: z.coerce.number().min(5).max(120).default(30),
@@ -28,6 +29,11 @@ export const config = {
   concurrency: env.GENERATION_CONCURRENCY,
   /** Days to keep guests' original photos; 0 keeps them forever. */
   guestPhotoRetentionDays: env.GUEST_PHOTO_RETENTION_DAYS,
+  /**
+   * Hours a guest's personal link keeps working after the creation was made; 0 keeps it forever.
+   * Creations on the hall screen keep serving their image, so the slideshow is not affected.
+   */
+  resultLinkHours: env.RESULT_LINK_HOURS,
   /** Creations one guest (by name) may make; 0 means no limit. */
   maxCreationsPerGuest: env.MAX_CREATIONS_PER_GUEST,
   /** Must return segment timestamps (verbose_json); gpt-4o-transcribe does not. */

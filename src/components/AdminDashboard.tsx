@@ -163,7 +163,7 @@ function SubmissionCard({ s, run }: { s: Submission; run: (fn: () => Promise<unk
           </a>
         )}
         <div className="min-w-0 space-y-1">
-          <h3 className="truncate text-lg font-bold">{s.input.fullName}</h3>
+          <h3 className="truncate text-lg font-bold">{s.number && <span className="me-2 text-sm tabular-nums text-muted">#{s.number}</span>}{s.input.fullName}</h3>
           <p className="text-sm text-muted">{s.input.relationship} · {new Date(s.createdAt).toLocaleTimeString("he-IL", { hour: "2-digit", minute: "2-digit" })}</p>
           <div className="flex flex-wrap gap-1">
             {(Object.entries(s.stages) as [StageName, Submission["stages"]["analysis"]][]).map(([name, st]) => (

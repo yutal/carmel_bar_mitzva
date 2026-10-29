@@ -44,6 +44,7 @@ export default function ResultView({ publicId, initialLang = "he" }: { publicId:
   return (
     <Shell lang={lang}>
       <p className="text-center text-sm tracking-[0.2em] text-accent-soft">{t.creationOf(data.fullName)}</p>
+      {data.number && !data.queue && <p className="mt-1 text-center text-xs font-bold tabular-nums text-muted">{t.ticket(data.number)}</p>}
 
       {blessingOnly && <h1 className="mt-4 text-center font-display text-3xl font-bold text-ink">{t.blessingSaved}</h1>}
 
@@ -100,10 +101,13 @@ export default function ResultView({ publicId, initialLang = "he" }: { publicId:
         <footer className="mt-2 text-sm">{data.fullName}, {data.relationship}</footer>
       </blockquote>
 
-      {/* One calm way out: a thank-you, not a push to make another. The creation limit is stated up front on the welcome screen. */}
-      <button type="button" className="btn-ghost mt-8 w-full" onClick={() => setThanks(true)}>
-        {t.finish}
-      </button>
+      {/* One calm way out once the creation is ready: a thank-you, not a push to make another. Hidden while it is
+          being made, so nobody leaves halfway thinking they stopped it. The creation limit is stated on the welcome screen. */}
+      {!busy && (
+        <button type="button" className="btn-ghost mt-8 w-full" onClick={() => setThanks(true)}>
+          {t.finish}
+        </button>
+      )}
     </Shell>
   );
 }
@@ -120,6 +124,7 @@ function Progress({ data, t }: { data: PublicSubmission; t: T }) {
       <span className="mx-auto block size-14 animate-spin rounded-full border-4 border-line border-t-accent" />
       {data.queue ? (
         <div>
+          {data.number && <p className="mb-2 font-display text-4xl font-black tabular-nums text-accent">#{data.number}</p>}
           <p className="text-xl font-bold">{t.queueAhead(data.queue.ahead)}</p>
           <p className="mt-1 text-muted">{t.eta(data.queue.etaSeconds)}</p>
         </div>
@@ -185,7 +190,6 @@ function Thanks({ t, lang, guest, onScreen }: { t: T; lang: Lang; guest: string;
       <p className="text-6xl" aria-hidden>💛</p>
       <h1 className="font-display text-4xl font-bold text-ink">{t.thanksTitle(guest)}</h1>
       <p className="text-lg leading-relaxed text-muted">{t.thanksBody(onScreen)}</p>
-      <p className="text-sm text-accent-soft">{t.thanksKeep}</p>
       <button
         type="button"
         className="btn-primary mt-4 w-full"
