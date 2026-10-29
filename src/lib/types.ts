@@ -75,7 +75,12 @@ export const ImageConceptSchema = z.object({
     .describe("Player card style only: 4 attributes in the poster language (max 2 words) scored 80-99. Empty otherwise"),
   guestPhotoPeople: z
     .array(z.string())
-    .describe("One short English description per person visible in the guest photo, left to right. Empty when there is no photo"),
+    .describe(
+      "One short English description per person visible in the guest photo, left to right, NOT including the celebrant. Empty when there is no photo",
+    ),
+  celebrantInGuestPhoto: z
+    .boolean()
+    .describe("True only when the celebrant himself is clearly one of the people in the guest photo. False when there is no photo"),
   imagePrompt: z.string().describe("Detailed English prompt for the image model"),
 });
 export type ImageConcept = z.infer<typeof ImageConceptSchema>;
@@ -88,6 +93,19 @@ export const FaceBoxSchema = z.object({
   bottom: z.number(),
 });
 export type FaceBox = z.infer<typeof FaceBoxSchema>;
+
+/** A second model's look at a finished artwork, for the style check in /admin/qa. */
+export const PosterCheckSchema = z.object({
+  peopleCount: z.number().int().describe("Distinct people or characters in the artwork (image 1), counting every face or figure, even small ones"),
+  celebrantCopies: z.number().int().describe("How many figures in the artwork are the celebrant (the boy in image 2). Correct is exactly 1"),
+  guestPeopleShown: z.number().int().describe("How many different people from the guest photo (image 3) appear in the artwork. 0 when there is no guest photo"),
+  extraPeople: z.number().int().describe("People or characters in the artwork who are neither the celebrant nor anyone from the guest photo"),
+  photographicFaces: z.number().int().describe("Faces that look like a real photograph pasted in, when the art style is illustrated, animated or toy. 0 for photographic styles"),
+  styleMatches: z.boolean().describe("The whole artwork is in the requested art style"),
+  textInImage: z.boolean().describe("Letters, words or numbers are painted into the artwork"),
+  notes: z.string().describe("One short sentence in Hebrew on what is wrong; empty when everything is right"),
+});
+export type PosterCheck = z.infer<typeof PosterCheckSchema>;
 export const FaceMapSchema = z.object({
   faces: z.array(FaceBoxSchema).describe("Every face in the image, from the eyebrows to the chin and ear to ear"),
 });

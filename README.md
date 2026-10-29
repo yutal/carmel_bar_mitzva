@@ -216,6 +216,7 @@ API endpoints:
 | `/api/admin/celebrant` | GET, POST, DELETE | Photos of Carmel |
 | `/api/admin/event` | GET, PUT | Event details and the description of how Carmel looks |
 | `/api/admin/status` | GET, PUT | Event snapshot: creations, failures, queue, OpenAI spend and balance. PUT `{ "amountUsd": 50 }` records the current OpenAI balance |
+| `/api/admin/qa` | GET, POST | Style check: the latest run, or start one (paid) with styles, languages and test photos |
 | `/api/admin/lab/choir` | GET, POST | The mazal tov choir: status, or build it from the lab's recordings |
 | `/api/admin/export/pdf` | GET | Album to print: a cover, then one A4 page per guest with the poster and the full blessing, oldest first. Hidden-as-inappropriate submissions are left out |
 | `/api/admin/export` | GET | ZIP of everything. Add `?uploads=1` to include guest photos, or `?marketing=1` for only the images of guests who allowed marketing use |
@@ -338,7 +339,21 @@ The guest picks one of six styles. Each style has an art brief (`src/lib/prompts
 | `card` | ⚽ Player card | Gold frame, "13" badge, name plate, 4 stats (80–99) and the sign-off |
 | `toy` | 📦 Action figure in a box | Same as movie, on the box's header card and backing |
 
-For the player card and the animated film, where the image model tended to invent extra people (teammates, a crowd, side characters), the brief and the rendering line also fix the cast: only the celebrant and the people in the guest's photo, with the exact head count (`castLine` in `src/lib/pipeline/run.ts`). The card is drawn on an abstract glowing background instead of a stadium, so there is no place for a crowd. In the animated film every person, guests included, is redrawn as a 3D character; nobody keeps a photographic face. If the face finder counts more faces than people, the image is painted once more (one extra image call, only when it happens). The other styles are unchanged.
+### Who is in the picture
+
+The image model sees up to five photos of Carmel and, maybe, one guest photo. Left alone it read each photo of Carmel as another person (Carmel twice on a cover), invented a guest when there was no photo, drew Carmel twice when he was in the guest's selfie, and filled stadiums and film scenes with extra characters. The full prompt is built in one place, `src/lib/prompts/image.ts`, and closes each of those doors for every style:
+
+- All the photos of Carmel are named as one boy, drawn exactly once.
+- The image concept lists the people in the guest photo without Carmel, and says whether Carmel is in it (`celebrantInGuestPhoto`).
+- The cast is fixed and counted: Carmel plus each person from the guest photo. With no guest photo, Carmel is alone, with no guest from behind. The head count opens the prompt and is repeated at the end, with "nobody else": no crowd, teammates, background figures or second copy of anyone.
+- In the animated film everyone, guests included, is redrawn as a 3D character; nobody keeps a photographic face. The player card is drawn on an abstract glowing background, not a stadium.
+- After painting, the face finder counts the faces. If someone was added, repeated or left out, the image is painted once more with what went wrong, and the closer of the two is kept (one extra image call, only when it happens).
+
+### Testing the styles
+
+- `npm test` runs offline checks of the prompts for every style × photo case (no photo, one person, a group, a selfie with Carmel, Carmel alone) × Hebrew and English, the image-concept input (the blessing never reaches it) and the head-count check. No model calls, no cost.
+- `/admin/qa` ("🧪 style check" in `/admin`) makes real posters for the chosen styles and languages, with no photo and with the photos you upload (one person, a group), exactly as a guest's poster is made. A second model then looks at each artwork with Carmel's photo and the guest photo and counts the people, Carmel's copies, extra characters, guests left out, photographic faces in drawn styles, the style and any painted text. Each case shows pass or fail with the reason. It costs about one poster per case and runs only when you press the button; the page shows the estimate first.
+- In mock mode the painter follows the prompt's head count, and `MOCK_EXTRA_PEOPLE=1` makes its first try add a person, to exercise the repaint.
 
 Each style also has a rendering line (`STYLE_RENDER` in `styles.ts`), sent to the image model first and repeated last, so an animated film looks like a 3D animated still and not a photograph, and a magazine cover is a studio shoot on a plain backdrop and not an outdoor movie scene.
 
@@ -440,7 +455,7 @@ With `AI_PROVIDER=mock` the whole flow works with no keys, using placeholder tex
 Before every push:
 
 ```bash
-npx tsc --noEmit && npm run lint && npm run build
+npx tsc --noEmit && npm run lint && npm test && npm run build
 ```
 
 Docker on your own machine, with an optional temporary public address:

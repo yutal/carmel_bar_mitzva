@@ -43,8 +43,8 @@ Look: stylised 3D characters with expressive eyes, soft global illumination, sat
 Every person, including each person from the guest photo, becomes a 3D animated character in the same style as the celebrant;
 nobody keeps a photographic face. Translate each person's real features into the style: same hair colour and cut, skin tone,
 glasses, smile and age. Say this in imagePrompt for each person from the guest photo.
-Cast: only the celebrant and every person from the guest photo. With no guest photo, the celebrant alone (the guest may appear
-from behind). Never add characters the guest did not send: no friends, siblings, sidekicks, mascots, crowds or people in the background.
+Cast: only the celebrant and every person from the guest photo. With no guest photo, the celebrant alone.
+Never add characters the guest did not send: no friends, siblings, sidekicks, mascots, crowds or people in the background.
 Name the cast in imagePrompt and say "no other people".
 Calm areas: keep the top 15% and the bottom 35% of the frame visually calm.
 Faces: every face sits between 18% and 62% of the frame height.`,
@@ -57,7 +57,8 @@ Faces: every face sits between 18% and 62% of the frame height.`,
 
   magazine: `Format: the cover photo of a glossy celebrity magazine starring the celebrant.
 Look: studio fashion photography, waist-up portrait, confident pose, clean seamless backdrop in one colour that suits the story,
-props from the story in hand. The guest, if shown, stands slightly behind him.
+props from the story in hand. The people from the guest photo, if any, stand close beside or slightly behind him;
+with no guest photo he is alone on the cover. Only one celebrant: never a second boy, twin, reflection or cut-out of him.
 Calm areas: the top 20% is plain backdrop (the magazine name goes there in huge letters; hair may overlap it, faces may not);
 the bottom 30% is calm (the cover headline goes there).
 Faces and cover lines (cover lines are printed later on the backdrop beside the people, never on a face):
@@ -72,7 +73,7 @@ Look: dynamic hero portrait from the waist up against an abstract glowing backgr
 not a real stadium, field or court; glossy energetic colours; the sport or activity from the story shown through outfit and props
 (if there is none, pick the celebrant's talent).
 Cast: the celebrant and every person from the guest photo, side by side as one team, all from the waist up, all faces visible.
-With no guest photo, the celebrant alone: the guest does not appear at all, not even from behind. Never add teammates, opponents, referees, coaches, fans or a crowd; the stands are empty.
+With no guest photo, the celebrant alone: the guest does not appear at all, not even from behind. Never add teammates, opponents, referees, coaches, fans or a crowd.
 Name the cast in imagePrompt and say "no other people".
 Composition: subject centred, head in the upper third; no border, frame, badges or numbers (our code draws the card).
 Faces: every face sits between 12% and 50% of the frame height; the top-right corner stays clear (a badge goes there).

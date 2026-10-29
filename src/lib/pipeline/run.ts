@@ -2,12 +2,12 @@ import "server-only";
 import fs from "node:fs/promises";
 import { composeCover, composePoster } from "@/lib/compose/poster";
 import { celebrantNameIn } from "@/lib/prompts";
-import { STYLE_RENDER } from "@/lib/prompts/styles";
+import { buildCoverPrompt, buildImagePrompt, castMismatch, headCount, type Cast } from "@/lib/prompts/image";
 import { providers } from "@/lib/providers";
 import type { ReferenceImage } from "@/lib/providers/types";
 import { celebrantPhotoPath, getEvent, listCelebrantPhotos } from "@/lib/storage/event";
 import { filePath, getSubmission, saveFile, setStage, updateSubmission } from "@/lib/storage/submissions";
-import type { EventSettings, ImageStyle, StageName, Submission } from "@/lib/types";
+import type { EventSettings, FaceBox, GuestInput, ImageConcept, StageName, Submission } from "@/lib/types";
 
 const MAX_CELEBRANT_REFS = 5;
 
@@ -58,57 +58,83 @@ async function runImage(id: string, event: EventSettings): Promise<void> {
     });
   }
 
-  const style = s.input.imageStyle ?? "movie";
-  const guests = guestPhoto ? (s.imageConcept!.guestPhotoPeople ?? []).length || 1 : 0;
-  const references = await celebrantReferences();
-  if (guestPhoto) {
-    references.push({ name: "guest.jpg", data: guestPhoto, role: "guest", label: guestPhotoLabel(s.imageConcept!.guestPhotoPeople ?? []) + guestPhotoNote(style) });
-  }
-  const paint = (extra = "") =>
-    providers.image.generate({
-      prompt: s.imageConcept!.imagePrompt + extra,
-      references,
-      size: "portrait",
-      celebrantLook: event.celebrantLook,
-      artStyle: STYLE_RENDER[style] + castLine(style, guests),
-    });
-  // Where the faces are, so no title or text lands on someone. A failed lookup falls back to the fixed layout.
-  const findFaces = (img: Buffer) =>
-    providers.llm.locateFaces(img).catch((err) => {
-      console.error(`[pipeline] face lookup failed for ${id}`, err);
-      return undefined;
-    });
-
-  let art = await paint();
-  let faces = await findFaces(art);
-  // The player card and the animated film tend to invent extra people. One more try when the head count is off.
-  if (STRICT_CAST.has(style) && faces && faces.length > guests + 1) {
-    console.warn(`[pipeline] ${id}: ${faces.length} faces, expected ${guests + 1}; painting again`);
-    art = await paint(`\n\nThe previous attempt wrongly added extra people. This time draw exactly ${guests + 1} people and nobody else.`);
-    faces = await findFaces(art);
-  }
+  const { art, faces } = await paintArt({ label: id, input: s.input, concept: s.imageConcept!, guestPhoto, event });
   await saveFile(id, "imageRaw", "images", "_raw.png", art);
   if (faces) {
     await updateSubmission(id, (x) => {
       x.faces = faces;
     });
   }
+  await saveFile(id, "image", "images", ".png", await posterFor(art, faces, s.input, s.imageConcept!, event));
+}
 
-  const concept = s.imageConcept!;
-  const lang = s.input.lang ?? "he";
-  const poster = await composePoster(art, {
-    style: s.input.imageStyle ?? "movie",
+/** The people the image must show, from the concept's reading of the guest photo. */
+export function castOf(concept: ImageConcept, guestPhoto: Buffer | undefined): Cast {
+  return {
+    guestPeople: guestPhoto ? (concept.guestPhotoPeople ?? []) : [],
+    celebrantInGuestPhoto: Boolean(guestPhoto && concept.celebrantInGuestPhoto),
+    hasGuestPhoto: Boolean(guestPhoto),
+  };
+}
+
+/**
+ * Paints the artwork (no text) and finds its faces. When the face count does not match the cast (someone added,
+ * repeated or left out), paints once more with what went wrong and keeps the closer of the two.
+ */
+export async function paintArt(opts: {
+  label: string;
+  input: GuestInput;
+  concept: ImageConcept;
+  guestPhoto?: Buffer;
+  event: EventSettings;
+}): Promise<{ art: Buffer; faces?: FaceBox[]; repainted: boolean }> {
+  const style = opts.input.imageStyle ?? "movie";
+  const cast = castOf(opts.concept, opts.guestPhoto);
+  const references = await celebrantReferences();
+  if (opts.guestPhoto) references.push({ name: "guest.jpg", data: opts.guestPhoto, role: "guest" });
+  const paint = (retry?: string) =>
+    providers.image.generate({
+      prompt: buildImagePrompt({ style, scene: opts.concept.imagePrompt, references, cast, celebrantLook: opts.event.celebrantLook, retry }),
+      references,
+      size: "portrait",
+    });
+  // Where the faces are, so no title or text lands on someone. A failed lookup falls back to the fixed layout.
+  const findFaces = (img: Buffer) =>
+    providers.llm.locateFaces(img).catch((err) => {
+      console.error(`[pipeline] face lookup failed for ${opts.label}`, err);
+      return undefined;
+    });
+
+  let art = await paint();
+  let faces = await findFaces(art);
+  const mismatch = faces && castMismatch(faces.length, cast);
+  if (!mismatch) return { art, faces, repainted: false };
+  console.warn(`[pipeline] ${opts.label}: ${faces!.length} faces, expected ${headCount(cast)}; painting again`);
+  const art2 = await paint(mismatch);
+  const faces2 = await findFaces(art2);
+  const off = (f: unknown[] | undefined) => (f ? Math.abs(f.length - headCount(cast)) : Infinity);
+  if (off(faces2) <= off(faces)) {
+    art = art2;
+    faces = faces2;
+  }
+  return { art, faces, repainted: true };
+}
+
+/** The finished poster: the artwork with the title, sign-off and style layout drawn around the faces. */
+export function posterFor(art: Buffer, faces: FaceBox[] | undefined, input: GuestInput, concept: ImageConcept, event: EventSettings): Promise<Buffer> {
+  const lang = input.lang ?? "he";
+  return composePoster(art, {
+    style: input.imageStyle ?? "movie",
     title: concept.titleHebrew,
     tagline: concept.taglineHebrew,
     coverLines: concept.coverLines ?? [],
     stats: concept.stats ?? [],
-    sender: `${lang === "en" ? "With love," : "באהבה,"} ${s.input.fullName} · ${s.input.relationship}`,
+    sender: `${lang === "en" ? "With love," : "באהבה,"} ${input.fullName} · ${input.relationship}`,
     lang,
     masthead: lang === "en" ? celebrantNameIn(event, "en").toUpperCase() : event.celebrantName,
     footer: [(lang === "en" && event.footerEn) || event.footer, event.eventDate].filter(Boolean).join(" · "),
     faces,
   });
-  await saveFile(id, "image", "images", ".png", poster);
 }
 
 async function runSong(id: string, event: EventSettings): Promise<void> {
@@ -125,7 +151,7 @@ async function runSong(id: string, event: EventSettings): Promise<void> {
   try {
     const art = s.files.imageRaw
       ? await fs.readFile(filePath(s.files.imageRaw))
-      : await providers.image.generate({ prompt: song.coverPrompt, references: await celebrantReferences(), size: "square", celebrantLook: event.celebrantLook });
+      : await coverArt(song.coverPrompt, event);
     const byline = s.input.lang === "en" ? `By ${s.input.fullName} for ${celebrantNameIn(event, "en")}` : `מאת ${s.input.fullName} ל${event.celebrantName}`;
     const cover = await composeCover(art, song.titleHebrew, byline);
     await saveFile(id, "cover", "songs", "_cover.png", cover);
@@ -146,34 +172,6 @@ async function runSong(id: string, event: EventSettings): Promise<void> {
  * The exact head count, for the styles where the image model tends to invent people (a team on a player card,
  * extra characters in an animated film). The other styles are left as they are.
  */
-const STRICT_CAST = new Set<ImageStyle>(["card", "animation"]);
-
-function castLine(style: ImageStyle, guests: number): string {
-  if (!STRICT_CAST.has(style)) return "";
-  const cast = guests
-    ? `Exactly ${guests + 1} people in the image: the celebrant and the ${guests === 1 ? "person" : `${guests} people`} from the guest photo.`
-    : style === "card"
-      ? "Exactly one person in the image: the celebrant, alone."
-      : "Only one face in the image, the celebrant's; the guest may appear only from behind.";
-  const look =
-    style === "animation"
-      ? "Every person, the celebrant and each person from the guest photo alike, is rendered as the same kind of 3D animated character; " +
-        "nobody keeps a photographic face or real skin. Keep each likeness through their features (face shape, hair, skin tone, glasses, age), " +
-        "redrawn in the animated style, never by pasting the photo."
-      : "Recognising each real person matters more than the style.";
-  return ` ${cast} Count them; nobody else appears anywhere in the frame: no background figures, silhouettes, reflections or faces in the crowd. ${look}`;
-}
-
-/** Extra words on the guest photo's label, for styles that must not copy it as a photo. */
-function guestPhotoNote(style: ImageStyle): string {
-  return style === "animation" ? ". Use it for who they are only: draw them as 3D animated characters, like the celebrant" : "";
-}
-
-function guestPhotoLabel(people: string[]): string {
-  if (people.length <= 1) return `the guest photo${people[0] ? `, showing ${people[0]}` : ""}`;
-  return `the guest photo, showing ${people.length} people, left to right: ${people.join("; ")}. All ${people.length} of them must appear, each with their own face`;
-}
-
 function sunoFile(s: Submission): string {
   const song = s.songConcept!;
   return [
@@ -189,7 +187,12 @@ function sunoFile(s: Submission): string {
   ].join("\n");
 }
 
-async function celebrantReferences(): Promise<ReferenceImage[]> {
+async function coverArt(scene: string, event: EventSettings): Promise<Buffer> {
+  const references = await celebrantReferences();
+  return providers.image.generate({ prompt: buildCoverPrompt(scene, references, event.celebrantLook), references, size: "square" });
+}
+
+export async function celebrantReferences(): Promise<ReferenceImage[]> {
   const names = (await listCelebrantPhotos()).slice(0, MAX_CELEBRANT_REFS);
   return Promise.all(
     names.map(async (name) => ({ name, data: await fs.readFile(celebrantPhotoPath(name)), role: "celebrant" as const })),

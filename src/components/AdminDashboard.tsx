@@ -90,6 +90,7 @@ export default function AdminDashboard() {
         <div className="flex flex-wrap gap-2">
           <a className="btn-ghost" href="/screen" target="_blank">מסך אולם ↗</a>
           <a className="btn-ghost" href="/admin/lab">🎬 מעבדת וידאו וקול</a>
+          <a className="btn-ghost" href="/admin/qa">🧪 בדיקת סגנונות</a>
           <a className="btn-primary" href="/api/admin/export">⬇️ ייצוא אלבום (ZIP)</a>
           <a className="btn-ghost" href="/api/admin/export?marketing=1">⬇️ מאושרים לשיווק (ZIP)</a>
           <a className="btn-ghost" href="/api/admin/export/pdf">📖 אלבום להדפסה (PDF)</a>

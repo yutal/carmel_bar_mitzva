@@ -9,15 +9,16 @@ import {
   CLIP_PLAN_SYSTEM,
   FACE_MAP_SYSTEM,
   IMAGE_CONCEPT_SYSTEM,
+  POSTER_CHECK_SYSTEM,
   SONG_CONCEPT_SYSTEM,
   analysisSummary,
   clipPlanInput,
   guestContext,
-  imageStyleBrief,
+  imageConceptInput,
   songStyleHint,
 } from "@/lib/prompts";
 import sharp from "sharp";
-import { AnalysisSchema, ClipPlanSchema, FaceMapSchema, ImageConceptSchema, SongConceptSchema } from "@/lib/types";
+import { AnalysisSchema, ClipPlanSchema, FaceMapSchema, ImageConceptSchema, PosterCheckSchema, SongConceptSchema } from "@/lib/types";
 import { recordUsage, type UsageKind } from "@/lib/usage";
 
 async function structured<S extends z.ZodType>(
@@ -25,18 +26,19 @@ async function structured<S extends z.ZodType>(
   name: UsageKind,
   system: string,
   user: string,
-  image?: Buffer,
+  image?: Buffer | Buffer[],
 ): Promise<z.infer<S>> {
+  const images = image ? [image].flat() : [];
   const response = await openai().responses.parse({
     model: config.llmModel,
     instructions: system,
-    input: image
+    input: images.length
       ? [
           {
             role: "user",
             content: [
               { type: "input_text", text: user },
-              { type: "input_image", image_url: `data:image/jpeg;base64,${image.toString("base64")}`, detail: "high" },
+              ...images.map((img) => ({ type: "input_image" as const, image_url: `data:image/jpeg;base64,${img.toString("base64")}`, detail: "high" as const })),
             ],
           },
         ]
@@ -57,15 +59,7 @@ export const openAiLlm: LlmProvider = {
     return structured(AnalysisSchema, "analysis", ANALYSIS_SYSTEM, guestContext(input, event));
   },
   imageConcept(input, event, guestPhoto) {
-    const user = [
-      guestContext(input, event, { blessing: false }),
-      "",
-      event.celebrantLook ? `How the celebrant looks: ${event.celebrantLook}` : "",
-      guestPhoto ? "The guest photo is attached." : "NO guest photo is provided.",
-      "",
-      imageStyleBrief(input.imageStyle ?? "movie"),
-    ].join("\n");
-    return structured(ImageConceptSchema, "image_concept", IMAGE_CONCEPT_SYSTEM, user, guestPhoto);
+    return structured(ImageConceptSchema, "image_concept", IMAGE_CONCEPT_SYSTEM, imageConceptInput(input, event, Boolean(guestPhoto)), guestPhoto);
   },
   songConcept(input, analysis, event) {
     const user = [guestContext(input, event), "", `Analysis:\n${analysisSummary(analysis)}`, "", songStyleHint(input)].join("\n");
@@ -76,6 +70,16 @@ export const openAiLlm: LlmProvider = {
     const jpeg = await sharp(art).resize(1024, 1024, { fit: "inside" }).jpeg({ quality: 85 }).toBuffer();
     const { faces } = await structured(FaceMapSchema, "face_map", FACE_MAP_SYSTEM, "Locate every face in this image.", jpeg);
     return faces;
+  },
+  async checkPoster(art, celebrant, guestPhoto, style) {
+    const jpeg = (b: Buffer) => sharp(b).resize(1024, 1024, { fit: "inside" }).jpeg({ quality: 85 }).toBuffer();
+    const images = [await jpeg(art), await jpeg(celebrant), ...(guestPhoto ? [await jpeg(guestPhoto)] : [])];
+    const user = [
+      `Image 1: the artwork to check. Requested art style: ${style}`,
+      "Image 2: a photo of the celebrant, a 13-year-old boy.",
+      guestPhoto ? "Image 3: the guest photo. Everyone in it except the celebrant should appear in the artwork exactly once." : "There is no guest photo: the celebrant should be alone.",
+    ].join("\n");
+    return structured(PosterCheckSchema, "qa_check", POSTER_CHECK_SYSTEM, user, images);
   },
   clipPlan(segments, ctx) {
     return structured(ClipPlanSchema, "clip_plan", CLIP_PLAN_SYSTEM, clipPlanInput(segments, ctx));

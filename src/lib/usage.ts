@@ -26,7 +26,7 @@ function prices(): Record<string, Price> {
   }
 }
 
-export type UsageKind = "analysis" | "image_concept" | "song_concept" | "face_map" | "clip_plan" | "image" | "transcribe";
+export type UsageKind = "analysis" | "image_concept" | "song_concept" | "face_map" | "clip_plan" | "image" | "transcribe" | "qa_check";
 
 export type Usage = {
   inputTokens?: number;

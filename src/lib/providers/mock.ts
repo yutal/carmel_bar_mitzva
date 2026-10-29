@@ -1,4 +1,5 @@
 import "server-only";
+import { createHash } from "node:crypto";
 import sharp from "sharp";
 import { probe } from "@/lib/media/ffmpeg";
 import type { ImageProvider, LlmProvider, TranscribeProvider } from "./types";
@@ -8,6 +9,22 @@ import type { TranscriptWord } from "@/lib/types";
 const MOCK_FACES = process.env.MOCK_FACES
   ? (JSON.parse(process.env.MOCK_FACES) as { left: number; top: number; right: number; bottom: number }[])
   : [{ left: 0.32, top: 0.36, right: 0.68, bottom: 0.6 }];
+
+type Box = { left: number; top: number; right: number; bottom: number };
+
+/**
+ * The mock painter follows the prompt's "CAST: exactly N" and remembers how many faces it drew in each image,
+ * so the face finder and the checker report them. MOCK_EXTRA_PEOPLE=1 makes the first try add a person (as the
+ * real model sometimes does), to exercise the repaint. MOCK_FACES fixes the faces instead, for layout tests.
+ */
+const painted = new Map<string, { faces: Box[]; expected: number }>();
+const key = (img: Buffer) => createHash("sha1").update(img).digest("hex");
+const rowOfFaces = (n: number): Box[] =>
+  Array.from({ length: n }, (_, i) => {
+    const w = Math.min(0.3, 0.8 / n);
+    const left = 0.5 - (n * w) / 2 + i * w + 0.01;
+    return { left, top: 0.3, right: left + w - 0.02, bottom: 0.3 + w * 0.9 };
+  });
 
 /** Offline providers for local development and tests (AI_PROVIDER=mock). */
 export const mockLlm: LlmProvider = {
@@ -23,7 +40,7 @@ export const mockLlm: LlmProvider = {
       isAppropriate: true,
     };
   },
-  async imageConcept(input) {
+  async imageConcept(input, _event, guestPhoto) {
     const style = input.imageStyle ?? "movie";
     return {
       genre: "sports drama",
@@ -40,7 +57,8 @@ export const mockLlm: LlmProvider = {
               { label: "התמדה", value: 91 },
             ]
           : [],
-      guestPhotoPeople: [],
+      guestPhotoPeople: guestPhoto ? ["the guest"] : [],
+      celebrantInGuestPhoto: false,
       imagePrompt: "mock",
     };
   },
@@ -51,9 +69,23 @@ export const mockLlm: LlmProvider = {
       coverPrompt: "mock",
     };
   },
-  // Matches MOCK_FACES drawn by mockImage, so layouts can be checked offline.
-  async locateFaces() {
-    return MOCK_FACES;
+  // The faces mockImage drew, so layouts and head counts can be checked offline.
+  async locateFaces(art) {
+    return painted.get(key(art))?.faces ?? MOCK_FACES;
+  },
+  async checkPoster(art) {
+    const { faces, expected } = painted.get(key(art)) ?? { faces: MOCK_FACES, expected: MOCK_FACES.length };
+    const n = faces.length;
+    return {
+      peopleCount: n,
+      celebrantCopies: 1,
+      guestPeopleShown: Math.min(n, expected) - 1,
+      extraPeople: Math.max(0, n - expected),
+      photographicFaces: 0,
+      styleMatches: true,
+      textInImage: false,
+      notes: "",
+    };
   },
   async clipPlan(segments, { maxSeconds }) {
     let last = 0;
@@ -90,11 +122,16 @@ export const mockTranscribe: TranscribeProvider = {
 };
 
 export const mockImage: ImageProvider = {
-  async generate({ size }) {
+  async generate({ prompt, size }) {
     const [w, h] = size === "portrait" ? [1024, 1536] : [1024, 1024];
-    const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="${w}" height="${h}"><defs><linearGradient id="g" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#1b2a6b"/><stop offset="1" stop-color="#c76b2a"/></linearGradient></defs><rect width="100%" height="100%" fill="url(#g)"/>${MOCK_FACES.map((f) => `<ellipse cx="${((f.left + f.right) / 2) * w}" cy="${((f.top + f.bottom) / 2) * h}" rx="${((f.right - f.left) / 2) * w}" ry="${((f.bottom - f.top) / 2) * h}" fill="#e0a07c" stroke="#222" stroke-width="6"/>`).join("")}</svg>`;
+    const expected = Number(prompt.match(/CAST: exactly (\d+)/)?.[1] ?? 1);
+    const extra = /previous attempt/.test(prompt) ? 0 : Number(process.env.MOCK_EXTRA_PEOPLE) || 0;
+    const faces = process.env.MOCK_FACES ? MOCK_FACES : rowOfFaces(expected + extra);
+    const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="${w}" height="${h}"><defs><linearGradient id="g" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#1b2a6b"/><stop offset="1" stop-color="#c76b2a"/></linearGradient></defs><rect width="100%" height="100%" fill="url(#g)"/>${faces.map((f) => `<ellipse cx="${((f.left + f.right) / 2) * w}" cy="${((f.top + f.bottom) / 2) * h}" rx="${((f.right - f.left) / 2) * w}" ry="${((f.bottom - f.top) / 2) * h}" fill="#e0a07c" stroke="#222" stroke-width="6"/>`).join("")}</svg>`;
     // MOCK_IMAGE_DELAY_MS stands in for the real model's time per image, e.g. in load tests.
     await new Promise((r) => setTimeout(r, Number(process.env.MOCK_IMAGE_DELAY_MS) || 1500));
-    return sharp(Buffer.from(svg)).png().toBuffer();
+    const png = await sharp(Buffer.from(svg)).png().toBuffer();
+    painted.set(key(png), { faces, expected });
+    return png;
   },
 };

@@ -43,15 +43,19 @@ Rules:
 - Tagline (in the poster language): max 8 words.
 - Fill coverLines and stats only when the style brief asks for them; otherwise return empty lists.
 - If the guest photo is attached, look at it closely. It may show one person or a group (a selfie with family or friends).
-  List EVERY person visible in it in guestPhotoPeople, left to right, each with apparent age, gender, hair (colour, length,
-  style), facial hair, glasses, skin tone and one clothing detail. If one of them is clearly the celebrant, say so and do not
-  count him twice. With no photo, return an empty list.
+  List every person visible in it in guestPhotoPeople, left to right, each with apparent age, gender, hair (colour, length,
+  style), facial hair, glasses, skin tone and one clothing detail. Do NOT list the celebrant there: if he is clearly in the
+  photo (he matches the description of how he looks), leave him out of the list and set celebrantInGuestPhoto to true.
+  Faces in the far background, on posters or on screens are not people to list. With no photo, return an empty list and false.
+- The cast of the image is fixed: the celebrant once, plus each person in guestPhotoPeople once. Nobody else, in any style.
 - imagePrompt (English, 120-220 words) for an image model that receives reference photos:
   * Say who is who: "The boy from the celebrant reference photos" is the hero; keep his face, hair and likeness.
-  * If a guest photo is provided, EVERY person from it appears in the scene next to him, each keeping their own face, age and gender.
+  * If a guest photo is provided, EVERY person in guestPhotoPeople appears in the scene next to him, each keeping their own face, age and gender.
     Refer to them by their place in the photo ("the woman on the left of the guest photo") and repeat the key features you listed,
     so the image model can match each face. Give each of them a role in the story.
-    If not, show the guest only from behind or as a silhouette, or leave them out if that suits the story better.
+    With no guest photo, the celebrant is the only person in the scene: no guest, not even from behind or as a silhouette.
+  * State the exact number of people ("two people in the scene: ...") and add "no other people". Never write crowds, fans,
+    teammates, friends, family, extras or passers-by into the scene, and never describe the celebrant twice.
   * Composition with several people: every face is large, front-facing or three-quarter, unobstructed and well lit;
     nobody is cropped, turned away, hidden behind another person or in deep shadow. The celebrant stays the hero in front.
   * Text is printed on the image later in fixed places (see the style brief). Plan where every face goes for the
@@ -91,6 +95,20 @@ export function imageStyleBrief(style: ImageStyle): string {
   return `Art style picked by the guest: ${style}.\n${STYLE_BRIEFS[style]}`;
 }
 
+/** The user message for the image concept: the story (never the blessing), the photo situation and the style brief. */
+export function imageConceptInput(input: GuestInput, event: EventSettings, hasGuestPhoto: boolean): string {
+  return [
+    guestContext(input, event, { blessing: false }),
+    "",
+    event.celebrantLook ? `How the celebrant looks: ${event.celebrantLook}` : "",
+    hasGuestPhoto
+      ? "The guest photo is attached."
+      : "NO guest photo is provided: the celebrant is the only person in the image.",
+    "",
+    imageStyleBrief(input.imageStyle ?? "movie"),
+  ].join("\n");
+}
+
 export const CLIP_PLAN_SYSTEM = `You are the video editor of a Bar Mitzvah blessing booth.
 A guest recorded a short spoken blessing (video or voice) for the celebrant. You get the transcript as numbered, timed segments.
 Choose what stays in a short edited clip that will be played at the party and kept by the family.
@@ -113,6 +131,12 @@ export function clipPlanInput(segments: { start: number; end: number; text: stri
     ...segments.map((s, i) => `[${i}] ${s.start.toFixed(1)}-${s.end.toFixed(1)}s (${(s.end - s.start).toFixed(1)}s): ${s.text.trim()}`),
   ].join("\n");
 }
+
+export const POSTER_CHECK_SYSTEM = `You are a strict quality checker for personalised Bar Mitzvah posters.
+You get the generated artwork, a photo of the celebrant and sometimes the guest's photo.
+Count carefully and honestly; do not assume the artwork is right. A person drawn twice, a character the guest did not send,
+a guest left out, or a real photographic face pasted into an illustrated style are all failures.
+Look at the whole frame, including the background, reflections, posters on walls and small figures in the distance.`;
 
 export const FACE_MAP_SYSTEM = `You locate faces in an illustration or photo so that text can be placed without covering anyone.
 Return a box for EVERY human or character face, including small ones in the background, cartoon, comic and toy faces.
