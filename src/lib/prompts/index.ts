@@ -31,10 +31,18 @@ Rules:
 - Hebrew title: punchy, max 4 words, may play on the celebrant's name or the shared activity.
 - Hebrew tagline: max 8 words.
 - Fill coverLines and stats only when the style brief asks for them; otherwise return empty lists.
+- If the guest photo is attached, look at it closely. It may show one person or a group (a selfie with family or friends).
+  List EVERY person visible in it in guestPhotoPeople, left to right, each with apparent age, gender, hair (colour, length,
+  style), facial hair, glasses, skin tone and one clothing detail. If one of them is clearly the celebrant, say so and do not
+  count him twice. With no photo, return an empty list.
 - imagePrompt (English, 120-220 words) for an image model that receives reference photos:
   * Say who is who: "The boy from the celebrant reference photos" is the hero; keep his face, hair and likeness.
-  * If a guest photo is provided, "the person from the guest photo" appears next to him, keeping their likeness, age and gender.
+  * If a guest photo is provided, EVERY person from it appears in the scene next to him, each keeping their own face, age and gender.
+    Refer to them by their place in the photo ("the woman on the left of the guest photo") and repeat the key features you listed,
+    so the image model can match each face. Give each of them a role in the story.
     If not, show the guest only from behind or as a silhouette, or leave them out if that suits the story better.
+  * Composition with several people: every face is large, front-facing or three-quarter, unobstructed and well lit;
+    nobody is cropped, turned away, hidden behind another person or in deep shadow. The celebrant stays the hero in front.
   * Describe scene, action, costumes, props from the story, lighting, camera angle and colour grade,
     in the art style and composition the style brief gives. The brief's calm areas are mandatory: text is added there later.
   * Vertical 2:3 frame.

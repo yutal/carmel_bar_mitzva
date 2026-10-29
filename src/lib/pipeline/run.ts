@@ -7,7 +7,7 @@ import { celebrantPhotoPath, getEvent, listCelebrantPhotos } from "@/lib/storage
 import { filePath, getSubmission, saveFile, setStage, updateSubmission } from "@/lib/storage/submissions";
 import type { EventSettings, StageName, Submission } from "@/lib/types";
 
-const MAX_CELEBRANT_REFS = 4;
+const MAX_CELEBRANT_REFS = 5;
 
 function needsWork(s: Submission, stage: StageName): boolean {
   const st = s.stages[stage]?.status;
@@ -50,14 +50,14 @@ async function runImage(id: string, event: EventSettings): Promise<void> {
   const guestPhoto = s.files.photo && s.input.consentPhoto ? await fs.readFile(filePath(s.files.photo)) : undefined;
 
   if (!s.imageConcept) {
-    const concept = await providers.llm.imageConcept(s.input, s.analysis!, event, Boolean(guestPhoto));
+    const concept = await providers.llm.imageConcept(s.input, s.analysis!, event, guestPhoto);
     s = await updateSubmission(id, (x) => {
       x.imageConcept = concept;
     });
   }
 
   const references = await celebrantReferences();
-  if (guestPhoto) references.push({ name: "guest.jpg", data: guestPhoto, role: "guest" });
+  if (guestPhoto) references.push({ name: "guest.jpg", data: guestPhoto, role: "guest", label: guestPhotoLabel(s.imageConcept!.guestPhotoPeople ?? []) });
   const art = await providers.image.generate({ prompt: s.imageConcept!.imagePrompt, references, size: "portrait", celebrantLook: event.celebrantLook });
   await saveFile(id, "imageRaw", "images", "_raw.png", art);
 
@@ -103,6 +103,11 @@ async function runSong(id: string, event: EventSettings): Promise<void> {
     return;
   }
   await setStage(id, "song", "awaiting_music");
+}
+
+function guestPhotoLabel(people: string[]): string {
+  if (people.length <= 1) return `the guest photo${people[0] ? `, showing ${people[0]}` : ""}`;
+  return `the guest photo, showing ${people.length} people, left to right: ${people.join("; ")}. All ${people.length} of them must appear, each with their own face`;
 }
 
 function sunoFile(s: Submission): string {

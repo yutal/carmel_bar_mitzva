@@ -29,6 +29,8 @@ export const config = {
   /** Creations one guest (by name) may make; 0 means no limit. */
   maxCreationsPerGuest: env.MAX_CREATIONS_PER_GUEST,
   fontsDir: path.resolve(process.cwd(), "assets/fonts"),
+  /** Celebrant photos and look.txt shipped with the app, copied into DATA_DIR on startup. */
+  celebrantSeedDir: path.resolve(process.cwd(), "assets/celebrant"),
 } as const;
 
 export function requireOpenAiKey(): string {

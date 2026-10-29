@@ -235,9 +235,13 @@ All prompts live in one file, `src/lib/prompts/index.ts`. To change the style of
 
 Likeness to Carmel is kept in three layers on every poster:
 
-1. Up to 4 photos of Carmel from `/admin`, plus the guest's photo if they uploaded one. Each image is labelled for the model ("Reference image 1: the celebrant").
+1. Up to 5 photos of Carmel, plus the guest's photo if they uploaded one. Each image is labelled for the model ("Reference image 1: the celebrant").
 2. A fixed identity instruction: keep face shape, eyes, hair, skin tone and age, and keep faces visible and unobstructed.
-3. The free-text "how Carmel looks" field in `/admin`.
+3. The "how Carmel looks" description.
+
+**Shipped defaults:** photos in `assets/celebrant/` are copied into the data folder on every startup (as `seed_<name>`), and `assets/celebrant/look.txt` is used while the admin description is empty. This keeps Carmel's references across redeploys even without a persistent disk. A seeded photo deleted in `/admin` comes back on the next restart; remove it from `assets/celebrant/` instead.
+
+**Group photos:** the guest photo is also shown to the text model, which lists every person in it, left to right. The image prompt and the reference label name each of them, so a selfie of four people yields four recognisable faces.
 
 ---
 

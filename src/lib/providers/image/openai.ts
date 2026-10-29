@@ -11,6 +11,7 @@ const LIKENESS = [
   "Keep their exact face shape, eyes, eyebrows, nose, mouth, smile, hair colour, hairstyle, skin tone and age.",
   "In an illustrated, animated or toy style, translate exactly these features into that style.",
   "Use the references only for identity; pose, outfit, lighting and setting come from the scene below.",
+  "Every person in the guest photo appears in the image, each one keeping their own face; do not merge, drop or swap faces.",
   "Show faces large enough to recognise, never hidden by helmets, masks or heavy shadow.",
 ].join(" ");
 
@@ -20,7 +21,7 @@ export const openAiImage: ImageProvider = {
       references.map((r) => toFile(r.data, r.name, { type: "image/jpeg" })),
     );
     const legend = references
-      .map((r, i) => `Reference image ${i + 1}: ${r.role === "celebrant" ? "the celebrant (Bar Mitzvah boy)" : "the guest"}.`)
+      .map((r, i) => `Reference image ${i + 1}: ${r.label ?? (r.role === "celebrant" ? "the celebrant (Bar Mitzvah boy)" : "the guest photo")}.`)
       .join("\n");
     const fullPrompt = [legend, references.length ? LIKENESS : "", celebrantLook ? `The celebrant's appearance: ${celebrantLook}` : "", prompt]
       .filter(Boolean)

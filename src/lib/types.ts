@@ -66,6 +66,9 @@ export const ImageConceptSchema = z.object({
   stats: z
     .array(z.object({ label: z.string(), value: z.number().int() }))
     .describe("Player card style only: 4 Hebrew attributes (max 2 words) scored 80-99. Empty otherwise"),
+  guestPhotoPeople: z
+    .array(z.string())
+    .describe("One short English description per person visible in the guest photo, left to right. Empty when there is no photo"),
   imagePrompt: z.string().describe("Detailed English prompt for the image model"),
 });
 export type ImageConcept = z.infer<typeof ImageConceptSchema>;

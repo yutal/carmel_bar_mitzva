@@ -33,6 +33,7 @@ export const mockLlm: LlmProvider = {
               { label: "התמדה", value: 91 },
             ]
           : [],
+      guestPhotoPeople: [],
       imagePrompt: "mock",
     };
   },
