@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useState } from "react";
 import type { EventSettings, StageName, StageStatus, Submission } from "@/lib/types";
 import { IMAGE_STYLES } from "@/lib/types";
+import type { EventStatus } from "@/lib/status";
 
 type Filter = "all" | "failed" | "music" | "hidden" | "marketing";
 const STATUS_LABEL: Record<StageStatus, string> = {
@@ -93,6 +94,8 @@ export default function AdminDashboard() {
           <a className="btn-ghost" href="/api/admin/export?marketing=1">⬇️ מאושרים לשיווק (ZIP)</a>
         </div>
       </header>
+
+      <StatusPanel onShowFailed={() => setFilter("failed")} />
 
       <div className="grid gap-6 lg:grid-cols-2">
         <EventForm onSaved={() => notify("נשמר")} />
@@ -293,6 +296,92 @@ function CelebrantPhotos({ notify }: { notify: (m: string) => void }) {
         {busy ? "מעלה..." : "+ הוספת תמונות"}
         <input type="file" accept="image/*,.heic,.heif" multiple className="sr-only" disabled={busy} onChange={(e) => e.target.files && upload(e.target.files)} />
       </label>
+    </section>
+  );
+}
+
+const usd = (n: number) => `$${n.toFixed(2)}`;
+
+/** Live event health: creations, failures, queue, estimated OpenAI spend and how far the balance goes. */
+function StatusPanel({ onShowFailed }: { onShowFailed: () => void }) {
+  const [st, setSt] = useState<EventStatus | null>(null);
+  const [amount, setAmount] = useState("");
+  const load = useCallback(async () => {
+    const d = await api<EventStatus>("/api/admin/status").catch(() => null);
+    if (d) setSt(d);
+  }, []);
+  useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- initial fetch
+    void load();
+    const t = setInterval(load, 15000);
+    return () => clearInterval(t);
+  }, [load]);
+  if (!st) return <section className="card p-5" />;
+
+  const { posters } = st.submissions;
+  const b = st.balance;
+  const tile = (label: string, value: string, sub?: string, alert = false) => (
+    <div className={`rounded-2xl p-4 ${alert ? "bg-red-500/15" : "bg-olive-100"}`}>
+      <p className="text-sm text-muted">{label}</p>
+      <p className={`text-2xl font-bold ${alert ? "text-red-800" : "text-ink"}`}>{value}</p>
+      {sub && <p className="text-sm text-muted">{sub}</p>}
+    </div>
+  );
+
+  return (
+    <section className="card space-y-4 p-5">
+      <h2 className="text-xl font-bold">מצב האירוע</h2>
+      <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-5">
+        {tile("פוסטרים מוכנים", `${posters.done} מתוך ${st.submissions.total}`, `בשעה האחרונה: ${st.submissions.lastHour} ברכות`)}
+        {tile("בעבודה עכשיו", `${st.queue.running + st.queue.waiting}`, `רצות ${st.queue.running} מתוך ${st.queue.concurrency}, ממתינות ${st.queue.waiting}`)}
+        {tile("כשלים", `${st.failures.length}`, st.failures.length ? "אפשר ליצור מחדש מהכרטיס" : "הכל תקין", st.failures.length > 0)}
+        {tile("הוצאה על OpenAI (הערכה)", usd(st.spend.totalUsd), st.spend.perPosterUsd !== null ? `כ-${usd(st.spend.perPosterUsd)} לפוסטר · 24 שעות: ${usd(st.spend.last24hUsd)}` : `24 שעות: ${usd(st.spend.last24hUsd)}`)}
+        {b
+          ? tile(
+              "נשאר ביתרה (הערכה)",
+              usd(b.remainingUsd),
+              b.postersLeft !== null ? `מספיק לעוד כ-${b.postersLeft} פוסטרים${b.low ? ". כדאי להטעין" : ""}` : `מתוך ${usd(b.amountUsd)} שהוזנו`,
+              b.low,
+            )
+          : tile("נשאר ביתרה", "?", "הזינו את היתרה למטה")}
+      </div>
+
+      {st.failures.length > 0 && (
+        <div className="space-y-1 text-sm">
+          {st.failures.slice(0, 5).map((f) => (
+            <p key={`${f.id}-${f.stage}`}>
+              <b><bdi>{f.name}</bdi></b> · {STAGE_LABEL[f.stage]} · <bdi className="text-muted">{f.error}</bdi>
+            </p>
+          ))}
+          <button type="button" className="chip" onClick={onShowFailed}>להצגת כל הכשלים</button>
+        </div>
+      )}
+
+      <form
+        className="flex flex-wrap items-end gap-3"
+        onSubmit={async (e) => {
+          e.preventDefault();
+          const value = Number(amount);
+          if (!Number.isFinite(value) || value < 0) return;
+          setSt(await api<EventStatus>("/api/admin/status", { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ amountUsd: value }) }));
+          setAmount("");
+        }}
+      >
+        <label className="block space-y-1">
+          <span className="text-sm text-muted">היתרה שמופיעה עכשיו ב-platform.openai.com, תחת Billing (בדולרים)</span>
+          <input className="field py-2.5 text-base" inputMode="decimal" dir="ltr" value={amount} onChange={(e) => setAmount(e.target.value)} placeholder={b ? b.amountUsd.toFixed(2) : "50.00"} />
+        </label>
+        <button type="submit" className="btn-ghost min-h-11">עדכון יתרה</button>
+        {b && <p className="text-sm text-muted">עודכנה {new Date(b.setAt).toLocaleString("he-IL")}, ומאז הוצאו כ-{usd(b.spentSinceUsd)}</p>}
+      </form>
+
+      <p className="text-sm text-muted">
+        {st.openai === null
+          ? "ההוצאה כאן היא הערכה לפי מחירון. להוצאה המדויקת מ-OpenAI צריך להגדיר OPENAI_ADMIN_KEY ב-Render."
+          : "error" in st.openai
+            ? `לא הצלחתי לקרוא את ההוצאה מ-OpenAI: ${st.openai.error}`
+            : `לפי OpenAI (מתעדכן באיחור): היום ${usd(st.openai.todayUsd)}, ב-${st.openai.days} הימים האחרונים ${usd(st.openai.periodUsd)}`}
+      </p>
     </section>
   );
 }

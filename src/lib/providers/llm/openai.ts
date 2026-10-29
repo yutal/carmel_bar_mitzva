@@ -18,10 +18,11 @@ import {
 } from "@/lib/prompts";
 import sharp from "sharp";
 import { AnalysisSchema, ClipPlanSchema, FaceMapSchema, ImageConceptSchema, SongConceptSchema } from "@/lib/types";
+import { recordUsage, type UsageKind } from "@/lib/usage";
 
 async function structured<S extends z.ZodType>(
   schema: S,
-  name: string,
+  name: UsageKind,
   system: string,
   user: string,
   image?: Buffer,
@@ -41,6 +42,11 @@ async function structured<S extends z.ZodType>(
         ]
       : user,
     text: { format: zodTextFormat(schema, name) },
+  });
+  await recordUsage(name, config.llmModel, {
+    inputTokens: response.usage?.input_tokens,
+    cachedInputTokens: response.usage?.input_tokens_details?.cached_tokens,
+    outputTokens: response.usage?.output_tokens,
   });
   if (!response.output_parsed) throw new Error(`LLM returned no ${name}`);
   return response.output_parsed as z.infer<S>;
@@ -66,7 +72,8 @@ export const openAiLlm: LlmProvider = {
   songConcept(input, analysis, event) {
     const user = [guestContext(input, event), "", `Analysis:\n${analysisSummary(analysis)}`, "", songStyleHint(input)].join("\n");
     return structured(SongConceptSchema, "song_concept", SONG_CONCEPT_SYSTEM, user);
-  },  async locateFaces(art) {
+  },
+  async locateFaces(art) {
     // A 1024px JPEG is plenty to find faces and keeps the request small.
     const jpeg = await sharp(art).resize(1024, 1024, { fit: "inside" }).jpeg({ quality: 85 }).toBuffer();
     const { faces } = await structured(FaceMapSchema, "face_map", FACE_MAP_SYSTEM, "Locate every face in this image.", jpeg);

@@ -3,6 +3,7 @@ import PQueue from "p-queue";
 import { config } from "@/lib/config";
 import { listSubmissions, updateSubmission } from "@/lib/storage/submissions";
 import type { StageName } from "@/lib/types";
+import { withSubmission } from "@/lib/usage";
 import { runSubmission } from "./run";
 
 // One queue per server process, kept across hot reloads in development.
@@ -14,7 +15,7 @@ export function enqueue(id: string): void {
   if (queued.has(id)) return;
   queued.add(id);
   void queue
-    .add(() => runSubmission(id))
+    .add(() => withSubmission(id, () => runSubmission(id)))
     .catch((err) => console.error(`[queue] ${id} crashed`, err))
     .finally(() => queued.delete(id));
 }

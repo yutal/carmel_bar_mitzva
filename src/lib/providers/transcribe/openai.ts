@@ -3,6 +3,7 @@ import fs from "node:fs";
 import { config } from "@/lib/config";
 import { openai } from "@/lib/providers/openai-client";
 import type { TranscribeProvider } from "@/lib/providers/types";
+import { recordUsage } from "@/lib/usage";
 
 export const openAiTranscribe: TranscribeProvider = {
   async transcribe(audioFile, hint, lang) {
@@ -15,6 +16,7 @@ export const openAiTranscribe: TranscribeProvider = {
       response_format: "verbose_json",
       timestamp_granularities: ["segment"],
     });
+    await recordUsage("transcribe", config.transcribeModel, { seconds: res.duration });
     return {
       duration: res.duration,
       segments: (res.segments ?? []).map((s) => ({ start: s.start, end: s.end, text: s.text.trim() })).filter((s) => s.text),

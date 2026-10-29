@@ -3,6 +3,7 @@ import { toFile } from "openai";
 import { config } from "@/lib/config";
 import { openai } from "@/lib/providers/openai-client";
 import type { ImageProvider } from "@/lib/providers/types";
+import { recordUsage } from "@/lib/usage";
 
 const SIZES = { portrait: "1024x1536", square: "1024x1024" } as const;
 
@@ -44,6 +45,11 @@ export const openAiImage: ImageProvider = {
           output_format: "png",
         });
 
+    await recordUsage("image", config.imageModel, {
+      inputTokens: result.usage?.input_tokens,
+      imageInputTokens: result.usage?.input_tokens_details?.image_tokens,
+      outputTokens: result.usage?.output_tokens,
+    });
     const b64 = result.data?.[0]?.b64_json;
     if (!b64) throw new Error("Image model returned no image");
     return Buffer.from(b64, "base64");

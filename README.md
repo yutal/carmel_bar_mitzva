@@ -4,6 +4,21 @@ Guests scan a QR code, tell a little about their bond with Carmel, write a bless
 The Hebrew title and blessing are drawn onto the image by our own code, not by the image model, so the Hebrew is always correct.
 Every file is stored on disk with a name like `david_cohen_20261027_201530` (Hebrew names are kept as written), and after the event everything downloads as one ZIP.
 
+**Stack**
+
+| Layer | What we use |
+| --- | --- |
+| App | Next.js 16 (App Router, Turbopack, standalone output), React 19, TypeScript 5 |
+| Styling | Tailwind CSS 4, Heebo and Frank Ruhl Libre fonts (on the pages and on the posters), Hebrew RTL and English LTR |
+| Validation | zod 4, also for the models' structured output |
+| AI | OpenAI: `gpt-5.5` (Responses API) for understanding and concepts, `gpt-image-2` for the art, `whisper-1` for transcription |
+| Posters | `@napi-rs/canvas` draws the title, blessing and layout around the faces; `sharp` and `heic-convert` handle photos |
+| Video | ffmpeg with libass captions, in the video and voice lab |
+| Queue | `p-queue` in the server process; no database, JSON files on disk |
+| Other | `archiver` for the ZIP export, `qrcode` for the hall screen |
+| Hosting | Docker on Render (Web Service, Standard instance, persistent disk at `/data`), code on GitHub |
+| Music | Suno, by hand: the app writes the description, the organiser uploads the MP3 |
+
 ## Contents
 
 1. [Screens](#screens)
@@ -195,6 +210,7 @@ API endpoints:
 | `/api/admin/submissions/<id>/visibility` | POST | Hide or show on the hall screen |
 | `/api/admin/celebrant` | GET, POST, DELETE | Photos of Carmel |
 | `/api/admin/event` | GET, PUT | Event details and the description of how Carmel looks |
+| `/api/admin/status` | GET, PUT | Event snapshot: creations, failures, queue, OpenAI spend and balance. PUT `{ "amountUsd": 50 }` records the current OpenAI balance |
 | `/api/admin/export` | GET | ZIP of everything. Add `?uploads=1` to include guest photos, or `?marketing=1` for only the images of guests who allowed marketing use |
 
 ---
@@ -206,6 +222,8 @@ Everything lives under `DATA_DIR`, which is `/data` on the server:
 ```text
 /data
 ├── event.json                         event details + how Carmel looks
+├── usage.jsonl                        every OpenAI call: tokens and estimated cost
+├── openai-balance.json                the balance last entered in /admin, and when
 ├── celebrant/carmel_<time>.jpg        reference photos of Carmel
 ├── uploads/<name>_<time>.jpg          guest photos (only with consent)
 ├── blessings/<name>_<time>.json       the full record of one submission
@@ -236,6 +254,8 @@ Render's dashboard does not show this folder. View the data through `/admin`, an
 | Transcribe spoken blessings (lab) | `whisper-1` with segment timestamps, Hebrew | `src/lib/providers/transcribe/openai.ts` | `TRANSCRIBE_MODEL` |
 | Longest edited clip (lab) | 30 seconds | `src/lib/lab/jobs.ts` | `CLIP_MAX_SECONDS` |
 | Hosting | Render, Docker Web Service | `Dockerfile` | `DATA_DIR`, `PORT` |
+| Spend estimate | List prices per model, applied to the tokens each call reports | `src/lib/usage.ts` | `OPENAI_PRICES` (JSON, overrides the prices) |
+| Actual spend from OpenAI | Off | `src/lib/usage.ts` | `OPENAI_ADMIN_KEY` (an organisation admin key, not the API key) |
 
 All prompts live in one file, `src/lib/prompts/index.ts`. To change the style of posters or songs, start there.
 
@@ -458,7 +478,7 @@ flowchart LR
 ```
 
 - **Day before:** switch to the paid plan with a disk, upload 3 clear photos of Carmel, fill in "how Carmel looks", make a test poster, and print the QR code for the tables.
-- **During the event:** `/screen` full-screen on the projector, `/admin` on your phone. Do not change settings in Render.
+- **During the event:** `/screen` full-screen on the projector, `/admin` on your phone. Do not change settings in Render. The "event status" panel at the top of `/admin` shows posters done, the queue, failures, the OpenAI spend and how many more posters the balance covers. Enter the balance from platform.openai.com (Billing) before the event and after every top-up; the panel turns red when it will not last for the queue plus another 20 guests.
 - **After the event:** produce the songs in Suno, upload the MP3s, download the ZIP. Once you have checked it, you can cancel the plan.
 
 ---
@@ -481,6 +501,12 @@ Measured locally in mock mode on one CPU core with the V8 heap sized for 2 GB (t
 - **Memory:** if the logs show out-of-memory errors, lower `GENERATION_CONCURRENCY` or use a larger instance.
 
 To repeat the test: `AI_PROVIDER=mock MOCK_IMAGE_DELAY_MS=20000 taskset -c 0 node --max-old-space-size=1228 .next/standalone/server.js`, then send concurrent page loads and multipart submissions to `/api/submissions` and poll each result until it is done.
+
+### OpenAI spend and balance
+
+OpenAI has no API for the remaining prepaid balance, so the app keeps its own count. Every call logs its tokens to `usage.jsonl` with a cost at list prices. You enter the balance shown on the billing page in `/admin`; the panel subtracts what was spent since then and divides by the average cost of a finished poster. The figures are estimates: the billing page stays the source of truth.
+
+For the actual billed amount, set `OPENAI_ADMIN_KEY` (Organization settings → Admin keys). The panel then also shows today's and the last 30 days' spend from OpenAI's Costs API, which updates with a delay. If OpenAI changes its prices, set `OPENAI_PRICES`, for example `{"gpt-image-2":{"input":2.5,"imageInput":4,"output":15}}` (USD per million tokens).
 
 ---
 
