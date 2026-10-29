@@ -19,9 +19,10 @@ export const STYLE_RENDER: Record<ImageStyle, string> = {
     "a glossy celebrity magazine cover photograph shot in a photo studio: one seamless, plain, single-colour paper backdrop, " +
     "softbox fashion lighting, waist-up portrait looking at the camera. NOT an outdoor scene, NOT a movie scene, no landscape behind them.",
   card:
-    "the art of a premium sports trading card: a dynamic hero shot with stadium lights and light rays, glossy energetic colours. " +
+    "the art of a premium sports trading card: a dynamic hero shot against an abstract glowing background of light rays, sparks " +
+    "and the sport's colours, glossy energetic colours. NOT a real stadium, field or court, so there is nobody behind them. " +
     "The only people are the ones from the reference photos, posed together as one team: no teammates, opponents, referees, " +
-    "fans or crowd; the stands behind them are empty, dark and blurred into lights.",
+    "coaches, fans, crowd or figures in the distance.",
   toy:
     "a product photograph of a plastic action figure sealed in a retail blister box: the people are moulded plastic toy figures " +
     "with painted faces, NOT real people.",
@@ -39,7 +40,9 @@ Faces: every face sits between 18% and 62% of the frame height.`,
 
   animation: `Format: a poster for a 3D animated family feature film.
 Look: stylised 3D characters with expressive eyes, soft global illumination, saturated friendly colours.
-Translate each person's real features into the style: same hair colour and cut, skin tone, glasses, smile and age.
+Every person, including each person from the guest photo, becomes a 3D animated character in the same style as the celebrant;
+nobody keeps a photographic face. Translate each person's real features into the style: same hair colour and cut, skin tone,
+glasses, smile and age. Say this in imagePrompt for each person from the guest photo.
 Cast: only the celebrant and every person from the guest photo. With no guest photo, the celebrant alone (the guest may appear
 from behind). Never add characters the guest did not send: no friends, siblings, sidekicks, mascots, crowds or people in the background.
 Name the cast in imagePrompt and say "no other people".
@@ -65,10 +68,11 @@ Faces and cover lines (cover lines are printed later on the backdrop beside the 
 Also write coverLines: 3 short cover lines in the poster language about the celebrant, drawn from the guest's story (max 5 words each).`,
 
   card: `Format: the artwork of a premium collectible sports player card; the celebrant is the star player.
-Look: dynamic hero portrait from the waist up, stadium or arena lights, light rays, glossy energetic colours,
-the sport or activity from the story (if there is none, pick the celebrant's talent).
+Look: dynamic hero portrait from the waist up against an abstract glowing background (light rays, sparks, the sport's colours),
+not a real stadium, field or court; glossy energetic colours; the sport or activity from the story shown through outfit and props
+(if there is none, pick the celebrant's talent).
 Cast: the celebrant and every person from the guest photo, side by side as one team, all from the waist up, all faces visible.
-With no guest photo, the celebrant alone. Never add teammates, opponents, referees, coaches, fans or a crowd; the stands are empty.
+With no guest photo, the celebrant alone: the guest does not appear at all, not even from behind. Never add teammates, opponents, referees, coaches, fans or a crowd; the stands are empty.
 Name the cast in imagePrompt and say "no other people".
 Composition: subject centred, head in the upper third; no border, frame, badges or numbers (our code draws the card).
 Faces: every face sits between 12% and 50% of the frame height; the top-right corner stays clear (a badge goes there).

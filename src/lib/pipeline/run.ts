@@ -58,22 +58,36 @@ async function runImage(id: string, event: EventSettings): Promise<void> {
     });
   }
 
+  const style = s.input.imageStyle ?? "movie";
+  const guests = guestPhoto ? (s.imageConcept!.guestPhotoPeople ?? []).length || 1 : 0;
   const references = await celebrantReferences();
-  if (guestPhoto) references.push({ name: "guest.jpg", data: guestPhoto, role: "guest", label: guestPhotoLabel(s.imageConcept!.guestPhotoPeople ?? []) });
-  const art = await providers.image.generate({
-    prompt: s.imageConcept!.imagePrompt,
-    references,
-    size: "portrait",
-    celebrantLook: event.celebrantLook,
-    artStyle: STYLE_RENDER[s.input.imageStyle ?? "movie"] + castLine(s.input.imageStyle ?? "movie", guestPhoto ? (s.imageConcept!.guestPhotoPeople ?? []).length || 1 : 0),
-  });
-  await saveFile(id, "imageRaw", "images", "_raw.png", art);
-
+  if (guestPhoto) {
+    references.push({ name: "guest.jpg", data: guestPhoto, role: "guest", label: guestPhotoLabel(s.imageConcept!.guestPhotoPeople ?? []) + guestPhotoNote(style) });
+  }
+  const paint = (extra = "") =>
+    providers.image.generate({
+      prompt: s.imageConcept!.imagePrompt + extra,
+      references,
+      size: "portrait",
+      celebrantLook: event.celebrantLook,
+      artStyle: STYLE_RENDER[style] + castLine(style, guests),
+    });
   // Where the faces are, so no title or text lands on someone. A failed lookup falls back to the fixed layout.
-  const faces = await providers.llm.locateFaces(art).catch((err) => {
-    console.error(`[pipeline] face lookup failed for ${id}`, err);
-    return undefined;
-  });
+  const findFaces = (img: Buffer) =>
+    providers.llm.locateFaces(img).catch((err) => {
+      console.error(`[pipeline] face lookup failed for ${id}`, err);
+      return undefined;
+    });
+
+  let art = await paint();
+  let faces = await findFaces(art);
+  // The player card and the animated film tend to invent extra people. One more try when the head count is off.
+  if (STRICT_CAST.has(style) && faces && faces.length > guests + 1) {
+    console.warn(`[pipeline] ${id}: ${faces.length} faces, expected ${guests + 1}; painting again`);
+    art = await paint(`\n\nThe previous attempt wrongly added extra people. This time draw exactly ${guests + 1} people and nobody else.`);
+    faces = await findFaces(art);
+  }
+  await saveFile(id, "imageRaw", "images", "_raw.png", art);
   if (faces) {
     await updateSubmission(id, (x) => {
       x.faces = faces;
@@ -132,12 +146,27 @@ async function runSong(id: string, event: EventSettings): Promise<void> {
  * The exact head count, for the styles where the image model tends to invent people (a team on a player card,
  * extra characters in an animated film). The other styles are left as they are.
  */
+const STRICT_CAST = new Set<ImageStyle>(["card", "animation"]);
+
 function castLine(style: ImageStyle, guests: number): string {
-  if (style !== "card" && style !== "animation") return "";
+  if (!STRICT_CAST.has(style)) return "";
   const cast = guests
     ? `Exactly ${guests + 1} people in the image: the celebrant and the ${guests === 1 ? "person" : `${guests} people`} from the guest photo.`
-    : "Only one face in the image, the celebrant's; the guest may appear only from behind.";
-  return ` ${cast} Count them; nobody else appears anywhere in the frame. Recognising each real person matters more than the style.`;
+    : style === "card"
+      ? "Exactly one person in the image: the celebrant, alone."
+      : "Only one face in the image, the celebrant's; the guest may appear only from behind.";
+  const look =
+    style === "animation"
+      ? "Every person, the celebrant and each person from the guest photo alike, is rendered as the same kind of 3D animated character; " +
+        "nobody keeps a photographic face or real skin. Keep each likeness through their features (face shape, hair, skin tone, glasses, age), " +
+        "redrawn in the animated style, never by pasting the photo."
+      : "Recognising each real person matters more than the style.";
+  return ` ${cast} Count them; nobody else appears anywhere in the frame: no background figures, silhouettes, reflections or faces in the crowd. ${look}`;
+}
+
+/** Extra words on the guest photo's label, for styles that must not copy it as a photo. */
+function guestPhotoNote(style: ImageStyle): string {
+  return style === "animation" ? ". Use it for who they are only: draw them as 3D animated characters, like the celebrant" : "";
 }
 
 function guestPhotoLabel(people: string[]): string {

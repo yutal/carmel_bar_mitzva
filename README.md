@@ -338,7 +338,7 @@ The guest picks one of six styles. Each style has an art brief (`src/lib/prompts
 | `card` | ⚽ Player card | Gold frame, "13" badge, name plate, 4 stats (80–99) and the sign-off |
 | `toy` | 📦 Action figure in a box | Same as movie, on the box's header card and backing |
 
-For the player card and the animated film, where the image model tended to invent extra people (teammates, a crowd, side characters), the brief and the rendering line also fix the cast: only the celebrant and the people in the guest's photo, with the exact head count, and likeness put ahead of the style (`castLine` in `src/lib/pipeline/run.ts`). The other styles are unchanged.
+For the player card and the animated film, where the image model tended to invent extra people (teammates, a crowd, side characters), the brief and the rendering line also fix the cast: only the celebrant and the people in the guest's photo, with the exact head count (`castLine` in `src/lib/pipeline/run.ts`). The card is drawn on an abstract glowing background instead of a stadium, so there is no place for a crowd. In the animated film every person, guests included, is redrawn as a 3D character; nobody keeps a photographic face. If the face finder counts more faces than people, the image is painted once more (one extra image call, only when it happens). The other styles are unchanged.
 
 Each style also has a rendering line (`STYLE_RENDER` in `styles.ts`), sent to the image model first and repeated last, so an animated film looks like a 3D animated still and not a photograph, and a magazine cover is a studio shoot on a plain backdrop and not an outdoor movie scene.
 
