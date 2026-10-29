@@ -4,10 +4,12 @@ import { getEvent, saveEvent } from "@/lib/storage/event";
 
 const Body = z.object({
   celebrantName: z.string().trim().min(1).max(40),
+  celebrantNameEn: z.string().trim().max(40).default(""),
   eventTitle: z.string().trim().min(1).max(80),
   eventDate: z.string().trim().max(40),
   footer: z.string().trim().max(80),
-  celebrantLook: z.string().trim().max(500).default(""),
+  footerEn: z.string().trim().max(80).default(""),
+  celebrantLook: z.string().trim().max(1000).default(""),
   songsEnabled: z.boolean().default(false),
 });
 

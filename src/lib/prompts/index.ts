@@ -1,21 +1,28 @@
+import { LANG_INFO, type Lang } from "@/lib/i18n";
 import type { Analysis, EventSettings, GuestInput } from "@/lib/types";
 import { MUSIC_STYLES, type ImageStyle } from "@/lib/types";
 import { STYLE_BRIEFS } from "./styles";
 
+/** The celebrant's name as written in a given language. */
+export const celebrantNameIn = (event: EventSettings, lang: Lang) => (lang === "en" && event.celebrantNameEn) || event.celebrantName;
+
 /** The guest's own words, labelled, as the single source of truth for every stage. */
 export function guestContext(input: GuestInput, event: EventSettings): string {
+  const lang = LANG_INFO[input.lang ?? "he"].english;
   return [
-    `Celebrant: ${event.celebrantName}, a 13-year-old boy celebrating his Bar Mitzvah.`,
+    `Celebrant: ${event.celebrantName} (in English: ${event.celebrantNameEn || event.celebrantName}), a 13-year-old boy celebrating his Bar Mitzvah.`,
+    `Poster language: ${lang}. Every word printed on the creation (title, tagline, cover lines, stats, rationale, song title) is in ${lang},`,
+    `whatever language the guest wrote in; names are written the way ${lang} writes them.`,
     `Guest name: ${input.fullName}`,
     `Relationship to ${event.celebrantName}: ${input.relationship}`,
     `What they love doing together: ${input.together || "(not answered)"}`,
     `A shared memory or funny story: ${input.memory || "(not answered)"}`,
     `What ${event.celebrantName} is best at: ${input.talent || "(not answered)"}`,
-    `The blessing (verbatim, Hebrew): ${input.blessing}`,
+    `The blessing (verbatim, in the guest's own language): ${input.blessing}`,
   ].join("\n");
 }
 
-export const ANALYSIS_SYSTEM = `You analyse a personal Bar Mitzvah blessing written in Hebrew by a guest.
+export const ANALYSIS_SYSTEM = `You analyse a personal Bar Mitzvah blessing written by a guest, in Hebrew, English or any other language.
 Extract only what the guest actually wrote or clearly implied. Never invent hobbies, events or facts.
 Prefer concrete, specific details (a sport, a place, a game, a running joke) over generic sentiment.
 Write list items in short English phrases. Empty lists are fine when nothing fits.`;
@@ -25,11 +32,11 @@ Turn one guest's story and blessing into ONE image concept, in the art style the
 
 Rules:
 - The concept must be built on the most specific detail the guest gave (shared activity, memory, inside joke, talent).
-  A generic "celebration" image is a failure. Explain in "rationale" (Hebrew, one sentence) which detail you used.
+  A generic "celebration" image is a failure. Explain in "rationale" (one sentence, in the poster language) which detail you used.
 - Pick the story genre that fits the detail: sports championship, superhero, heist, space mission, fantasy quest,
   action comedy, documentary, music tour, cooking show, etc. Keep it family friendly and warm.
-- Hebrew title: punchy, max 4 words, may play on the celebrant's name or the shared activity.
-- Hebrew tagline: max 8 words.
+- Title (in the poster language): punchy, max 4 words, may play on the celebrant's name or the shared activity.
+- Tagline (in the poster language): max 8 words.
 - Fill coverLines and stats only when the style brief asks for them; otherwise return empty lists.
 - If the guest photo is attached, look at it closely. It may show one person or a group (a selfie with family or friends).
   List EVERY person visible in it in guestPhotoPeople, left to right, each with apparent age, gender, hair (colour, length,
@@ -43,7 +50,7 @@ Rules:
     If not, show the guest only from behind or as a silhouette, or leave them out if that suits the story better.
   * Composition with several people: every face is large, front-facing or three-quarter, unobstructed and well lit;
     nobody is cropped, turned away, hidden behind another person or in deep shadow. The celebrant stays the hero in front.
-  * Hebrew text is printed on the image later in fixed places (see the style brief). Plan where every face goes for the
+  * Text is printed on the image later in fixed places (see the style brief). Plan where every face goes for the
     number of people in the scene, so no face falls where text will be printed, and repeat the brief's face placement
     in the prompt in plain words (e.g. "both faces in the left half, between 20% and 55% of the height").
   * Describe scene, action, costumes, props from the story, lighting, camera angle and colour grade,
@@ -56,13 +63,13 @@ The song is a personal gift from one guest to a Bar Mitzvah boy.
 
 Rules:
 - sunoPrompt: one paragraph of at most 400 characters, pasted as-is into Suno's "Song description" box.
-  Write it in English, but keep names in Hebrew letters exactly as given (the celebrant's name and the guest's name).
-  It must say: a song in Hebrew, for the Bar Mitzvah of <celebrant>, sung from <guest>'s point of view (their relationship),
+  Write it in English. Keep names exactly as written in the poster language (Hebrew letters for Hebrew).
+  It must say: a song in the poster language, for the Bar Mitzvah of <celebrant>, sung from <guest>'s point of view (their relationship),
   and the story. Build the story from the guest's answers about the celebrant, in this order of importance:
   what they love doing together, the shared memory or funny story, and what the celebrant is best at.
   Use the blessing only for the closing wish. Finish with the musical style (genre, tempo, mood, vocal type).
   Concrete details beat adjectives. A generic birthday song is a failure.
-- titleHebrew: a short Hebrew song title that fits the story.
+- titleHebrew: a short song title in the poster language that fits the story.
 - coverPrompt: English prompt for a square album cover that visualises the song's story; no text in the image.`;
 
 export function songStyleHint(input: GuestInput): string {
@@ -88,6 +95,7 @@ Rules:
 - Return 1 to 3 ranges of whole segments, in their original order. Never reorder: the clip must sound natural.
 - The kept segments must add up to at most the given number of seconds. If the whole recording fits and is clean, keep all of it.
 - Prefer ending on a wish or a "mazal tov".
+- The transcript may be in Hebrew, English or another language. Write titleHebrew in the language that was spoken.
 - titleHebrew: a warm title of up to 5 words, may use the celebrant's name.
 - quoteHebrew: the single most moving sentence, copied word for word from the transcript.`;
 

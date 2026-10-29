@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
+import { LANG_INFO, LANGS, STRINGS, type Lang } from "@/lib/i18n";
 import { IMAGE_STYLES, MUSIC_STYLES, type ImageStyle, type MusicStyle } from "@/lib/types";
 import { resizeImage } from "./resize-image";
 
@@ -19,13 +20,15 @@ type Form = {
   consentMarketing: boolean;
 };
 
-const RELATIONSHIPS = ["משפחה", "חבר מהכיתה", "חבר מהחוג", "חברים של ההורים", "שכנים"];
 const STEPS = ["welcome", "who", "story", "blessing", "experience", "photo"] as const;
 type Step = (typeof STEPS)[number];
 
-export default function GuestFlow({ again }: { again?: { fullName: string; relationship: string } }) {
+export default function GuestFlow({ again, lang = "he" }: { again?: { fullName: string; relationship: string }; lang?: Lang }) {
   const router = useRouter();
-  const [name, setName] = useState("כרמל");
+  const t = STRINGS[lang];
+  const RELATIONSHIPS = t.relationships;
+  const [names, setNames] = useState({ he: "כרמל", en: "Carmel" });
+  const name = names[lang];
   const [songsEnabled, setSongsEnabled] = useState(false);
   const [maxCreations, setMaxCreations] = useState<number | null>(null);
   const [step, setStep] = useState<Step>(again ? "who" : "welcome");
@@ -51,8 +54,8 @@ export default function GuestFlow({ again }: { again?: { fullName: string; relat
   useEffect(() => {
     fetch("/api/celebrant")
       .then((r) => r.json())
-      .then((d: { celebrantName?: string; songsEnabled?: boolean; maxCreations?: number | null }) => {
-        if (d.celebrantName) setName(d.celebrantName);
+      .then((d: { celebrantName?: string; celebrantNameEn?: string; songsEnabled?: boolean; maxCreations?: number | null }) => {
+        if (d.celebrantName) setNames({ he: d.celebrantName, en: d.celebrantNameEn || d.celebrantName });
         setSongsEnabled(Boolean(d.songsEnabled));
         setMaxCreations(d.maxCreations ?? null);
       })
@@ -76,7 +79,7 @@ export default function GuestFlow({ again }: { again?: { fullName: string; relat
         const res = await fetch(`/api/quota?name=${encodeURIComponent(form.fullName.trim())}`, { cache: "no-store" });
         const q = (await res.json()) as { max: number | null; remaining: number | null };
         if (q.remaining === 0) {
-          setError(`כבר יצרת ${q.max} יצירות, וזה המקסימום לאורח. תודה שבירכת!`);
+          setError(t.quotaReached(q.max));
           return;
         }
       } catch {
@@ -105,25 +108,26 @@ export default function GuestFlow({ again }: { again?: { fullName: string; relat
       const { withSong, ...fields } = form;
       for (const [k, v] of Object.entries(fields)) body.set(k, String(v));
       body.set("experience", songsEnabled && withSong ? "both" : "image");
+      body.set("lang", lang);
       body.set("consentPhoto", String(Boolean(photo)));
       if (photo) body.set("photo", await resizeImage(photo), "photo.jpg");
       const res = await fetch("/api/submissions", { method: "POST", body });
       const data = (await res.json()) as { publicId?: string; error?: string };
-      if (!res.ok || !data.publicId) throw new Error(data.error ?? "משהו השתבש");
+      if (!res.ok || !data.publicId) throw new Error(data.error ?? t.genericError);
       // Replace, so the back button cannot return to a filled form and send it again.
-      router.replace(`/r/${data.publicId}`);
+      router.replace(`/r/${data.publicId}${lang === "he" ? "" : `?lang=${lang}`}`);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "משהו השתבש, נסו שוב");
+      setError(err instanceof Error ? err.message : t.genericError);
       setSubmitting(false);
     }
   }
 
   return (
-    <main className="mx-auto flex min-h-dvh w-full max-w-md flex-col px-5 pb-8 pt-6">
+    <main dir={LANG_INFO[lang].dir} lang={lang} className="mx-auto flex min-h-dvh w-full max-w-md flex-col px-5 pb-8 pt-6">
       {step !== "welcome" && (
         <header className="mb-6 flex items-center gap-3">
-          <button type="button" onClick={() => go(-1)} className="text-muted" aria-label="חזרה">
-            → חזרה
+          <button type="button" onClick={() => go(-1)} className="text-muted">
+            {t.back}
           </button>
           <div className="flex flex-1 gap-1.5" aria-hidden>
             {STEPS.slice(1).map((s, i) => (
@@ -137,33 +141,41 @@ export default function GuestFlow({ again }: { again?: { fullName: string; relat
         {step === "welcome" && (
           <section className="flex flex-1 flex-col gap-6">
             <div className="flex items-center justify-between">
-              <span className="text-sm font-medium tracking-[0.2em] text-muted">עמדת הברכות</span>
-              <span className="text-clay" aria-hidden>✦</span>
+              <span className="text-sm font-medium tracking-[0.2em] text-muted">{t.station}</span>
+              <nav className="flex gap-1 text-sm" aria-label="Language">
+                {LANGS.map((l) => (
+                  // A plain link: a full load starts the flow fresh in the other language.
+                  <a
+                    key={l}
+                    href={l === "he" ? "/" : `/?lang=${l}`}
+                    aria-current={l === lang ? "true" : undefined}
+                    className="rounded-full px-3 py-1 text-muted aria-[current]:bg-olive-100 aria-[current]:font-bold aria-[current]:text-ink"
+                  >
+                    {LANG_INFO[l].label}
+                  </a>
+                ))}
+              </nav>
             </div>
             <div className="text-center">
               <p className="font-display text-[clamp(10rem,58vw,15rem)] font-black leading-[0.82] tracking-tight text-accent-soft" aria-hidden>
                 13
               </p>
               <h1 className="mt-2 font-display leading-none">
-                <span className="block text-[3.25rem] font-bold text-ink">הבר מצווה</span>
-                <span className="mt-1 block text-[2.5rem] font-medium text-clay">של {name}</span>
+                <span className="block text-[3.25rem] font-bold text-ink">{t.heroLines(name)[0]}</span>
+                <span className="mt-1 block text-[2.5rem] font-medium text-clay">{t.heroLines(name)[1]}</span>
               </h1>
             </div>
             <span className="mx-auto h-0.5 w-14 bg-line" aria-hidden />
             <p className="text-center text-lg leading-relaxed text-muted">
-              כתבו ל{name} ברכה, ספרו זיכרון משותף, וה-AI יהפוך אותה ליצירה בסגנון שתבחרו: פוסטר של סרט, שער מגזין, כרטיס שחקן ועוד{songsEnabled ? ", ואפשר גם שיר" : ""}.
+              {t.intro(name, songsEnabled)}
             </p>
             <button type="button" className="btn-primary w-full" onClick={() => go(1)}>
-              בואו נתחיל <span aria-hidden>←</span>
+              {t.start} <span aria-hidden>{t.forwardArrow}</span>
             </button>
             <div className="space-y-3">
-              <p className="text-sm font-bold tracking-[0.2em] text-accent-soft">איך זה עובד</p>
+              <p className="text-sm font-bold tracking-[0.2em] text-accent-soft">{t.howItWorks}</p>
               <ol className="grid grid-cols-3 gap-2.5">
-                {[
-                  ["כותבים ברכה", "וזיכרון משותף"],
-                  ["ה-AI יוצר", songsEnabled ? "תמונה ושיר" : "תמונה בסגנון שבחרתם"],
-                  ["מקבלים מזכרת", "מורידים ומשתפים"],
-                ].map(([title, body], i) => (
+                {t.howSteps(songsEnabled).map(([title, body], i) => (
                   <li key={title} className="card space-y-1 p-3.5">
                     <span className="block text-2xl font-bold text-accent-soft">{i + 1}</span>
                     <span className="block text-[0.95rem] font-bold leading-tight">{title}</span>
@@ -172,23 +184,19 @@ export default function GuestFlow({ again }: { again?: { fullName: string; relat
                 ))}
               </ol>
             </div>
-            <p className="text-center text-xs text-accent-soft">
-              לוקח בערך 2 דקות
-              {maxCreations && ` · עד ${maxCreations === 1 ? "יצירה אחת" : `${maxCreations} יצירות`} לכל אורח`}
-              {` · כל היצירות נשמרות באלבום של ${name}`}
-            </p>
+            <p className="text-center text-xs text-accent-soft">{t.meta(name, maxCreations)}</p>
           </section>
         )}
 
         {step === "who" && (
           <section className="space-y-6">
-            <h2 className="font-display text-[2rem] font-bold text-ink">מי אתם?</h2>
+            <h2 className="font-display text-[2rem] font-bold text-ink">{t.whoTitle}</h2>
             <label className="block space-y-2">
-              <span className="text-muted">שם מלא</span>
-              <input className="field" autoComplete="name" value={form.fullName} maxLength={60} onChange={(e) => set("fullName", e.target.value)} placeholder="למשל: דנה כהן" />
+              <span className="text-muted">{t.fullName}</span>
+              <input className="field" autoComplete="name" value={form.fullName} maxLength={60} onChange={(e) => set("fullName", e.target.value)} placeholder={t.fullNamePlaceholder} />
             </label>
             <fieldset className="space-y-3">
-              <legend className="mb-2 text-muted">מה הקשר שלכם ל{name}?</legend>
+              <legend className="mb-2 text-muted">{t.relationshipLegend(name)}</legend>
               <div className="flex flex-wrap gap-2">
                 {RELATIONSHIPS.map((r) => (
                   <button key={r} type="button" className="chip" aria-pressed={form.relationship === r} onClick={() => set("relationship", r)}>
@@ -201,7 +209,7 @@ export default function GuestFlow({ again }: { again?: { fullName: string; relat
                 value={RELATIONSHIPS.includes(form.relationship) ? "" : form.relationship}
                 maxLength={60}
                 onChange={(e) => set("relationship", e.target.value)}
-                placeholder="או כתבו בעצמכם: סבתא, הדוד מחיפה..."
+                placeholder={t.relationshipOther}
               />
             </fieldset>
           </section>
@@ -210,38 +218,38 @@ export default function GuestFlow({ again }: { again?: { fullName: string; relat
         {step === "story" && (
           <section className="space-y-6">
             <div>
-              <h2 className="font-display text-[2rem] font-bold text-ink">ספרו לנו עליכם</h2>
+              <h2 className="font-display text-[2rem] font-bold text-ink">{t.storyTitle}</h2>
               <p className="mt-3 rounded-2xl bg-olive-100 px-4 py-3 text-accent">
-                🎨 <strong>מהתשובות כאן נבנית התמונה שלכם:</strong> הסצנה, הכותרת והפרטים שבה{songsEnabled ? ", וגם השיר אם תבחרו בו" : ""}.
+                🎨 <strong>{t.storyNote(songsEnabled)[0]}</strong> {t.storyNote(songsEnabled)[1]}
               </p>
-              <p className="mt-2 text-muted">ככל שתהיו ספציפיים, התוצאה תהיה אישית יותר. מספיק לענות על אחת.</p>
+              <p className="mt-2 text-muted">{t.storyHint}</p>
             </div>
-            <Question label={`מה הכי אוהבים לעשות יחד עם ${name}?`} placeholder="כדורסל בחצר, פיפ״א, טיולים..." value={form.together} max={300} onChange={(v) => set("together", v)} />
-            <Question label="זיכרון משותף או סיפור מצחיק" placeholder="הפעם ההיא ש..." value={form.memory} max={600} rows={4} onChange={(v) => set("memory", v)} />
-            <Question label={`במה ${name} הכי טוב?`} placeholder="לנצח אותי בכל משחק" value={form.talent} max={300} onChange={(v) => set("talent", v)} />
+            <Question label={t.qTogether(name)} placeholder={t.pTogether} value={form.together} max={300} onChange={(v) => set("together", v)} />
+            <Question label={t.qMemory} placeholder={t.pMemory} value={form.memory} max={600} rows={4} onChange={(v) => set("memory", v)} />
+            <Question label={t.qTalent(name)} placeholder={t.pTalent} value={form.talent} max={300} onChange={(v) => set("talent", v)} />
           </section>
         )}
 
         {step === "blessing" && (
           <section className="space-y-4">
-            <h2 className="font-display text-[2rem] font-bold text-ink">הברכה שלכם ל{name}</h2>
-            <p className="text-muted">הברכה תופיע מילה במילה על היצירה.</p>
+            <h2 className="font-display text-[2rem] font-bold text-ink">{t.blessingTitle(name)}</h2>
+            <p className="text-muted">{t.blessingHint}</p>
             <textarea
               className="field min-h-48 leading-relaxed"
               value={form.blessing}
               maxLength={600}
               onChange={(e) => set("blessing", e.target.value)}
-              placeholder={`${name} יקר, מאחלים לך...`}
+              placeholder={t.blessingPlaceholder(name)}
             />
-            <p className="text-left text-sm text-muted">{form.blessing.length}/600</p>
+            <p className="text-end text-sm text-muted">{form.blessing.length}/600</p>
           </section>
         )}
 
         {step === "experience" && (
           <section className="space-y-6">
             <div>
-              <h2 className="font-display text-[2rem] font-bold text-ink">באיזה סגנון?</h2>
-              <p className="mt-1 text-muted">הסיפור שלכם, בסגנון שתבחרו.</p>
+              <h2 className="font-display text-[2rem] font-bold text-ink">{t.styleTitle}</h2>
+              <p className="mt-1 text-muted">{t.styleHint}</p>
             </div>
             <div className="grid grid-cols-2 gap-3">
               {(Object.entries(IMAGE_STYLES) as [ImageStyle, (typeof IMAGE_STYLES)[ImageStyle]][]).map(([key, style]) => (
@@ -250,11 +258,11 @@ export default function GuestFlow({ again }: { again?: { fullName: string; relat
                   type="button"
                   aria-pressed={form.imageStyle === key}
                   onClick={() => set("imageStyle", key)}
-                  className="card flex flex-col items-start gap-1.5 p-4 text-right transition aria-pressed:border-accent aria-pressed:bg-olive-100"
+                  className="card flex flex-col items-start gap-1.5 p-4 text-start transition aria-pressed:border-accent aria-pressed:bg-olive-100"
                 >
                   <span className="text-3xl" aria-hidden>{style.icon}</span>
-                  <span className="block text-base font-bold leading-tight">{style.label}</span>
-                  <span className="block text-sm leading-snug text-muted">{style.hint}</span>
+                  <span className="block text-base font-bold leading-tight">{t.styles[key].label}</span>
+                  <span className="block text-sm leading-snug text-muted">{t.styles[key].hint}</span>
                 </button>
               ))}
             </div>
@@ -263,17 +271,17 @@ export default function GuestFlow({ again }: { again?: { fullName: string; relat
                 <label className="card flex items-center gap-4 p-4">
                   <input type="checkbox" className="size-5 accent-accent" checked={form.withSong} onChange={(e) => set("withSong", e.target.checked)} />
                   <span>
-                    <span className="block text-lg font-bold">🎵 וגם שיר אישי</span>
-                    <span className="block text-sm text-muted">שיר שנוצר במיוחד ל{name} מהזיכרונות שלכם</span>
+                    <span className="block text-lg font-bold">{t.songToggle}</span>
+                    <span className="block text-sm text-muted">{t.songToggleHint(name)}</span>
                   </span>
                 </label>
                 {form.withSong && (
                   <fieldset>
-                    <legend className="mb-3 text-muted">איזה סגנון שיר?</legend>
+                    <legend className="mb-3 text-muted">{t.musicLegend}</legend>
                     <div className="flex flex-wrap gap-2">
-                      {(Object.entries(MUSIC_STYLES) as [MusicStyle, string][]).map(([key, label]) => (
+                      {(Object.keys(MUSIC_STYLES) as MusicStyle[]).map((key) => (
                         <button key={key} type="button" className="chip" aria-pressed={form.musicStyle === key} onClick={() => set("musicStyle", key)}>
-                          {label}
+                          {t.musicStyles[key]}
                         </button>
                       ))}
                     </div>
@@ -287,35 +295,35 @@ export default function GuestFlow({ again }: { again?: { fullName: string; relat
         {step === "photo" && (
           <section className="space-y-5">
             <div>
-              <h2 className="font-display text-[2rem] font-bold text-ink">רוצים להופיע בתמונה?</h2>
-              <p className="mt-1 text-muted">צלמו סלפי או בחרו תמונה ברורה של הפנים, ותופיעו ביצירה לצד {name}. אפשר גם לדלג.</p>
+              <h2 className="font-display text-[2rem] font-bold text-ink">{t.photoTitle}</h2>
+              <p className="mt-1 text-muted">{t.photoHint(name)}</p>
             </div>
             {preview ? (
               <div className="relative">
                 {/* eslint-disable-next-line @next/next/no-img-element -- local object URL preview */}
-                <img src={preview} alt="התמונה שבחרתם" className="aspect-square w-full rounded-3xl object-cover" />
-                <button type="button" className="btn-ghost absolute bottom-3 left-3 bg-surface/90" onClick={() => setPhoto(null)}>
-                  החלפה
+                <img src={preview} alt={t.photoAlt} className="aspect-square w-full rounded-3xl object-cover" />
+                <button type="button" className="btn-ghost absolute bottom-3 end-3 bg-surface/90" onClick={() => setPhoto(null)}>
+                  {t.photoReplace}
                 </button>
               </div>
             ) : (
               <div className="grid grid-cols-2 gap-3">
-                <PhotoInput label="📸 סלפי" capture onPick={setPhoto} />
-                <PhotoInput label="🖼️ מהגלריה" onPick={setPhoto} />
+                <PhotoInput label={t.selfie} capture onPick={setPhoto} />
+                <PhotoInput label={t.gallery} onPick={setPhoto} />
               </div>
             )}
             {photo && (
               <p className="text-sm text-muted">
-                בלחיצה על &quot;צור לי&quot; אתם מאשרים שהתמונה תישלח לשירות AI (OpenAI) כדי ליצור את היצירה, ותישמר רק לצורך האלבום של {name}.
+                {t.photoConsent(name)}
               </p>
             )}
             <label className="flex items-start gap-3 text-muted">
               <input type="checkbox" className="mt-1 size-5 accent-accent" checked={form.consentScreen} onChange={(e) => set("consentScreen", e.target.checked)} />
-              <span>אפשר להציג את היצירה שלי על המסך באולם</span>
+              <span>{t.consentScreen}</span>
             </label>
             <label className="flex items-start gap-3 text-muted">
               <input type="checkbox" className="mt-1 size-5 accent-accent" checked={form.consentMarketing} onChange={(e) => set("consentMarketing", e.target.checked)} />
-              <span>אפשר להשתמש ביצירה שלי (כולל התמונה והברכה) כדוגמה לפרסום ושיווק של עמדת הברכות</span>
+              <span>{t.consentMarketing}</span>
             </label>
           </section>
         )}
@@ -327,11 +335,11 @@ export default function GuestFlow({ again }: { again?: { fullName: string; relat
         <footer className="sticky bottom-0 -mx-5 mt-8 bg-gradient-to-t from-canvas via-canvas/95 to-transparent px-5 pb-4 pt-6">
           {step === "photo" ? (
             <button type="button" className="btn-primary w-full" disabled={submitting} onClick={submit}>
-              {submitting ? "שולחים..." : "צור לי ✦"}
+              {submitting ? t.sending : t.create}
             </button>
           ) : (
             <button type="button" className="btn-primary w-full" disabled={!canContinue[step] || checking} onClick={next}>
-              המשך
+              {t.continue}
             </button>
           )}
         </footer>

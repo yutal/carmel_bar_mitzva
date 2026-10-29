@@ -5,11 +5,12 @@ import { openai } from "@/lib/providers/openai-client";
 import type { TranscribeProvider } from "@/lib/providers/types";
 
 export const openAiTranscribe: TranscribeProvider = {
-  async transcribe(audioFile, hint) {
+  async transcribe(audioFile, hint, lang) {
     const res = await openai().audio.transcriptions.create({
       file: fs.createReadStream(audioFile),
       model: config.transcribeModel,
-      language: "he",
+      // Naming the language avoids short Hebrew clips being heard as Arabic or Yiddish.
+      language: lang ?? "he",
       prompt: hint,
       response_format: "verbose_json",
       timestamp_granularities: ["segment"],

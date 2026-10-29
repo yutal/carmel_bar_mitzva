@@ -1,6 +1,7 @@
 import "server-only";
 import fs from "node:fs/promises";
 import { composeCover, composePoster } from "@/lib/compose/poster";
+import { celebrantNameIn } from "@/lib/prompts";
 import { providers } from "@/lib/providers";
 import type { ReferenceImage } from "@/lib/providers/types";
 import { celebrantPhotoPath, getEvent, listCelebrantPhotos } from "@/lib/storage/event";
@@ -81,7 +82,7 @@ async function runImage(id: string, event: EventSettings): Promise<void> {
     stats: concept.stats ?? [],
     blessing: s.input.blessing,
     sender: `${s.input.fullName}, ${s.input.relationship}`,
-    footer: [event.footer, event.eventDate].filter(Boolean).join(" · "),
+    footer: [(s.input.lang === "en" && event.footerEn) || event.footer, event.eventDate].filter(Boolean).join(" · "),
     faces,
   });
   await saveFile(id, "image", "images", ".png", poster);
@@ -102,7 +103,8 @@ async function runSong(id: string, event: EventSettings): Promise<void> {
     const art = s.files.imageRaw
       ? await fs.readFile(filePath(s.files.imageRaw))
       : await providers.image.generate({ prompt: song.coverPrompt, references: await celebrantReferences(), size: "square", celebrantLook: event.celebrantLook });
-    const cover = await composeCover(art, song.titleHebrew, `מאת ${s.input.fullName} ל${event.celebrantName}`);
+    const byline = s.input.lang === "en" ? `By ${s.input.fullName} for ${celebrantNameIn(event, "en")}` : `מאת ${s.input.fullName} ל${event.celebrantName}`;
+    const cover = await composeCover(art, song.titleHebrew, byline);
     await saveFile(id, "cover", "songs", "_cover.png", cover);
   } catch (err) {
     // A missing cover must not block the song brief.

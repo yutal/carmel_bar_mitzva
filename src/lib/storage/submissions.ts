@@ -5,6 +5,7 @@ import { config } from "@/lib/config";
 import { DIRS, dataPath, ensureDirs, readJson, writeFileAtomic, writeJson } from "./fs";
 import { submissionBaseName } from "./naming";
 import type { GuestInput, StageName, StageState, Submission, SubmissionFiles } from "@/lib/types";
+import { LANG_INFO } from "@/lib/i18n";
 import { IMAGE_STYLES, MUSIC_STYLES } from "@/lib/types";
 
 const jsonPath = (id: string) => dataPath(DIRS.blessings, `${id}.json`);
@@ -147,6 +148,7 @@ function renderText(s: Submission): string {
     `תאריך: ${new Date(s.createdAt).toLocaleString("he-IL", { timeZone: "Asia/Jerusalem" })}`,
     `חוויה: ${{ image: "תמונה", song: "שיר", both: "תמונה ושיר" }[input.experience]}`,
     `סגנון: ${IMAGE_STYLES[input.imageStyle ?? "movie"].label}`,
+    `שפה: ${LANG_INFO[input.lang ?? "he"].label}`,
     `הסכמה למסך באולם: ${input.consentScreen ? "כן" : "לא"}`,
     `הסכמה לפרסום ושיווק: ${input.consentMarketing ? "כן" : "לא"}`,
     "",

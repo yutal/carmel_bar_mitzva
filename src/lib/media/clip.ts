@@ -4,6 +4,7 @@ import path from "node:path";
 import sharp from "sharp";
 import { config } from "@/lib/config";
 import { composeEndCard, composeTitleCard } from "@/lib/compose/poster";
+import { isRtlText, type Lang } from "@/lib/i18n";
 import type { TranscriptSegment } from "@/lib/types";
 import { run, type MediaInfo } from "./ffmpeg";
 
@@ -30,6 +31,7 @@ export type ClipRequest = {
   quote: string;
   sender: string;
   footer: string;
+  lang: Lang;
   /** Background music, ducked under speech. */
   music?: string;
 };
@@ -95,8 +97,9 @@ function subtitles(req: ClipRequest, marginV: number): string {
       const e = Math.min(seg.end, r.end);
       if (e - s < 0.2) continue;
       for (const cue of captions(seg.text, offset + s - r.start, offset + e - r.start)) {
-        // RLM on both ends keeps leading/trailing punctuation on the right side even on older libass.
-        const text = `\u200F${cue.text.replace(/[{}\\]/g, "").replace(/\n/g, " ")}\u200F`;
+        const clean = cue.text.replace(/[{}\\]/g, "").replace(/\n/g, " ");
+        // RLM on both ends keeps leading/trailing punctuation on the right side of Hebrew, even on older libass.
+        const text = isRtlText(clean) ? `\u200F${clean}\u200F` : clean;
         events.push(`Dialogue: 0,${assTime(cue.start)},${assTime(cue.end)},Main,,0,0,0,,${text}`);
       }
     }
@@ -134,10 +137,11 @@ export async function buildClip(req: ClipRequest): Promise<{ file: string; durat
   const total = INTRO + body + OUTRO;
 
   const bg = await backdrop(req.poster, 1080, 1920);
-  const card = { title: req.title || "ברכה מכל הלב", from: `מאת ${req.sender}`, footer: req.footer };
+  const en = req.lang === "en";
+  const card = { title: req.title || (en ? "From the heart" : "ברכה מכל הלב"), from: en ? `From ${req.sender}` : `מאת ${req.sender}`, footer: req.footer };
   const intro = req.poster ? await framed(bg, req.poster, { w: 940, h: 1670 }) : await composeTitleCard(bg, card);
   await fs.writeFile(path.join(req.dir, "intro.png"), intro);
-  await fs.writeFile(path.join(req.dir, "end.png"), await composeEndCard(bg, req));
+  await fs.writeFile(path.join(req.dir, "end.png"), await composeEndCard(bg, { quote: req.quote, signature: en ? `With love, ${req.sender}` : `באהבה, ${req.sender}`, footer: req.footer }));
   if (!isVideo) {
     const small = await backdrop(req.poster, W, H);
     const audioBg = req.poster ? await framed(small, req.poster, { w: 600, h: 880, top: 70 }) : await composeTitleCard(small, card);

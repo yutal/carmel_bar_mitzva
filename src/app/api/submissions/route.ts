@@ -23,6 +23,7 @@ export async function POST(request: Request) {
     blessing: text("blessing"),
     experience: text("experience"),
     imageStyle: text("imageStyle") || undefined,
+    lang: text("lang") || undefined,
     musicStyle: text("musicStyle") || undefined,
     consentPhoto: text("consentPhoto") === "true",
     consentScreen: text("consentScreen") === "true",

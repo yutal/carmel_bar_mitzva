@@ -15,6 +15,7 @@ Every file is stored on disk with a name like `david_cohen_20261027_201530` (Heb
 7. [Guide: changing models](#guide-changing-models)
 8. [Songs and Suno](#songs-and-suno)
 9. [Video and voice lab](#video-and-voice-lab)
+10. [Languages](#languages)
 10. [Design](#design)
 11. [Running locally](#running-locally)
 12. [Deployment](#deployment)
@@ -312,6 +313,12 @@ The guest picks one of six styles. Each style has an art brief (`src/lib/prompts
 To add a style: add it to `IMAGE_STYLES` in `src/lib/types.ts` and to `STYLE_BRIEFS`; if it needs its own text layout, add a function to `compose/poster.ts`.
 
 ---
+
+## Languages
+
+Guests pick **עברית** or **English** on the welcome screen (`/?lang=en`). The choice sets the page direction, every string on the guest and result pages (`src/lib/i18n.ts`), and the language of everything printed on the creation: title, tagline, cover lines, stats, song title. Blessings can be written in any language; the prompts read them as they are, and the poster draws each line right to left or left to right by its first letter. English creations use "celebrant name in English" and "footer in English" from `/admin`. The video lab has its own spoken-language switch.
+
+To add a language: add it to `LANGS` in `src/lib/types.ts`, then to `LANG_INFO` and `STRINGS` in `src/lib/i18n.ts`.
 
 ## Songs and Suno
 

@@ -108,6 +108,7 @@ function NewJob({ posters, onCreated, notify }: { posters: Submission[]; onCreat
   const [file, setFile] = useState<File | null>(null);
   const [guestName, setGuestName] = useState("");
   const [posterId, setPosterId] = useState("");
+  const [lang, setLang] = useState<"he" | "en">("he");
   const [progress, setProgress] = useState<number | null>(null);
 
   const submit = async (e: React.FormEvent) => {
@@ -117,6 +118,7 @@ function NewJob({ posters, onCreated, notify }: { posters: Submission[]; onCreat
     body.set("file", file);
     body.set("guestName", guestName);
     body.set("posterId", posterId);
+    body.set("lang", lang);
     try {
       setProgress(0);
       await upload("/api/admin/lab", body, setProgress);
@@ -156,6 +158,12 @@ function NewJob({ posters, onCreated, notify }: { posters: Submission[]; onCreat
         <span className="text-sm text-muted">שם האורח (יופיע בסוף הקליפ)</span>
         <input className="field" value={guestName} onChange={(e) => setGuestName(e.target.value)} placeholder="למשל: סבתא רותי" />
       </label>
+      <fieldset className="flex items-center gap-2">
+        <legend className="sr-only">שפת הדיבור</legend>
+        <span className="text-sm text-muted">שפת הדיבור:</span>
+        <button type="button" className="chip" aria-pressed={lang === "he"} onClick={() => setLang("he")}>עברית</button>
+        <button type="button" className="chip" aria-pressed={lang === "en"} onClick={() => setLang("en")}>English</button>
+      </fieldset>
       <label className="block space-y-1">
         <span className="text-sm text-muted">פוסטר לפתיח (מתוך הברכות שכבר נוצרו)</span>
         <select className="field" value={posterId} onChange={(e) => setPosterId(e.target.value)}>

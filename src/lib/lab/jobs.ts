@@ -13,6 +13,8 @@ import { providers } from "@/lib/providers";
 import { getEvent } from "@/lib/storage/event";
 import { DIRS, dataPath, readJson, writeJson } from "@/lib/storage/fs";
 import { getSubmission } from "@/lib/storage/submissions";
+import type { Lang } from "@/lib/i18n";
+import { celebrantNameIn } from "@/lib/prompts";
 import type { ClipPlan, TranscriptSegment } from "@/lib/types";
 
 /** Longest upload the lab accepts; guests will be asked for up to a minute. */
@@ -29,6 +31,8 @@ export type LabJob = {
   step?: string;
   error?: string;
   guestName: string;
+  /** Language spoken; also used for the clip's cards. */
+  lang: Lang;
   posterId?: string;
   input: string;
   source?: { kind: "video" | "audio"; duration: number; width?: number; height?: number };
@@ -67,7 +71,7 @@ async function update(id: string, fn: (j: LabJob) => void): Promise<LabJob> {
   return job;
 }
 
-export async function createLabJob(file: File, guestName: string, posterId?: string): Promise<LabJob> {
+export async function createLabJob(file: File, guestName: string, lang: Lang, posterId?: string): Promise<LabJob> {
   const id = `${new Date().toISOString().slice(0, 10)}_${randomBytes(4).toString("hex")}`;
   const ext = (path.extname(file.name).toLowerCase().match(/^\.[a-z0-9]{1,5}$/)?.[0]) ?? (file.type.startsWith("video") ? ".mp4" : ".m4a");
   const input = rel(id, `input${ext}`);
@@ -79,6 +83,7 @@ export async function createLabJob(file: File, guestName: string, posterId?: str
     status: "pending",
     step: "בתור",
     guestName: guestName.trim().slice(0, 60),
+    lang,
     posterId: posterId || undefined,
     input,
     timings: {},
@@ -163,8 +168,10 @@ async function processJob(id: string): Promise<void> {
       await timed(id, "extract", "מחלץ את הקול", () =>
         run("ffmpeg", ["-y", "-hide_banner", "-loglevel", "error", "-i", input, "-vn", "-ac", "1", "-ar", "16000", "-b:a", "48k", audio]),
       );
-      const hint = `ברכה לבר המצווה של ${event.celebrantName}. מזל טוב ${event.celebrantName}! ${job.guestName}`;
-      segments = (await timed(id, "transcribe", "מתמלל", () => providers.transcribe.transcribe(audio, hint))).segments;
+      const lang = job.lang ?? "he";
+      const name = celebrantNameIn(event, lang);
+      const hint = lang === "en" ? `A Bar Mitzvah blessing for ${name}. Mazal tov, ${name}! ${job.guestName}` : `ברכה לבר המצווה של ${name}. מזל טוב ${name}! ${job.guestName}`;
+      segments = (await timed(id, "transcribe", "מתמלל", () => providers.transcribe.transcribe(audio, hint, lang))).segments;
       await update(id, (j) => {
         j.transcript = segments;
       });
@@ -194,8 +201,9 @@ async function processJob(id: string): Promise<void> {
         poster,
         title: plan?.titleHebrew ?? "",
         quote: plan?.quoteHebrew ?? "",
-        sender: job.guestName || "אורח",
-        footer: event.footer || event.eventTitle,
+        sender: job.guestName || (job.lang === "en" ? "a guest" : "אורח"),
+        footer: (job.lang === "en" && event.footerEn) || event.footer || event.eventTitle,
+        lang: job.lang ?? "he",
         music,
       }),
     );

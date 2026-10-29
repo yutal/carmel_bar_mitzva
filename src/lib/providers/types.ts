@@ -1,3 +1,4 @@
+import type { Lang } from "@/lib/i18n";
 import type { Analysis, ClipPlan, EventSettings, FaceBox, GuestInput, ImageConcept, SongConcept, TranscriptSegment } from "@/lib/types";
 
 /** `label` replaces the default one-line description of the image in the prompt. */
@@ -16,7 +17,7 @@ export interface LlmProvider {
 
 export interface TranscribeProvider {
   /** `hint` carries names and words the speaker is likely to say, to spell them right. */
-  transcribe(audioFile: string, hint: string): Promise<{ duration: number; segments: TranscriptSegment[] }>;
+  transcribe(audioFile: string, hint: string, lang?: Lang): Promise<{ duration: number; segments: TranscriptSegment[] }>;
 }
 
 export interface ImageProvider {

@@ -212,7 +212,7 @@ function EventForm({ onSaved }: { onSaved: () => void }) {
     void api<EventSettings>("/api/admin/event").then(setEv);
   }, []);
   if (!ev) return <section className="card p-5" />;
-  const field = (key: "celebrantName" | "eventTitle" | "eventDate" | "footer", label: string) => (
+  const field = (key: "celebrantName" | "celebrantNameEn" | "eventTitle" | "eventDate" | "footer" | "footerEn", label: string) => (
     <label className="block space-y-1">
       <span className="text-sm text-muted">{label}</span>
       <input className="field py-2.5 text-base" value={ev[key]} onChange={(e) => setEv({ ...ev, [key]: e.target.value })} />
@@ -229,9 +229,11 @@ function EventForm({ onSaved }: { onSaved: () => void }) {
     >
       <h2 className="text-xl font-bold">פרטי האירוע</h2>
       {field("celebrantName", "שם החוגג")}
+      {field("celebrantNameEn", "שם החוגג באנגלית (לאורחים שבוחרים English)")}
       {field("eventTitle", "כותרת האירוע")}
       {field("eventDate", "תאריך (כפי שיופיע על התמונה)")}
       {field("footer", "שורת תחתית בתמונה")}
+      {field("footerEn", "שורת תחתית באנגלית")}
       <label className="flex items-center gap-3">
         <input type="checkbox" className="size-5 accent-accent" checked={ev.songsEnabled} onChange={(e) => setEv({ ...ev, songsEnabled: e.target.checked })} />
         <span>לאפשר לאורחים לבחור שיר (כבוי: רק תמונה)</span>
@@ -241,7 +243,7 @@ function EventForm({ onSaved }: { onSaved: () => void }) {
         <textarea
           className="field py-2.5 text-base"
           rows={3}
-          maxLength={500}
+          maxLength={1000}
           placeholder="למשל: שיער חום קצר ומתולתל, עיניים חומות, גומות בחיוך, רזה וגבוה לגילו"
           value={ev.celebrantLook}
           onChange={(e) => setEv({ ...ev, celebrantLook: e.target.value })}

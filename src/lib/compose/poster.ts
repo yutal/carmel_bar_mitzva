@@ -2,6 +2,7 @@ import "server-only";
 import path from "node:path";
 import { GlobalFonts, createCanvas, loadImage, type SKRSContext2D } from "@napi-rs/canvas";
 import { config } from "@/lib/config";
+import { isRtlText } from "@/lib/i18n";
 import type { FaceBox, ImageStyle } from "@/lib/types";
 
 const ACCENT = "#E4E9C6"; // pale olive, readable on the dark band
@@ -53,7 +54,20 @@ function fit(ctx: SKRSContext2D, block: TextBlock, maxWidth: number): { size: nu
   return { size: block.minSize, lines: kept };
 }
 
+/** Each line gets its own base direction, so Hebrew and English (or a mix) keep punctuation on the right side. */
+function fillText(ctx: SKRSContext2D, text: string, x: number, y: number) {
+  ctx.direction = isRtlText(text) ? "rtl" : "ltr";
+  ctx.fillText(text, x, y);
+}
+
+function strokeText(ctx: SKRSContext2D, text: string, x: number, y: number) {
+  ctx.direction = isRtlText(text) ? "rtl" : "ltr";
+  ctx.strokeText(text, x, y);
+}
+
 function drawLines(ctx: SKRSContext2D, lines: string[], x: number, y: number, lineHeight: number): number {
+  // One direction for the whole paragraph, from its first letter, like a browser would.
+  ctx.direction = isRtlText(lines.join(" ")) ? "rtl" : "ltr";
   lines.forEach((line, i) => ctx.fillText(line, x, y + i * lineHeight));
   return y + lines.length * lineHeight;
 }
@@ -103,7 +117,7 @@ function faceBoxes(faces: FaceBox[] | undefined, w: number, h: number): Box[] {
 const facesTop = (faces: Box[], h: number) => Math.min(h, ...faces.map((f) => f.y0));
 const facesBottom = (faces: Box[]) => Math.max(0, ...faces.map((f) => f.y1));
 
-/** Final image: generated art + Hebrew text, original blessing and sender, rendered here (not by the model). */
+/** Final image: generated art + text (Hebrew or English), original blessing and sender, rendered here (not by the model). */
 export async function composePoster(art: Buffer, text: PosterText): Promise<Buffer> {
   loadFonts();
   const img = await loadImage(art);
@@ -130,11 +144,11 @@ function drawSignOff(ctx: SKRSContext2D, w: number, bottom: number, text: Poster
   if (draw) {
     ctx.fillStyle = ACCENT;
     ctx.font = `500 ${footerSize}px "${BODY_FONT}"`;
-    ctx.fillText(text.footer, cx, bottom);
+    fillText(ctx, text.footer, cx, bottom);
     ctx.fillRect(cx - w * 0.12, bottom - footerSize * 1.6, w * 0.24, 2);
     ctx.fillStyle = CLAY;
     ctx.font = `700 ${senderSize}px "${BODY_FONT}"`;
-    ctx.fillText(text.sender, cx, senderY);
+    fillText(ctx, text.sender, cx, senderY);
   }
 
   const blessing = fit(
@@ -195,7 +209,7 @@ function drawMoviePoster(ctx: SKRSContext2D, img: Img, w: number, h: number, tex
     ctx.lineJoin = "round";
     ctx.lineWidth = title.size * 0.14;
     ctx.strokeStyle = "#1A1A1A";
-    title.lines.forEach((line, i) => ctx.strokeText(line, cx, titleY + i * title.size * 1.05));
+    title.lines.forEach((line, i) => strokeText(ctx, line, cx, titleY + i * title.size * 1.05));
     ctx.fillStyle = COMIC_YELLOW;
   } else {
     ctx.fillStyle = ACCENT;
@@ -265,12 +279,12 @@ function drawMagazine(ctx: SKRSContext2D, img: Img, w: number, h: number, text: 
   const mastBase = h * 0.02 + mast.size * 0.92;
   ctx.fillStyle = WHITE;
   ctx.font = `900 ${mast.size}px "${TITLE_FONT}"`;
-  ctx.fillText(mast.lines[0], w / 2, mastBase);
+  fillText(ctx, mast.lines[0], w / 2, mastBase);
   const showTagline = mastBase + taglineGap + w * 0.01 <= ceiling;
   if (showTagline) {
     ctx.fillStyle = CLAY;
     ctx.font = `700 ${Math.round(w * 0.026)}px "${BODY_FONT}"`;
-    ctx.fillText(text.tagline, w / 2, mastBase + taglineGap);
+    fillText(ctx, text.tagline, w / 2, mastBase + taglineGap);
   }
 
   const signOffTop = placeSignOff(ctx, w, h - h * 0.03, text, 4, 0.9, faces);
@@ -330,9 +344,9 @@ function drawCard(ctx: SKRSContext2D, img: Img, w: number, h: number, text: Post
   ctx.shadowBlur = 0;
   ctx.fillStyle = "#2B230C";
   ctx.font = `900 ${Math.round(r * 0.95)}px "${BODY_FONT}"`;
-  ctx.fillText("13", bx, by + r * 0.22);
+  fillText(ctx, "13", bx, by + r * 0.22);
   ctx.font = `700 ${Math.round(r * 0.26)}px "${BODY_FONT}"`;
-  ctx.fillText("בר מצווה", bx, by + r * 0.58);
+  fillText(ctx, "בר מצווה", bx, by + r * 0.58);
   prepare(ctx);
 
   // Name plate.
@@ -344,7 +358,7 @@ function drawCard(ctx: SKRSContext2D, img: Img, w: number, h: number, text: Post
   ctx.shadowBlur = 0;
   ctx.fillStyle = "#2B230C";
   ctx.font = `900 ${title.size}px "${TITLE_FONT}"`;
-  ctx.fillText(title.lines[0], cx, plateY);
+  fillText(ctx, title.lines[0], cx, plateY);
   prepare(ctx);
 
   // Stats, 2x2, right column first.
@@ -358,10 +372,10 @@ function drawCard(ctx: SKRSContext2D, img: Img, w: number, h: number, text: Post
     const y = rowY + Math.floor(i / 2) * valueSize * 1.75;
     ctx.fillStyle = "#F2D480";
     ctx.font = `900 ${valueSize}px "${BODY_FONT}"`;
-    ctx.fillText(String(st.value), x, y);
+    fillText(ctx, String(st.value), x, y);
     ctx.fillStyle = WHITE;
     ctx.font = `500 ${labelSize}px "${BODY_FONT}"`;
-    ctx.fillText(st.label, x, y + labelSize * 1.25);
+    fillText(ctx, st.label, x, y + labelSize * 1.25);
   });
   if (stats.length) {
     ctx.fillStyle = "rgba(242,212,128,0.6)";
@@ -389,12 +403,12 @@ export async function composeCover(art: Buffer, title: string, byline: string): 
   drawLines(ctx, t.lines, size / 2, bottom - bylineSize * 1.8 - (t.lines.length - 1) * t.size * 1.05, t.size * 1.05);
   ctx.fillStyle = WHITE;
   ctx.font = `500 ${bylineSize}px "${BODY_FONT}"`;
-  ctx.fillText(byline, size / 2, bottom);
+  fillText(ctx, byline, size / 2, bottom);
   return canvas.toBuffer("image/png");
 }
 
 /** Closing card of an edited blessing clip: the guest's strongest line, their name and the event. */
-export async function composeEndCard(background: Buffer, text: { quote: string; sender: string; footer: string }): Promise<Buffer> {
+export async function composeEndCard(background: Buffer, text: { quote: string; signature: string; footer: string }): Promise<Buffer> {
   loadFonts();
   const bg = await loadImage(background);
   const [w, h] = [bg.width, bg.height];
@@ -407,7 +421,7 @@ export async function composeEndCard(background: Buffer, text: { quote: string; 
 
   const maxWidth = w * 0.8;
   const quote = text.quote
-    ? fit(ctx, { text: `״${text.quote}״`, font: (s) => `700 ${s}px "${TITLE_FONT}"`, maxSize: Math.round(w * 0.075), minSize: 36, maxLines: 6 }, maxWidth)
+    ? fit(ctx, { text: isRtlText(text.quote) ? `״${text.quote}״` : `“${text.quote}”`, font: (s) => `700 ${s}px "${TITLE_FONT}"`, maxSize: Math.round(w * 0.075), minSize: 36, maxLines: 6 }, maxWidth)
     : { size: 0, lines: [] as string[] };
   const senderSize = Math.round(w * 0.045);
   const quoteHeight = quote.lines.length * quote.size * 1.2;
@@ -418,11 +432,11 @@ export async function composeEndCard(background: Buffer, text: { quote: string; 
 
   ctx.fillStyle = WHITE;
   ctx.font = `500 ${senderSize}px "${BODY_FONT}"`;
-  ctx.fillText(`באהבה, ${text.sender}`, w / 2, y + senderSize * 1.4);
+  fillText(ctx, text.signature, w / 2, y + senderSize * 1.4);
 
   ctx.fillStyle = CLAY;
   ctx.font = `700 ${Math.round(w * 0.04)}px "${TITLE_FONT}"`;
-  ctx.fillText(text.footer, w / 2, h - h * 0.07);
+  fillText(ctx, text.footer, w / 2, h - h * 0.07);
   return canvas.toBuffer("image/png");
 }
 
@@ -437,13 +451,13 @@ export async function composeTitleCard(background: Buffer, text: { title: string
   prepare(ctx);
   ctx.fillStyle = CLAY;
   ctx.font = `700 ${Math.round(w * 0.045)}px "${TITLE_FONT}"`;
-  ctx.fillText(text.footer, w / 2, h * 0.3);
+  fillText(ctx, text.footer, w / 2, h * 0.3);
   const t = fit(ctx, { text: text.title, font: (s) => `900 ${s}px "${TITLE_FONT}"`, maxSize: Math.round(w * 0.13), minSize: 48, maxLines: 3 }, w * 0.84);
   ctx.fillStyle = ACCENT;
   ctx.font = `900 ${t.size}px "${TITLE_FONT}"`;
   const y = drawLines(ctx, t.lines, w / 2, h * 0.5 - ((t.lines.length - 1) * t.size * 1.05) / 2, t.size * 1.05);
   ctx.fillStyle = WHITE;
   ctx.font = `500 ${Math.round(w * 0.045)}px "${BODY_FONT}"`;
-  ctx.fillText(text.from, w / 2, y + w * 0.04);
+  fillText(ctx, text.from, w / 2, y + w * 0.04);
   return canvas.toBuffer("image/png");
 }

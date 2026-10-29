@@ -1,5 +1,9 @@
 import { z } from "zod";
 
+/** Languages of the guest pages and of the text printed on a creation. Strings for each live in lib/i18n.ts. */
+export const LANGS = ["he", "en"] as const;
+export type Lang = (typeof LANGS)[number];
+
 export const EXPERIENCES = ["image", "song", "both"] as const;
 export type Experience = (typeof EXPERIENCES)[number];
 
@@ -40,6 +44,8 @@ export const GuestInputSchema = z.object({
   consentScreen: z.boolean(),
   /** Opt-in: the finished image and blessing may be used to advertise the station. */
   consentMarketing: z.boolean().default(false),
+  /** Language of the guest page; everything printed on the creation is written in it. */
+  lang: z.enum(LANGS).default("he"),
 });
 export type GuestInput = z.infer<typeof GuestInputSchema>;
 
@@ -59,13 +65,13 @@ export type Analysis = z.infer<typeof AnalysisSchema>;
 /** Stages 2+3 for the image: creative direction and the image prompt. */
 export const ImageConceptSchema = z.object({
   genre: z.string().describe("Story genre, e.g. sports drama, superhero, fantasy adventure, space"),
-  rationale: z.string().describe("One sentence in Hebrew: which detail of the blessing this concept is built on"),
-  titleHebrew: z.string().describe("Short Hebrew title, max 4 words"),
-  taglineHebrew: z.string().describe("Short Hebrew tagline, max 8 words"),
-  coverLines: z.array(z.string()).describe("Magazine style only: 3 short Hebrew cover lines, max 5 words each. Empty otherwise"),
+  rationale: z.string().describe("One sentence in the poster language: which detail of the blessing this concept is built on"),
+  titleHebrew: z.string().describe("Short title in the poster language (the field name is historical), max 4 words"),
+  taglineHebrew: z.string().describe("Short tagline in the poster language, max 8 words"),
+  coverLines: z.array(z.string()).describe("Magazine style only: 3 short cover lines in the poster language, max 5 words each. Empty otherwise"),
   stats: z
     .array(z.object({ label: z.string(), value: z.number().int() }))
-    .describe("Player card style only: 4 Hebrew attributes (max 2 words) scored 80-99. Empty otherwise"),
+    .describe("Player card style only: 4 attributes in the poster language (max 2 words) scored 80-99. Empty otherwise"),
   guestPhotoPeople: z
     .array(z.string())
     .describe("One short English description per person visible in the guest photo, left to right. Empty when there is no photo"),
@@ -98,7 +104,7 @@ export type TranscriptSegment = { start: number; end: number; text: string };
 
 /** Which spoken lines go into the edited clip. Ranges are inclusive transcript segment indices. */
 export const ClipPlanSchema = z.object({
-  titleHebrew: z.string().describe("Short Hebrew title for the clip, max 5 words"),
+  titleHebrew: z.string().describe("Short clip title in the language spoken, max 5 words"),
   quoteHebrew: z.string().describe("The single most moving sentence, copied verbatim from the transcript"),
   ranges: z
     .array(z.object({ first: z.number().int(), last: z.number().int() }))
@@ -139,9 +145,13 @@ export type StageName = keyof Submission["stages"];
 
 export type EventSettings = {
   celebrantName: string;
+  /** The name as written on English pages and creations. */
+  celebrantNameEn: string;
   eventTitle: string;
   eventDate: string;
   footer: string;
+  /** Footer line on English creations. */
+  footerEn: string;
   /** Free-text appearance notes added to every image prompt to keep the likeness. */
   celebrantLook: string;
   /** Whether guests can ask for a song. Off: posters only. */
@@ -150,9 +160,11 @@ export type EventSettings = {
 
 export const DEFAULT_EVENT: EventSettings = {
   celebrantName: "כרמל",
+  celebrantNameEn: "Carmel",
   eventTitle: "בר המצווה של כרמל",
   eventDate: "",
   footer: "בר המצווה של כרמל",
+  footerEn: "Carmel's Bar Mitzvah",
   celebrantLook: "",
   songsEnabled: false,
 };

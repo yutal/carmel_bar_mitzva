@@ -2,16 +2,18 @@
 
 import Link from "next/link";
 import { useEffect, useState } from "react";
+import { LANG_INFO, STRINGS, type Lang } from "@/lib/i18n";
 import type { PublicSubmission } from "@/lib/views";
 
 const ACTIVE = new Set(["pending", "running"]);
-const MESSAGES = ["קוראים את הברכה שלך...", "מחפשים את הרגע הכי שלכם...", "כותבים תסריט...", "בוחרים את הסגנון...", "מצלמים את הסצנה...", "מוסיפים את הברכה..."];
 
-export default function ResultView({ publicId }: { publicId: string }) {
+export default function ResultView({ publicId, initialLang = "he" }: { publicId: string; initialLang?: Lang }) {
   const [data, setData] = useState<PublicSubmission | null>(null);
   const [missing, setMissing] = useState(false);
   const [tick, setTick] = useState(0);
 
+  const lang = data?.lang ?? initialLang;
+  const t = STRINGS[lang];
   const busy = !data || Object.values(data.stages).some((s) => s && ACTIVE.has(s));
 
   useEffect(() => {
@@ -37,15 +39,15 @@ export default function ResultView({ publicId }: { publicId: string }) {
     return () => clearInterval(t);
   }, [busy]);
 
-  if (missing) return <Shell><p className="text-center text-muted">היצירה לא נמצאה.</p></Shell>;
-  if (!data) return <Shell><Spinner text="טוען..." /></Shell>;
+  if (missing) return <Shell lang={lang}><p className="text-center text-muted">{t.notFound}</p></Shell>;
+  if (!data) return <Shell lang={lang}><Spinner text={t.loading} /></Shell>;
 
   const imageFailed = data.stages.image === "failed";
   const songFailed = data.stages.song === "failed";
 
   return (
-    <Shell>
-      <p className="text-center text-sm tracking-[0.2em] text-accent-soft">היצירה של {data.fullName}</p>
+    <Shell lang={lang}>
+      <p className="text-center text-sm tracking-[0.2em] text-accent-soft">{t.creationOf(data.fullName)}</p>
 
       {data.stages.image && (
         <section className="mt-5">
@@ -53,13 +55,13 @@ export default function ResultView({ publicId }: { publicId: string }) {
             <figure className="space-y-4">
               {/* eslint-disable-next-line @next/next/no-img-element -- generated file served by our API */}
               <img src={data.image.url} alt={data.image.title} className="w-full rounded-3xl shadow-2xl shadow-ink/15" />
-              <figcaption className="text-center text-muted">{data.image.rationale}</figcaption>
-              <Actions url={data.image.url} title={data.image.title} />
+              <figcaption dir="auto" className="text-center text-muted">{data.image.rationale}</figcaption>
+              <Actions url={data.image.url} title={data.image.title} labels={t} />
             </figure>
           ) : imageFailed ? (
-            <Failed what="התמונה" />
+            <Failed text={t.failed("image")} hint={t.failedHint} />
           ) : (
-            <Spinner text={MESSAGES[tick % MESSAGES.length]} sub="תמונה לוקחת בערך דקה. אפשר לסגור ולחזור לקישור הזה." />
+            <Spinner text={t.progress[tick % t.progress.length]} sub={t.imageWait} />
           )}
         </section>
       )}
@@ -74,41 +76,41 @@ export default function ResultView({ publicId }: { publicId: string }) {
                   <img src={data.song.coverUrl} alt="" className="size-24 rounded-2xl object-cover" />
                 )}
                 <div>
-                  <p className="text-sm text-accent-soft">שיר מאת {data.fullName}</p>
+                  <p className="text-sm text-accent-soft">{t.songBy(data.fullName)}</p>
                   <h2 className="font-display text-2xl font-bold text-ink">{data.song.title}</h2>
                 </div>
               </div>
               {data.song.audioUrl ? (
                 <audio controls src={data.song.audioUrl} className="mt-4 w-full" />
               ) : (
-                <p className="mt-4 rounded-2xl bg-olive-100 p-3 text-accent">🎵 השיר שלך בהפקה. הוא יגיע לקישור הזה ולאלבום של בר המצווה אחרי האירוע.</p>
+                <p className="mt-4 rounded-2xl bg-olive-100 p-3 text-accent">{t.songInProduction}</p>
               )}
             </>
           ) : songFailed ? (
-            <Failed what="השיר" />
+            <Failed text={t.failed("song")} hint={t.failedHint} />
           ) : (
             <div className="flex items-center gap-3" role="status">
               <span className="size-8 animate-spin rounded-full border-4 border-line border-t-accent" />
-              <p className="text-lg font-bold">מכינים את השיר...</p>
+              <p className="text-lg font-bold">{t.preparingSong}</p>
             </div>
           )}
         </section>
       )}
 
-      <blockquote className="mt-8 border-r-2 border-accent-soft pr-4 text-muted">
-        <p className="whitespace-pre-wrap">&quot;{data.blessing}&quot;</p>
+      <blockquote className="mt-8 border-s-2 border-accent-soft ps-4 text-muted">
+        <p dir="auto" className="whitespace-pre-wrap">&quot;{data.blessing}&quot;</p>
         <footer className="mt-2 text-sm">{data.fullName}, {data.relationship}</footer>
       </blockquote>
 
       <div className="mt-8 grid gap-3">
         {/* One calm way out. The creation limit is stated up front on the welcome screen, not pushed here. */}
-        <Link href="/" className="btn-ghost w-full">סיום וחזרה לעמוד הבית</Link>
+        <Link href={lang === "he" ? "/" : `/?lang=${lang}`} className="btn-ghost w-full">{t.finish}</Link>
       </div>
     </Shell>
   );
 }
 
-function Actions({ url, title }: { url: string; title: string }) {
+function Actions({ url, title, labels }: { url: string; title: string; labels: { download: string; share: string } }) {
   async function share() {
     try {
       const blob = await (await fetch(url)).blob();
@@ -121,8 +123,8 @@ function Actions({ url, title }: { url: string; title: string }) {
   }
   return (
     <div className="grid grid-cols-2 gap-3">
-      <a href={`${url}?download`} className="btn-primary">⬇️ הורדה</a>
-      <button type="button" className="btn-ghost" onClick={share}>📤 שיתוף</button>
+      <a href={`${url}?download`} className="btn-primary">{labels.download}</a>
+      <button type="button" className="btn-ghost" onClick={share}>{labels.share}</button>
     </div>
   );
 }
@@ -137,15 +139,19 @@ function Spinner({ text, sub }: { text: string; sub?: string }) {
   );
 }
 
-function Failed({ what }: { what: string }) {
+function Failed({ text, hint }: { text: string; hint: string }) {
   return (
     <div className="card p-6 text-center">
-      <p className="text-lg">משהו לא הסתדר עם {what} 😕</p>
-      <p className="mt-1 text-sm text-muted">הצוות יקבל התראה וינסה שוב. הברכה שלך נשמרה.</p>
+      <p className="text-lg">{text}</p>
+      <p className="mt-1 text-sm text-muted">{hint}</p>
     </div>
   );
 }
 
-function Shell({ children }: { children: React.ReactNode }) {
-  return <main className="mx-auto min-h-dvh w-full max-w-md px-5 py-8">{children}</main>;
+function Shell({ lang, children }: { lang: Lang; children: React.ReactNode }) {
+  return (
+    <main dir={LANG_INFO[lang].dir} lang={lang} className="mx-auto min-h-dvh w-full max-w-md px-5 py-8">
+      {children}
+    </main>
+  );
 }

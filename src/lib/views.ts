@@ -1,8 +1,10 @@
+import type { Lang } from "@/lib/i18n";
 import type { StageState, Submission } from "@/lib/types";
 
 /** What a guest (or the hall screen) may see of a submission. */
 export type PublicSubmission = {
   publicId: string;
+  lang: Lang;
   fullName: string;
   relationship: string;
   blessing: string;
@@ -16,6 +18,7 @@ export function toPublic(s: Submission): PublicSubmission {
   const base = `/api/s/${s.publicId}/file`;
   return {
     publicId: s.publicId,
+    lang: s.input.lang ?? "he",
     fullName: s.input.fullName,
     relationship: s.input.relationship,
     blessing: s.input.blessing,

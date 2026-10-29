@@ -2,7 +2,7 @@ import type { ImageStyle } from "@/lib/types";
 
 /**
  * Art direction per image style. Each brief keeps the areas where our code later
- * draws Hebrew text calm, so the layouts in compose/poster.ts stay readable.
+ * draws text calm, so the layouts in compose/poster.ts stay readable.
  */
 export const STYLE_BRIEFS: Record<ImageStyle, string> = {
   movie: `Format: a cinematic movie poster.
@@ -31,7 +31,7 @@ Faces and cover lines (cover lines are printed later on the backdrop beside the 
 - three or more: group them tightly, faces in a band between 22% and 50% height, and leave clean backdrop down one side below
   their shoulders;
 - no face higher than 20% or lower than 62% of the frame height.
-Also write coverLines: 3 short Hebrew cover lines about the celebrant, drawn from the guest's story (max 5 words each).`,
+Also write coverLines: 3 short cover lines in the poster language about the celebrant, drawn from the guest's story (max 5 words each).`,
 
   card: `Format: the artwork of a premium collectible sports player card; the celebrant is the star player.
 Look: dynamic hero portrait from the waist up, stadium or arena lights, light rays, glossy energetic colours,
@@ -39,7 +39,8 @@ the sport or activity from the story (if there is none, pick the celebrant's tal
 Composition: subject centred, head in the upper third; no border, frame, badges or numbers (our code draws the card).
 Faces: every face sits between 12% and 50% of the frame height; the top-right corner stays clear (a badge goes there).
 Calm areas: the bottom 30% of the frame is soft, dark and plain.
-Also write stats: 4 attributes in Hebrew (max 2 words each) taken from the story, e.g. "זריקות לסל", "צחוק", "חברות",
+Also write stats: 4 attributes in the poster language (max 2 words each) taken from the story,
+e.g. "זריקות לסל", "צחוק", "חברות" in Hebrew or "Three-pointers", "Laughter", "Friendship" in English,
 each scored 80-99.`,
 
   toy: `Format: the celebrant as a collectible action figure inside a retail blister package, photographed on a shelf.
