@@ -212,7 +212,8 @@ API endpoints:
 | `/api/admin/submissions` | GET | All submissions, for the dashboard |
 | `/api/admin/submissions/<id>/regenerate` | POST | Rerun a stage |
 | `/api/admin/submissions/<id>/song` | POST | Upload an MP3 |
-| `/api/admin/submissions/<id>/visibility` | POST | Hide or show on the hall screen |
+| `/api/admin/submissions/<id>/visibility` | POST | `{ "hidden": true }` hides or shows on the hall screen; `{ "test": true }` marks or unmarks a test |
+| `/api/admin/submissions/mark-tests` | POST | `{ "test": true }` marks every existing creation as a test, before the event starts |
 | `/api/admin/celebrant` | GET, POST, DELETE | Photos of Carmel |
 | `/api/admin/event` | GET, PUT | Event details and the description of how Carmel looks |
 | `/api/admin/status` | GET, PUT | Event snapshot: creations, failures, queue, OpenAI spend and balance. PUT `{ "amountUsd": 50 }` records the current OpenAI balance |
@@ -516,6 +517,7 @@ flowchart LR
 ```
 
 - **Day before:** switch to the paid plan with a disk, upload 3 clear photos of Carmel, fill in "how Carmel looks", make a test poster, and print the QR code for the tables.
+- **Just before guests arrive:** press `🧪 mark all existing as test` in `/admin`. Test creations stay in `/admin` under the `🧪 tests` filter, but are left out of the hall screen, the PDF album, the marketing ZIP, the event status counts and the guest's creation limit. A single creation can also be marked or unmarked with its `🧪 test` button.
 - **During the event:** `/screen` full-screen on the projector, `/admin` on your phone. Do not change settings in Render. The "event status" panel at the top of `/admin` shows posters done, the queue, failures, the OpenAI spend and how many more posters the balance covers. Enter the balance from platform.openai.com (Billing) before the event and after every top-up; the panel turns red when it will not last for the queue plus another 20 guests.
 - **Hall screen:** checks for new creations every 15 seconds (one small request; 15 s keeps it current without load). A new creation jumps the line with a "new!" badge so the guest sees it within a minute. Each slide stays 10 to 20 seconds, longer for a longer blessing, and the blessing sits beside the poster.
 - **After the event:** produce the songs in Suno, upload the MP3s, download the ZIP and the PDF album (`📖 album to print` in `/admin`). Once you have checked it, you can cancel the plan.
@@ -569,7 +571,7 @@ Logs are in the Render dashboard, on the service's **Logs** tab. **Events** show
 - A guest photo is sent to OpenAI only if the guest uploaded it after the consent notice. Metadata, including GPS location, is removed before saving.
 - Each guest, matched by name, can make up to `MAX_CREATIONS_PER_GUEST` creations (default 3, 0 = no limit). The form checks this right after the name, and the server enforces it on submit.
 - Marketing use is a separate opt-in checkbox, unchecked by default. `/admin` filters these submissions and exports them as their own ZIP.
-- A poster appears on the hall screen only with the guest's consent, and any poster can be hidden from `/admin`. Inappropriate content is hidden automatically.
+- A poster appears on the hall screen only with the guest's consent, and any poster can be hidden or marked as a test from `/admin`. Inappropriate content is hidden automatically.
 - Guests' original photos are deleted automatically after `GUEST_PHOTO_RETENTION_DAYS` (default 7). The check runs at start-up and every hour; the posters made from them are kept.
 - Each guest gets a link with a random 16-character id (96 bits), so links cannot be guessed or listed; the site is marked noindex. The link stops working `RESULT_LINK_HOURS` after the creation (default 7, enough for the evening). Images of creations shown on the hall screen keep loading after that, so the slideshow is not affected; MP3s uploaded later are not reachable through an expired link. The organiser keeps everything in `/admin` and the ZIP.
 - The export leaves out guest photos unless `?uploads=1` is added.

@@ -6,6 +6,7 @@ import { DIRS, dataPath, ensureDirs, readJson, writeFileAtomic, writeJson } from
 import { submissionBaseName } from "./naming";
 import type { GuestInput, StageName, StageState, Submission, SubmissionFiles } from "@/lib/types";
 import { LANG_INFO } from "@/lib/i18n";
+import { showsOnScreen } from "@/lib/views";
 import { IMAGE_STYLES, MUSIC_STYLES } from "@/lib/types";
 
 const jsonPath = (id: string) => dataPath(DIRS.blessings, `${id}.json`);
@@ -95,7 +96,7 @@ export async function remainingFor(name: string): Promise<number | null> {
   if (!max) return null;
   const key = nameKey(name);
   // A blessing on its own costs nothing to make, so it does not count towards the limit.
-  const used = (await listSubmissions()).filter((s) => nameKey(s.input.fullName) === key && s.input.experience !== "blessing").length;
+  const used = (await listSubmissions()).filter((s) => nameKey(s.input.fullName) === key && s.input.experience !== "blessing" && !s.test).length;
   return Math.max(0, max - used);
 }
 
@@ -116,7 +117,7 @@ export async function findByPublicId(publicId: string, opts: { forScreen?: boole
   const s = await lookupPublicId(publicId);
   if (!s) return undefined;
   if (!linkExpired(s)) return s;
-  return opts.forScreen && s.input.consentScreen && !s.hidden ? s : undefined;
+  return opts.forScreen && showsOnScreen(s) ? s : undefined;
 }
 
 async function lookupPublicId(publicId: string): Promise<Submission | undefined> {

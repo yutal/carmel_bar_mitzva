@@ -9,7 +9,9 @@ const round = (n: number) => Math.round(n * 100) / 100;
 
 /** One snapshot of the event for the admin status panel and the event-status skill: creations, failures, queue and money. */
 export async function eventStatus() {
-  const [subs, usage, balance, official] = await Promise.all([listSubmissions(), readUsage(), getBalance(), officialCosts()]);
+  const [all, usage, balance, official] = await Promise.all([listSubmissions(), readUsage(), getBalance(), officialCosts()]);
+  // Tests are left out of the counts; their cost still shows in the spend.
+  const subs = all.filter((s) => !s.test);
   const now = Date.now();
   const hourAgo = now - 3600_000;
   const dayAgo = now - 86400_000;
@@ -65,6 +67,7 @@ export async function eventStatus() {
       lastHour: subs.filter((s) => Date.parse(s.createdAt) > hourAgo).length,
       lastAt: subs.map((s) => s.createdAt).sort().at(-1) ?? null,
       hidden: subs.filter((s) => s.hidden).length,
+      tests: all.length - subs.length,
       analysis: countStage("analysis"),
       posters: countStage("image"),
       songs: countStage("song"),

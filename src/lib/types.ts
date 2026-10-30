@@ -156,6 +156,8 @@ export type Submission = {
   createdAt: string;
   input: GuestInput;
   hidden: boolean;
+  /** Marked as a test by the organiser: never on the hall screen, left out of the album, counts and quota. */
+  test?: boolean;
   stages: { analysis: StageState; image?: StageState; song?: StageState };
   analysis?: Analysis;
   imageConcept?: ImageConcept;

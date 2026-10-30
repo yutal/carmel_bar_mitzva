@@ -5,7 +5,7 @@ import type { EventSettings, StageName, StageStatus, Submission } from "@/lib/ty
 import { IMAGE_STYLES } from "@/lib/types";
 import type { EventStatus } from "@/lib/status";
 
-type Filter = "all" | "failed" | "music" | "hidden" | "marketing";
+type Filter = "all" | "failed" | "music" | "hidden" | "marketing" | "tests";
 const STATUS_LABEL: Record<StageStatus, string> = {
   pending: "ממתין",
   running: "רץ",
@@ -66,19 +66,19 @@ export default function AdminDashboard() {
     }
   };
 
-  const visible = subs.filter((s) => {
-    if (filter === "failed") return Object.values(s.stages).some((st) => st?.status === "failed");
-    if (filter === "music") return s.stages.song?.status === "awaiting_music";
-    if (filter === "hidden") return s.hidden || !s.input.consentScreen;
-    if (filter === "marketing") return Boolean(s.input.consentMarketing);
-    return true;
-  });
-  const count = (f: Filter) => (f === "all" ? subs.length : subs.filter((s) => {
+  const matches = (s: Submission, f: Filter) => {
+    if (f === "tests") return Boolean(s.test);
     if (f === "failed") return Object.values(s.stages).some((st) => st?.status === "failed");
     if (f === "music") return s.stages.song?.status === "awaiting_music";
+    if (f === "hidden") return s.hidden || !s.input.consentScreen || Boolean(s.test);
     if (f === "marketing") return Boolean(s.input.consentMarketing);
-    return s.hidden || !s.input.consentScreen;
-  }).length);
+    return true;
+  };
+  const visible = subs.filter((s) => matches(s, filter));
+  const count = (f: Filter) => subs.filter((s) => matches(s, f)).length;
+  const markAll = () =>
+    confirm(`לסמן את כל ${subs.length} היצירות הקיימות כטסט? הן ייעלמו ממסך האולם, מהאלבום ומהספירה. אפשר לבטל לכל יצירה בנפרד.`) &&
+    run(() => api("/api/admin/submissions/mark-tests", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ test: true }) }), "כל היצירות סומנו כטסט");
 
   return (
     <main className="mx-auto max-w-6xl space-y-8 px-4 py-8">
@@ -106,11 +106,12 @@ export default function AdminDashboard() {
 
       <section className="space-y-4">
         <div className="flex flex-wrap gap-2">
-          {(["all", "failed", "music", "hidden", "marketing"] as const).map((f) => (
+          {(["all", "failed", "music", "hidden", "marketing", "tests"] as const).map((f) => (
             <button key={f} type="button" className="chip" aria-pressed={filter === f} onClick={() => setFilter(f)}>
-              {{ all: "הכל", failed: "נכשלו", music: "שירים להקלטה", hidden: "מוסתרים מהמסך", marketing: "מאושרים לשיווק" }[f]} ({count(f)})
+              {{ all: "הכל", failed: "נכשלו", music: "שירים להקלטה", hidden: "מוסתרים מהמסך", marketing: "מאושרים לשיווק", tests: "🧪 טסטים" }[f]} ({count(f)})
             </button>
           ))}
+          <button type="button" className="chip ms-auto" onClick={markAll} disabled={!subs.length}>🧪 סמן את כל הקיימות כטסט</button>
         </div>
         <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
           {visible.map((s) => (
@@ -135,6 +136,11 @@ function SubmissionCard({ s, run }: { s: Submission; run: (fn: () => Promise<unk
     run(
       () => api(`/api/admin/submissions/${encodeURIComponent(s.id)}/visibility`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ hidden: !s.hidden }) }),
       s.hidden ? "מוצג במסך" : "הוסתר מהמסך",
+    );
+  const toggleTest = () =>
+    run(
+      () => api(`/api/admin/submissions/${encodeURIComponent(s.id)}/visibility`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ test: !s.test }) }),
+      s.test ? "הסימון כטסט בוטל" : "סומן כטסט, לא יוצג במסך",
     );
   const uploadMp3 = (file: File) => {
     const body = new FormData();
@@ -173,7 +179,8 @@ function SubmissionCard({ s, run }: { s: Submission; run: (fn: () => Promise<unk
               </span>
             ))}
             {s.input.consentMarketing && <span className="rounded-full bg-olive-100 px-2 py-0.5 text-xs text-accent">מאושר לשיווק</span>}
-            {(s.hidden || !s.input.consentScreen) && <span className="rounded-full bg-olive-100 px-2 py-0.5 text-xs text-muted">לא במסך</span>}
+            {s.test && <span className="rounded-full bg-clay px-2 py-0.5 text-xs font-bold text-canvas">🧪 טסט</span>}
+            {(s.hidden || !s.input.consentScreen || s.test) && <span className="rounded-full bg-olive-100 px-2 py-0.5 text-xs text-muted">לא במסך</span>}
           </div>
         </div>
       </div>
@@ -202,6 +209,7 @@ function SubmissionCard({ s, run }: { s: Submission; run: (fn: () => Promise<unk
         <a className="btn-ghost min-h-9 px-3" href={fileUrl(`blessings/${s.id}.txt`, true)}>TXT</a>
         {s.files.mp3 && <a className="btn-ghost min-h-9 px-3" href={fileUrl(s.files.mp3, true)}>MP3</a>}
         <button type="button" className="btn-ghost min-h-9 px-3" onClick={toggleHidden}>{s.hidden ? "הצג במסך" : "הסתר"}</button>
+        <button type="button" className="btn-ghost min-h-9 px-3" onClick={toggleTest}>{s.test ? "בטל טסט" : "🧪 טסט"}</button>
       </div>
 
       <details className="text-sm">

@@ -21,6 +21,11 @@ export type PublicSubmission = {
   song?: { title: string; coverUrl?: string; audioUrl?: string };
 };
 
+/** Whether a creation may go up on the hall screen: the guest agreed, and the organiser did not hide it or mark it a test. */
+export function showsOnScreen(s: Submission): boolean {
+  return s.input.consentScreen && !s.hidden && !s.test;
+}
+
 function imagePhase(s: Submission): PublicSubmission["phase"] {
   if (s.stages.image?.status !== "running" && s.stages.analysis.status !== "running") return undefined;
   if (!s.imageConcept) return "story";
@@ -37,7 +42,7 @@ export function toPublic(s: Submission, queue?: PublicSubmission["queue"]): Publ
     relationship: s.input.relationship,
     blessing: s.input.blessing,
     experience: s.input.experience,
-    onScreen: s.input.consentScreen && !s.hidden,
+    onScreen: showsOnScreen(s),
     ...(queue && { queue }),
     phase: imagePhase(s),
     stages: {

@@ -15,7 +15,7 @@ export async function GET(request: Request) {
   const zip = new ZipArchive({ zlib: { level: 6 } });
   if (marketing) {
     for (const s of await listSubmissions()) {
-      if (!s.input.consentMarketing || s.hidden || !s.files.image) continue;
+      if (!s.input.consentMarketing || s.hidden || s.test || !s.files.image) continue;
       zip.file(filePath(s.files.image), { name: path.basename(s.files.image) });
       zip.file(dataPath(DIRS.blessings, `${s.id}.txt`), { name: `${s.id}.txt` });
     }
