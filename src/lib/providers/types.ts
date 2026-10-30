@@ -10,7 +10,8 @@ export interface LlmProvider {
    * Built only from the guest's story answers, never from the blessing. The guest photo, when given, is shown
    * to the model so it can see who is in it.
    */
-  imageConcept(input: GuestInput, event: EventSettings, guestPhoto?: Buffer): Promise<ImageConcept>;
+  /** `celebrantPhoto` lets the model tell the celebrant apart from a guest of his age in the guest photo. */
+  imageConcept(input: GuestInput, event: EventSettings, guestPhoto?: Buffer, celebrantPhoto?: Buffer): Promise<ImageConcept>;
   songConcept(input: GuestInput, analysis: Analysis, event: EventSettings): Promise<SongConcept>;
   /** Finds every face in generated art, so the poster text can be laid out around them. */
   locateFaces(art: Buffer): Promise<FaceBox[]>;

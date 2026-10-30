@@ -4,7 +4,7 @@ import { describe, it } from "node:test";
 import type { Lang } from "@/lib/i18n";
 import { DEFAULT_EVENT, IMAGE_STYLES, ImageConceptSchema, LANGS, type GuestInput, type ImageStyle } from "@/lib/types";
 import { IMAGE_CONCEPT_SYSTEM, imageConceptInput } from "./index";
-import { buildCoverPrompt, buildImagePrompt, castMismatch, headCount, type Cast, type Reference } from "./image";
+import { buildCoverPrompt, buildImagePrompt, castMismatch, headCount, sendsGuestPhoto, type Cast, type Reference } from "./image";
 import { STYLE_BRIEFS, STYLE_RENDER } from "./styles";
 
 const STYLES = Object.keys(IMAGE_STYLES) as ImageStyle[];
@@ -58,6 +58,8 @@ describe("image prompt, every style × photo case × language", () => {
           assert.equal(count(prompt, `CAST: exactly ${c.people} ${c.people === 1 ? "person" : "people"} in the image`), 2);
           assert.match(prompt, /Nobody else appears anywhere in the frame/);
           assert.match(prompt, /no second copy of anyone/);
+          // People the story mentions (a team, everyone cheering) are not drawn.
+          assert.match(prompt, /If the scene below mentions anyone else .* they stay out of the picture/);
 
           // Four photos of the celebrant are one boy, drawn once.
           assert.match(prompt, /Reference images 1, 2, 3, 4: all of them show the SAME boy/);
@@ -117,6 +119,16 @@ describe("image concept input and rules", () => {
     assert.doesNotMatch(IMAGE_CONCEPT_SYSTEM, /show the guest only from behind/);
   });
 
+  it("the concept compares the guest photo with a photo of the celebrant", () => {
+    const input = imageConceptInput(guest("magazine", "en"), event, true, true);
+    assert.match(input, /Image 1 is the celebrant, only to compare faces with/);
+    assert.match(input, /Image 2 is the guest photo/);
+    assert.match(IMAGE_CONCEPT_SYSTEM, /compare every face with the celebrant photo/);
+    assert.match(IMAGE_CONCEPT_SYSTEM, /Another child of a similar age, hair or build is a guest/);
+    assert.match(IMAGE_CONCEPT_SYSTEM, /When unsure, list the person and set false/);
+    assert.doesNotMatch(imageConceptInput(guest("magazine", "en"), event, false, true), /Image 1/);
+  });
+
   it("the concept schema asks whether the celebrant is in the guest photo", () => {
     const shape = ImageConceptSchema.shape;
     assert.ok("celebrantInGuestPhoto" in shape);
@@ -147,6 +159,21 @@ describe("head count after painting", () => {
   });
   it("no photo and no face found is not a reason to paint again", () => {
     assert.equal(castMismatch(0, none), null);
+  });
+});
+
+describe("which photos the image model gets", () => {
+  it("a guest photo of other people is sent", () => {
+    for (const c of CASES.filter((c) => c.cast.guestPeople.length)) assert.equal(sendsGuestPhoto(c.cast), true, c.name);
+  });
+  it("a guest photo of only the celebrant is not sent, so he is not drawn twice", () => {
+    assert.equal(sendsGuestPhoto({ hasGuestPhoto: true, guestPeople: [], celebrantInGuestPhoto: true }), false);
+  });
+  it("a photo whose people were not described is still sent", () => {
+    assert.equal(sendsGuestPhoto({ hasGuestPhoto: true, guestPeople: [], celebrantInGuestPhoto: false }), true);
+  });
+  it("no photo, nothing to send", () => {
+    assert.equal(sendsGuestPhoto({ hasGuestPhoto: false, guestPeople: [], celebrantInGuestPhoto: false }), false);
   });
 });
 

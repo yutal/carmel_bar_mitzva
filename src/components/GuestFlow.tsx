@@ -274,7 +274,7 @@ export default function GuestFlow({ again, lang = "he" }: { again?: { fullName: 
           <section className="space-y-6">
             <div>
               <h2 className="font-display text-[2rem] font-bold text-ink">{t.styleTitle}</h2>
-              <p className="mt-1 text-muted">{t.styleHint}</p>
+              <p className="mt-1 text-muted">{t.styleHint(name)}</p>
             </div>
             <div className="grid grid-cols-2 gap-3">
               {(Object.entries(IMAGE_STYLES) as [ImageStyle, (typeof IMAGE_STYLES)[ImageStyle]][]).map(([key, style]) => (

@@ -345,18 +345,26 @@ The guest picks one of six styles. Each style has an art brief (`src/lib/prompts
 The image model sees up to five photos of Carmel and, maybe, one guest photo. Left alone it read each photo of Carmel as another person (Carmel twice on a cover), invented a guest when there was no photo, drew Carmel twice when he was in the guest's selfie, and filled stadiums and film scenes with extra characters. The full prompt is built in one place, `src/lib/prompts/image.ts`, and closes each of those doors for every style:
 
 - All the photos of Carmel are named as one boy, drawn exactly once.
-- The image concept lists the people in the guest photo without Carmel, and says whether Carmel is in it (`celebrantInGuestPhoto`).
-- The cast is fixed and counted: Carmel plus each person from the guest photo. With no guest photo, Carmel is alone, with no guest from behind. The head count opens the prompt and is repeated at the end, with "nobody else": no crowd, teammates, background figures or second copy of anyone.
+- The image concept lists the people in the guest photo without Carmel, and says whether Carmel is in it (`celebrantInGuestPhoto`). It gets a photo of Carmel next to the guest photo and compares faces, so a cousin of his age is not mistaken for him; when unsure, the person is listed as a guest. A guest photo that shows only Carmel is not sent to the image model at all, since it adds nobody and is the likeliest way to get him twice.
+- The cast is fixed and counted: Carmel plus each person from the guest photo. With no guest photo, Carmel is alone, with no guest from behind. The head count opens the prompt and is repeated at the end, with "nobody else": no crowd, teammates, background figures or second copy of anyone. People the story mentions ("everyone screamed", the team) stay out of the picture.
 - In the animated film everyone, guests included, is redrawn as a 3D character; nobody keeps a photographic face. The player card is drawn on an abstract glowing background, not a stadium.
-- After painting, the face finder counts the faces. If someone was added, repeated or left out, the image is painted once more with what went wrong, and the closer of the two is kept (one extra image call, only when it happens).
+- After painting, the face finder counts the faces. If someone was added or repeated, the image is painted again with what went wrong, up to twice; if someone was left out, once. The closest result is kept, and the extra image calls happen only when needed.
 
 ### Testing the styles
 
 - `npm test` runs offline checks of the prompts for every style × photo case (no photo, one person, a group, a selfie with Carmel, Carmel alone) × Hebrew and English, the image-concept input (the blessing never reaches it) and the head-count check. No model calls, no cost.
-- `/admin/qa` ("🧪 style check" in `/admin`) makes real posters for the chosen styles and languages, with no photo and with the photos you upload (one person, a group), exactly as a guest's poster is made. A second model then looks at each artwork with Carmel's photo and the guest photo and counts the people, Carmel's copies, extra characters, guests left out, photographic faces in drawn styles, the style and any painted text. Each case shows pass or fail with the reason. It costs about one poster per case and runs only when you press the button; the page shows the estimate first.
+- `/admin/qa` ("🧪 style check" in `/admin`) makes real posters for the chosen styles and languages, with no photo and with the photos you upload (one person, a group), exactly as a guest's poster is made. A second model then looks at each artwork with Carmel's photo and the guest photo and counts the people, Carmel's copies, extra characters, guests left out, photographic faces in drawn styles, the style and any painted text. A lifelike face on the action figure in a box counts as right. Each case shows pass or fail with the reason. It costs about one poster per case and runs only when you press the button; the page shows the estimate first.
 - In mock mode the painter follows the prompt's head count, and `MOCK_EXTRA_PEOPLE=1` makes its first try add a person, to exercise the repaint.
 
 Each style also has a rendering line (`STYLE_RENDER` in `styles.ts`), sent to the image model first and repeated last, so an animated film looks like a 3D animated still and not a photograph, and a magazine cover is a studio shoot on a plain backdrop and not an outdoor movie scene.
+
+### Text on the picture
+
+Only the title (and tagline), the sign-off "with love, guest · relationship", the footer and the event date are drawn on the picture; the blessing is never printed on it. It is shown beside the poster on the hall screen, on the result page and in the album. The face finder's boxes, with a margin for hair and chin, keep every line off the faces:
+
+- Movie, animation, comic and toy box: the title goes on top if it fits above the faces (with the tagline, then without), otherwise in the free band between the faces and the sign-off. Only when neither has room is it drawn small at the very top on a soft dark caption band, so it reads as a deliberate strip. The sign-off shrinks until it clears the faces, and gets the same band when it cannot.
+- Magazine: cover lines go only in a side column with no face; the headline moves into the cover lines when there is no room under the faces.
+- Player card: the name plate moves down below a low face; when the stats would then cover someone, they are left out.
 
 To add a style: add it to `IMAGE_STYLES` in `src/lib/types.ts` and to `STYLE_BRIEFS`; if it needs its own text layout, add a function to `compose/poster.ts`.
 

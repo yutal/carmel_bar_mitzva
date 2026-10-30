@@ -3,7 +3,7 @@ import { randomBytes } from "node:crypto";
 import fs from "node:fs/promises";
 import path from "node:path";
 import PQueue from "p-queue";
-import { celebrantReferences, castOf, paintArt, posterFor } from "@/lib/pipeline/run";
+import { celebrantPhoto, celebrantReferences, castOf, paintArt, posterFor } from "@/lib/pipeline/run";
 import { headCount } from "@/lib/prompts/image";
 import { STYLE_RENDER } from "@/lib/prompts/styles";
 import { providers } from "@/lib/providers";
@@ -20,7 +20,12 @@ import type { Lang } from "@/lib/i18n";
 
 export type PhotoCase = "none" | "single" | "group";
 export const PHOTO_CASES: PhotoCase[] = ["none", "single", "group"];
-const PHOTO_STYLES = new Set<ImageStyle>(["movie", "magazine"]);
+/** Styles where a lifelike face is right. The toy box counts: a figure with a realistic face looks great in its box. */
+const PHOTO_STYLES = new Set<ImageStyle>(["movie", "magazine", "toy"]);
+/** What the judge should accept for a style, beyond its render line. */
+const JUDGE_NOTE: Partial<Record<ImageStyle, string>> = {
+  toy: "Any action figure or doll inside a toy package matches, also when its face is lifelike or realistic.",
+};
 
 export type QaCase = {
   key: string;
@@ -116,14 +121,14 @@ async function runCase(id: string, c: QaCase, guestPhoto: Buffer | undefined): P
       consentMarketing: false,
       lang: c.lang,
     };
-    const concept = await providers.llm.imageConcept(input, event, guestPhoto);
+    const concept = await providers.llm.imageConcept(input, event, guestPhoto, await celebrantPhoto());
     const cast = castOf(concept, guestPhoto);
     const { art, faces, repainted } = await paintArt({ label: `qa ${c.key}`, input, concept, guestPhoto, event });
     const rel = path.posix.join(DIR, id, `${c.key}.png`);
     await writeFileAtomic(dataPath(rel), await posterFor(art, faces, input, concept, event));
     const [celebrant] = await celebrantReferences();
     if (!celebrant) throw new Error("אין תמונות של כרמל באדמין");
-    const check = await providers.llm.checkPoster(art, celebrant.data, guestPhoto, `${c.style}: ${STYLE_RENDER[c.style]}`);
+    const check = await providers.llm.checkPoster(art, celebrant.data, guestPhoto, [`${c.style}: ${STYLE_RENDER[c.style]}`, JUDGE_NOTE[c.style]].filter(Boolean).join(" "));
     const expected = headCount(cast);
     const problems = problemsOf(check, expected, expected - 1, c.style);
     await saveCase(id, c.key, { status: "done", expected, facesFound: faces?.length, repainted, check, problems, pass: problems.length === 0, poster: rel });

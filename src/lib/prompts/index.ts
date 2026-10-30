@@ -44,8 +44,10 @@ Rules:
 - Fill coverLines and stats only when the style brief asks for them; otherwise return empty lists.
 - If the guest photo is attached, look at it closely. It may show one person or a group (a selfie with family or friends).
   List every person visible in it in guestPhotoPeople, left to right, each with apparent age, gender, hair (colour, length,
-  style), facial hair, glasses, skin tone and one clothing detail. Do NOT list the celebrant there: if he is clearly in the
-  photo (he matches the description of how he looks), leave him out of the list and set celebrantInGuestPhoto to true.
+  style), facial hair, glasses, skin tone and one clothing detail. Do NOT list the celebrant there.
+  To tell whether the celebrant is in the guest photo, compare every face with the celebrant photo (attached first, when
+  there is one). Only when a face is clearly the SAME boy, leave him out of the list and set celebrantInGuestPhoto to true.
+  Another child of a similar age, hair or build is a guest, not the celebrant: list him. When unsure, list the person and set false.
   Faces in the far background, on posters or on screens are not people to list. With no photo, return an empty list and false.
 - The cast of the image is fixed: the celebrant once, plus each person in guestPhotoPeople once. Nobody else, in any style.
 - imagePrompt (English, 120-220 words) for an image model that receives reference photos:
@@ -96,14 +98,16 @@ export function imageStyleBrief(style: ImageStyle): string {
 }
 
 /** The user message for the image concept: the story (never the blessing), the photo situation and the style brief. */
-export function imageConceptInput(input: GuestInput, event: EventSettings, hasGuestPhoto: boolean): string {
+export function imageConceptInput(input: GuestInput, event: EventSettings, hasGuestPhoto: boolean, hasCelebrantPhoto = false): string {
   return [
     guestContext(input, event, { blessing: false }),
     "",
     event.celebrantLook ? `How the celebrant looks: ${event.celebrantLook}` : "",
-    hasGuestPhoto
-      ? "The guest photo is attached."
-      : "NO guest photo is provided: the celebrant is the only person in the image.",
+    !hasGuestPhoto
+      ? "NO guest photo is provided: the celebrant is the only person in the image."
+      : hasCelebrantPhoto
+        ? "Two images are attached. Image 1 is the celebrant, only to compare faces with; it is not the guest photo. Image 2 is the guest photo."
+        : "The guest photo is attached.",
     "",
     imageStyleBrief(input.imageStyle ?? "movie"),
   ].join("\n");

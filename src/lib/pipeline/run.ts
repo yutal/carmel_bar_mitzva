@@ -2,7 +2,7 @@ import "server-only";
 import fs from "node:fs/promises";
 import { composeCover, composePoster } from "@/lib/compose/poster";
 import { celebrantNameIn } from "@/lib/prompts";
-import { buildCoverPrompt, buildImagePrompt, castMismatch, headCount, type Cast } from "@/lib/prompts/image";
+import { buildCoverPrompt, buildImagePrompt, castMismatch, headCount, sendsGuestPhoto, type Cast } from "@/lib/prompts/image";
 import { providers } from "@/lib/providers";
 import type { ReferenceImage } from "@/lib/providers/types";
 import { celebrantPhotoPath, getEvent, listCelebrantPhotos } from "@/lib/storage/event";
@@ -52,7 +52,7 @@ async function runImage(id: string, event: EventSettings): Promise<void> {
   const guestPhoto = s.files.photo && s.input.consentPhoto ? await fs.readFile(filePath(s.files.photo)) : undefined;
 
   if (!s.imageConcept) {
-    const concept = await providers.llm.imageConcept(s.input, event, guestPhoto);
+    const concept = await providers.llm.imageConcept(s.input, event, guestPhoto, await celebrantPhoto());
     s = await updateSubmission(id, (x) => {
       x.imageConcept = concept;
     });
@@ -77,9 +77,18 @@ export function castOf(concept: ImageConcept, guestPhoto: Buffer | undefined): C
   };
 }
 
+/** One photo of the celebrant, for the concept to tell him apart from a guest of his age. */
+export async function celebrantPhoto(): Promise<Buffer | undefined> {
+  const [first] = await listCelebrantPhotos();
+  return first ? fs.readFile(celebrantPhotoPath(first)) : undefined;
+}
+
+/** An added or repeated person is the worst mistake, so it gets one more try than a missing one. */
+const MAX_REPAINTS = { extra: 2, missing: 1 };
+
 /**
  * Paints the artwork (no text) and finds its faces. When the face count does not match the cast (someone added,
- * repeated or left out), paints once more with what went wrong and keeps the closer of the two.
+ * repeated or left out), paints again with what went wrong and keeps the closest result.
  */
 export async function paintArt(opts: {
   label: string;
@@ -91,7 +100,7 @@ export async function paintArt(opts: {
   const style = opts.input.imageStyle ?? "movie";
   const cast = castOf(opts.concept, opts.guestPhoto);
   const references = await celebrantReferences();
-  if (opts.guestPhoto) references.push({ name: "guest.jpg", data: opts.guestPhoto, role: "guest" });
+  if (opts.guestPhoto && sendsGuestPhoto(cast)) references.push({ name: "guest.jpg", data: opts.guestPhoto, role: "guest" });
   const paint = (retry?: string) =>
     providers.image.generate({
       prompt: buildImagePrompt({ style, scene: opts.concept.imagePrompt, references, cast, celebrantLook: opts.event.celebrantLook, retry }),
@@ -105,19 +114,23 @@ export async function paintArt(opts: {
       return undefined;
     });
 
+  const n = headCount(cast);
+  const off = (f: unknown[] | undefined) => (f ? Math.abs(f.length - n) : Infinity);
   let art = await paint();
   let faces = await findFaces(art);
-  const mismatch = faces && castMismatch(faces.length, cast);
-  if (!mismatch) return { art, faces, repainted: false };
-  console.warn(`[pipeline] ${opts.label}: ${faces!.length} faces, expected ${headCount(cast)}; painting again`);
-  const art2 = await paint(mismatch);
-  const faces2 = await findFaces(art2);
-  const off = (f: unknown[] | undefined) => (f ? Math.abs(f.length - headCount(cast)) : Infinity);
-  if (off(faces2) <= off(faces)) {
+  let tries = 0;
+  for (;;) {
+    const mismatch = faces && castMismatch(faces.length, cast);
+    if (!mismatch || tries >= MAX_REPAINTS[faces!.length > n ? "extra" : "missing"]) break;
+    tries++;
+    console.warn(`[pipeline] ${opts.label}: ${faces!.length} faces, expected ${n}; painting again (${tries})`);
+    const art2 = await paint(mismatch);
+    const faces2 = await findFaces(art2);
+    if (off(faces2) > off(faces)) continue;
     art = art2;
     faces = faces2;
   }
-  return { art, faces, repainted: true };
+  return { art, faces, repainted: tries > 0 };
 }
 
 /** The finished poster: the artwork with the title, sign-off and style layout drawn around the faces. */

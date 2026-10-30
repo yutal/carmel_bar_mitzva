@@ -54,26 +54,29 @@ async function structured<S extends z.ZodType>(
   return response.output_parsed as z.infer<S>;
 }
 
+/** A 1024px JPEG: plenty to see faces, and keeps the request small. */
+const asJpeg = (b: Buffer) => sharp(b).rotate().resize(1024, 1024, { fit: "inside" }).jpeg({ quality: 85 }).toBuffer();
+
 export const openAiLlm: LlmProvider = {
   analyze(input, event) {
     return structured(AnalysisSchema, "analysis", ANALYSIS_SYSTEM, guestContext(input, event));
   },
-  imageConcept(input, event, guestPhoto) {
-    return structured(ImageConceptSchema, "image_concept", IMAGE_CONCEPT_SYSTEM, imageConceptInput(input, event, Boolean(guestPhoto)), guestPhoto);
+  async imageConcept(input, event, guestPhoto, celebrantPhoto) {
+    // The celebrant is sent only with a guest photo, to compare faces; first, as the input text says.
+    const compare = guestPhoto && celebrantPhoto ? await asJpeg(celebrantPhoto) : undefined;
+    const images = guestPhoto ? [...(compare ? [compare] : []), await asJpeg(guestPhoto)] : undefined;
+    return structured(ImageConceptSchema, "image_concept", IMAGE_CONCEPT_SYSTEM, imageConceptInput(input, event, Boolean(guestPhoto), Boolean(compare)), images);
   },
   songConcept(input, analysis, event) {
     const user = [guestContext(input, event), "", `Analysis:\n${analysisSummary(analysis)}`, "", songStyleHint(input)].join("\n");
     return structured(SongConceptSchema, "song_concept", SONG_CONCEPT_SYSTEM, user);
   },
   async locateFaces(art) {
-    // A 1024px JPEG is plenty to find faces and keeps the request small.
-    const jpeg = await sharp(art).resize(1024, 1024, { fit: "inside" }).jpeg({ quality: 85 }).toBuffer();
-    const { faces } = await structured(FaceMapSchema, "face_map", FACE_MAP_SYSTEM, "Locate every face in this image.", jpeg);
+    const { faces } = await structured(FaceMapSchema, "face_map", FACE_MAP_SYSTEM, "Locate every face in this image.", await asJpeg(art));
     return faces;
   },
   async checkPoster(art, celebrant, guestPhoto, style) {
-    const jpeg = (b: Buffer) => sharp(b).resize(1024, 1024, { fit: "inside" }).jpeg({ quality: 85 }).toBuffer();
-    const images = [await jpeg(art), await jpeg(celebrant), ...(guestPhoto ? [await jpeg(guestPhoto)] : [])];
+    const images = [await asJpeg(art), await asJpeg(celebrant), ...(guestPhoto ? [await asJpeg(guestPhoto)] : [])];
     const user = [
       `Image 1: the artwork to check. Requested art style: ${style}`,
       "Image 2: a photo of the celebrant, a 13-year-old boy.",

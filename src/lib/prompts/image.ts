@@ -25,6 +25,14 @@ export function headCount(cast: Cast): number {
   return 1 + Math.max(cast.guestPeople.length, cast.celebrantInGuestPhoto ? 0 : 1);
 }
 
+/**
+ * Whether the guest photo goes to the image model. A photo that shows only the celebrant adds nobody, and sent
+ * next to his own photos it is the likeliest way to get him drawn twice, so it is left out.
+ */
+export function sendsGuestPhoto(cast: Cast): boolean {
+  return cast.hasGuestPhoto && !(cast.celebrantInGuestPhoto && cast.guestPeople.length === 0);
+}
+
 const LIKENESS = [
   "Identity is the top priority: every person shown must be clearly recognisable as the person in their reference images.",
   "Keep their exact face shape, eyes, eyebrows, nose, mouth, smile, hair colour, hairstyle, skin tone and age.",
@@ -83,6 +91,8 @@ export function castLine(style: ImageStyle, cast: Cast): string {
     castHead(cast),
     "Count them. Nobody else appears anywhere in the frame: no extra characters, crowd, teammates, background figures, silhouettes, reflections, " +
       "posters or photos of people, and no second copy of anyone.",
+    "If the scene below mentions anyone else (friends, family, a team, a crowd, an audience, everyone cheering), " +
+      "they stay out of the picture: show the moment through the cast's expressions, props and setting only.",
   ];
   if (style === "animation") {
     lines.push(

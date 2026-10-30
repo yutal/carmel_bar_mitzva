@@ -50,7 +50,7 @@ type Strings = {
   consentScreenBlessing: string;
   blessingPlaceholder: (name: string) => string;
   styleTitle: string;
-  styleHint: string;
+  styleHint: (name: string) => string;
   styles: Record<ImageStyle, { label: string; hint: string }>;
   songToggle: string;
   songToggleHint: (name: string) => string;
@@ -135,8 +135,8 @@ const he: Strings = {
   sendBlessing: "שליחת הברכה ✦",
   consentScreenBlessing: "אפשר להציג את הברכה שלי על המסך באולם",
   blessingPlaceholder: (name) => `${name} יקר, מאחלים לך...`,
-  styleTitle: "באיזה סגנון?",
-  styleHint: "הסיפור שלכם, בסגנון שתבחרו.",
+  styleTitle: "באיזה סגנון תרצו את התמונה שלכם?",
+  styleHint: (name) => `ה-AI יצייר את ${name} בתמונה אחת מהסיפור שסיפרתם, ובשלב הבא תוכלו להוסיף תמונה שלכם כדי להופיע לידו. בחרו איך היא תיראה.`,
   styles: {
     movie: { label: "פוסטר קולנועי", hint: "אתם בכיכוב סרט שנולד מהסיפור שלכם" },
     animation: { label: "סרט אנימציה", hint: "דמויות תלת־ממד, כמו בסרט מצויר" },
@@ -227,8 +227,8 @@ const en: Strings = {
   sendBlessing: "Send my blessing ✦",
   consentScreenBlessing: "My blessing may be shown on the screen at the party",
   blessingPlaceholder: (name) => `Dear ${name}, we wish you...`,
-  styleTitle: "Which style?",
-  styleHint: "Your story, in the style you pick.",
+  styleTitle: "Which style would you like your picture in?",
+  styleHint: (name) => `AI paints ${name} in one picture from the story you told; next, you can add a photo of yourself to appear beside him. Pick how it looks.`,
   styles: {
     movie: { label: "Movie poster", hint: "Starring in a film born from your story" },
     animation: { label: "Animated film", hint: "3D characters, like a cartoon movie" },

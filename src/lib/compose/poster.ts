@@ -116,10 +116,10 @@ type Box = { x0: number; y0: number; x1: number; y1: number };
 /** Face boxes in pixels, with a margin so letters do not touch a chin or an ear. */
 function faceBoxes(faces: FaceBox[] | undefined, w: number, h: number): Box[] {
   return (faces ?? []).map((f) => ({
-    x0: Math.max(0, Math.min(f.left, f.right) * w - w * 0.03),
-    x1: Math.min(w, Math.max(f.left, f.right) * w + w * 0.03),
-    y0: Math.max(0, Math.min(f.top, f.bottom) * h - h * 0.02),
-    y1: Math.min(h, Math.max(f.top, f.bottom) * h + h * 0.02),
+    x0: Math.max(0, Math.min(f.left, f.right) * w - w * 0.04),
+    x1: Math.min(w, Math.max(f.left, f.right) * w + w * 0.04),
+    y0: Math.max(0, Math.min(f.top, f.bottom) * h - h * 0.03),
+    y1: Math.min(h, Math.max(f.top, f.bottom) * h + h * 0.025),
   }));
 }
 
@@ -163,17 +163,33 @@ function drawSignOff(ctx: SKRSContext2D, w: number, bottom: number, text: Poster
   return senderY - senderSize;
 }
 
-/** The sign-off, made smaller until it clears every face. Returns its top. */
+/**
+ * A soft dark band behind text that cannot avoid a face, so the words read as a deliberate caption strip
+ * over the picture rather than letters printed on someone.
+ */
+function backing(ctx: SKRSContext2D, w: number, y0: number, y1: number) {
+  ctx.save();
+  ctx.shadowBlur = 0;
+  const g = ctx.createLinearGradient(0, y0, 0, y1);
+  g.addColorStop(0, "rgba(24,28,14,0)");
+  g.addColorStop(0.25, "rgba(24,28,14,0.62)");
+  g.addColorStop(0.75, "rgba(24,28,14,0.62)");
+  g.addColorStop(1, "rgba(24,28,14,0)");
+  ctx.fillStyle = g;
+  ctx.fillRect(0, y0, w, y1 - y0);
+  ctx.restore();
+}
+
+/** The sign-off, made smaller until it clears every face; on a caption band when even the smallest does not. Returns its top. */
 function placeSignOff(ctx: SKRSContext2D, w: number, bottom: number, text: PosterText, scale: number, faces: Box[]): number {
   const low = facesBottom(faces);
-  let chosen = scale * 0.65;
   for (let sc = scale; sc >= scale * 0.65; sc -= 0.05) {
-    if (drawSignOff(ctx, w, bottom, text, sc, false) >= low) {
-      chosen = sc;
-      break;
-    }
+    if (drawSignOff(ctx, w, bottom, text, sc, false) >= low) return drawSignOff(ctx, w, bottom, text, sc);
   }
-  return drawSignOff(ctx, w, bottom, text, chosen);
+  const sc = scale * 0.75;
+  const top = drawSignOff(ctx, w, bottom, text, sc, false);
+  backing(ctx, w, top - w * 0.03, bottom + w * 0.02);
+  return drawSignOff(ctx, w, bottom, text, sc);
 }
 
 /** Movie, animation, comic and toy box: title on top, sign-off at the bottom, both kept off the faces. */
@@ -185,22 +201,44 @@ function drawMoviePoster(ctx: SKRSContext2D, img: Img, w: number, h: number, tex
   shade(ctx, w, h * 0.55, h, 0, 0.92);
   prepare(ctx);
 
-  // Largest title (and tagline) whose block ends above the highest face.
+  // The title goes where it covers no face: on top (with the tagline, then without), else in the free band
+  // between the faces and the sign-off, else on top on a caption band, at the smallest size.
   const ceiling = facesTop(faces, h);
+  const low = facesBottom(faces);
   const taglineSize = Math.round(w * 0.032);
-  let title = { size: 0, lines: [] as string[] };
-  let tagline = text.tagline;
-  const blockBottom = () => h * 0.035 + title.size + (title.lines.length - 1) * title.size * 1.05 + (tagline ? w * 0.025 + taglineSize * 0.3 : title.size * 0.25);
-  for (let max = Math.round(w * 0.11); max >= Math.round(w * 0.06); max -= 4) {
-    title = fit(ctx, { text: text.title, font: (s) => `900 ${s}px "${TITLE_FONT}"`, maxSize: max, minSize: Math.round(w * 0.06), maxLines: 2 }, w * 0.86);
-    if (blockBottom() <= ceiling) break;
+  const minTitle = Math.round(w * 0.06);
+  const titleFont = (s: number) => `900 ${s}px "${TITLE_FONT}"`;
+  const fitTitle = (max: number) => fit(ctx, { text: text.title, font: titleFont, maxSize: max, minSize: minTitle, maxLines: 2 }, w * 0.86);
+  // Height from the block's top to the end of its last line (or of the tagline).
+  const blockHeight = (t: { size: number; lines: string[] }, withTagline: boolean) =>
+    t.size + (t.lines.length - 1) * t.size * 1.05 + (withTagline ? w * 0.025 + taglineSize * 0.3 : t.size * 0.25);
+  const top = h * 0.035;
+  const signOffTop = drawSignOff(ctx, w, h - h * 0.03, text, 1, false) - h * 0.015;
+  let place: { title: { size: number; lines: string[] }; tagline: string; y: number } | undefined;
+  for (const tagline of text.tagline ? [text.tagline, ""] : [""]) {
+    for (let max = Math.round(w * 0.11); max >= minTitle && !place; max -= 4) {
+      const t = fitTitle(max);
+      if (top + blockHeight(t, Boolean(tagline)) <= ceiling) place = { title: t, tagline, y: top };
+    }
+    if (place) break;
   }
-  // A face very high in the frame: the tagline gives way before anything lands on it.
-  if (blockBottom() > ceiling) tagline = "";
+  if (!place && faces.length) {
+    for (let max = Math.round(w * 0.09); max >= minTitle && !place; max -= 4) {
+      const t = fitTitle(max);
+      const height = blockHeight(t, false);
+      if (signOffTop - height >= low) place = { title: t, tagline: "", y: signOffTop - height };
+    }
+  }
+  if (!place) {
+    const t = fitTitle(minTitle);
+    place = { title: t, tagline: "", y: h * 0.02 };
+    backing(ctx, w, 0, place.y + blockHeight(t, false) + w * 0.03);
+  }
+  const { title, tagline } = place;
 
   const comic = text.style === "comic";
-  ctx.font = `900 ${title.size}px "${TITLE_FONT}"`;
-  const titleY = h * 0.035 + title.size;
+  ctx.font = titleFont(title.size);
+  const titleY = place.y + title.size;
   if (comic) {
     // Comic masthead: yellow letters with a heavy ink outline.
     ctx.lineJoin = "round";
@@ -383,10 +421,18 @@ function drawCard(ctx: SKRSContext2D, img: Img, w: number, h: number, text: Post
   fillText(ctx, POSTER_WORDS[text.lang ?? "he"].badge, bx, by + r * 0.58);
   prepare(ctx);
 
-  // Name plate.
+  // Name plate: at 60% of the height, or lower when a face reaches down there. When a face is so low that the
+  // stats would cover it, the stats are left out and the plate goes under the face.
   const cx = w / 2;
-  const plateY = h * 0.6;
   const title = fit(ctx, { text: text.title, font: (s) => `900 ${s}px "${TITLE_FONT}"`, maxSize: Math.round(w * 0.085), minSize: 40, maxLines: 1 }, w * 0.8);
+  const valueSize = Math.round(w * 0.06);
+  const labelSize = Math.round(w * 0.03);
+  const statsHeight = (n: number) => (n ? title.size * 0.35 + valueSize * 1.2 + (Math.ceil(n / 2) - 1) * valueSize * 1.75 + labelSize * 1.6 : 0);
+  const signOffTop = drawSignOff(ctx, w, h - m - h * 0.022, text, 0.85, false) - h * 0.015;
+  const below = facesBottom(faceBoxes(text.faces, w, h)) + title.size * 0.95;
+  let stats = text.stats.slice(0, 4);
+  if (below > signOffTop - statsHeight(stats.length)) stats = [];
+  const plateY = Math.max(h * 0.6, Math.min(below, signOffTop - statsHeight(stats.length)));
   ctx.fillStyle = gold;
   ctx.fillRect(m, plateY - title.size * 0.95, w - 2 * m, title.size * 1.3);
   ctx.shadowBlur = 0;
@@ -396,10 +442,7 @@ function drawCard(ctx: SKRSContext2D, img: Img, w: number, h: number, text: Post
   prepare(ctx);
 
   // Stats, 2x2, right column first.
-  const stats = text.stats.slice(0, 4);
   const colX = [w * 0.72, w * 0.28];
-  const valueSize = Math.round(w * 0.06);
-  const labelSize = Math.round(w * 0.03);
   const rowY = plateY + title.size * 0.35 + valueSize * 1.2;
   stats.forEach((st, i) => {
     const x = colX[i % 2];
