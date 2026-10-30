@@ -179,6 +179,7 @@ function SubmissionCard({ s, run }: { s: Submission; run: (fn: () => Promise<unk
               </span>
             ))}
             {s.input.consentMarketing && <span className="rounded-full bg-olive-100 px-2 py-0.5 text-xs text-accent">מאושר לשיווק</span>}
+            {s.analysis?.isAppropriate === false && <span className="rounded-full bg-clay px-2 py-0.5 text-xs font-bold text-canvas" title="לא נוצרה תמונה. אפשר ליצור מחדש אם הברכה בסדר">⚠️ תוכן לא ראוי</span>}
             {s.test && <span className="rounded-full bg-clay px-2 py-0.5 text-xs font-bold text-canvas">🧪 טסט</span>}
             {(s.hidden || !s.input.consentScreen || s.test) && <span className="rounded-full bg-olive-100 px-2 py-0.5 text-xs text-muted">לא במסך</span>}
           </div>

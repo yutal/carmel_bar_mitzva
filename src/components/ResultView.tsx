@@ -58,7 +58,7 @@ export default function ResultView({ publicId, initialLang = "he" }: { publicId:
               <Actions url={data.image.url} title={data.image.title} t={t} />
             </figure>
           ) : imageFailed ? (
-            <Failed text={t.failed("image")} hint={t.failedHint} />
+            data.blocked ? <Failed text={t.blockedTitle} hint={t.blockedText} /> : <Failed text={t.failed("image")} hint={t.failedHint} />
           ) : (
             <Progress data={data} t={t} />
           )}
@@ -86,7 +86,7 @@ export default function ResultView({ publicId, initialLang = "he" }: { publicId:
               )}
             </>
           ) : songFailed ? (
-            <Failed text={t.failed("song")} hint={t.failedHint} />
+            data.blocked ? <Failed text={t.blockedTitle} hint={t.blockedText} /> : <Failed text={t.failed("song")} hint={t.failedHint} />
           ) : (
             <div className="flex items-center gap-3" role="status">
               <span className="size-8 animate-spin rounded-full border-4 border-line border-t-accent" />

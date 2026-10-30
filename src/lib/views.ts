@@ -12,6 +12,8 @@ export type PublicSubmission = {
   experience: Submission["input"]["experience"];
   /** Whether it goes up on the hall screen once ready. */
   onScreen: boolean;
+  /** The analysis found the text unfit for the event, so nothing was created. */
+  blocked?: boolean;
   stages: { analysis: StageState["status"]; image?: StageState["status"]; song?: StageState["status"] };
   /** While waiting for a free slot: creations ahead and a rough estimate. */
   queue?: { ahead: number; etaSeconds: number };
@@ -43,6 +45,7 @@ export function toPublic(s: Submission, queue?: PublicSubmission["queue"]): Publ
     blessing: s.input.blessing,
     experience: s.input.experience,
     onScreen: showsOnScreen(s),
+    ...(s.analysis?.isAppropriate === false && { blocked: true }),
     ...(queue && { queue }),
     phase: imagePhase(s),
     stages: {

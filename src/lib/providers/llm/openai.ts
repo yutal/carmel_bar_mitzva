@@ -57,6 +57,12 @@ async function structured<S extends z.ZodType>(
 /** A 1024px JPEG: plenty to see faces, and keeps the request small. */
 const asJpeg = (b: Buffer) => sharp(b).rotate().resize(1024, 1024, { fit: "inside" }).jpeg({ quality: 85 }).toBuffer();
 
+/**
+ * The moderation categories that block a guest's text. The model's own "flagged" also fires on mild violence and
+ * profanity ("you killed it"), which a celebration is full of, so only the clear categories count.
+ */
+const BLOCKED_CATEGORIES = ["hate", "hate/threatening", "harassment/threatening", "sexual", "sexual/minors", "violence/graphic"] as const;
+
 export const openAiLlm: LlmProvider = {
   analyze(input, event) {
     return structured(AnalysisSchema, "analysis", ANALYSIS_SYSTEM, guestContext(input, event));
@@ -70,6 +76,11 @@ export const openAiLlm: LlmProvider = {
   songConcept(input, analysis, event) {
     const user = [guestContext(input, event), "", `Analysis:\n${analysisSummary(analysis)}`, "", songStyleHint(input)].join("\n");
     return structured(SongConceptSchema, "song_concept", SONG_CONCEPT_SYSTEM, user);
+  },
+  async moderate(texts) {
+    // Free and quick. A bare list of texts comes back in the same order.
+    const { results } = await openai().moderations.create({ model: "omni-moderation-latest", input: texts });
+    return results.map((r) => BLOCKED_CATEGORIES.some((c) => r.categories[c]));
   },
   async locateFaces(art) {
     const { faces } = await structured(FaceMapSchema, "face_map", FACE_MAP_SYSTEM, "Locate every face in this image.", await asJpeg(art));

@@ -26,7 +26,7 @@ const rowOfFaces = (n: number): Box[] =>
     return { left, top: 0.3, right: left + w - 0.02, bottom: 0.3 + w * 0.9 };
   });
 
-/** Offline providers for local development and tests (AI_PROVIDER=mock). */
+/** Offline providers for local development and tests (AI_PROVIDER=mock). MOCK_INAPPROPRIATE=1 makes the analysis flag every text. */
 export const mockLlm: LlmProvider = {
   async analyze() {
     return {
@@ -37,8 +37,11 @@ export const mockLlm: LlmProvider = {
       celebrantTraits: ["competitive"],
       visualMotifs: ["basketball court", "trophy"],
       tone: "epic",
-      isAppropriate: true,
+      isAppropriate: process.env.MOCK_INAPPROPRIATE !== "1",
     };
+  },
+  async moderate(texts) {
+    return texts.map(() => false);
   },
   async imageConcept(input, _event, guestPhoto) {
     const style = input.imageStyle ?? "movie";

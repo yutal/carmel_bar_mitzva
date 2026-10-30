@@ -4,6 +4,7 @@ import { jsonError } from "@/lib/http";
 import { getEvent } from "@/lib/storage/event";
 import { config } from "@/lib/config";
 import { createSubmission, remainingFor, saveFile } from "@/lib/storage/submissions";
+import { inappropriateField } from "@/lib/moderation";
 import { GuestInputSchema } from "@/lib/types";
 
 export async function POST(request: Request) {
@@ -30,6 +31,9 @@ export async function POST(request: Request) {
     consentMarketing: text("consentMarketing") === "true",
   });
   if (!parsed.success) return jsonError("חסרים פרטים בטופס", 422);
+  // Stops before anything is stored or painted. The page words the message in the guest's language and goes back to the field.
+  const field = await inappropriateField(parsed.data);
+  if (field) return Response.json({ error: "התוכן אינו מתאים לאירוע", code: "inappropriate", field }, { status: 422 });
   if (parsed.data.experience !== "blessing" && (await remainingFor(parsed.data.fullName)) === 0) {
     return jsonError(`כבר יצרת ${config.maxCreationsPerGuest} יצירות, וזה המקסימום לאורח. תודה שבירכת!`, 429);
   }

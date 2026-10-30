@@ -27,7 +27,10 @@ export function guestContext(input: GuestInput, event: EventSettings, opts: { bl
 export const ANALYSIS_SYSTEM = `You analyse a personal Bar Mitzvah blessing written by a guest, in Hebrew, English or any other language.
 Extract only what the guest actually wrote or clearly implied. Never invent hobbies, events or facts.
 Prefer concrete, specific details (a sport, a place, a game, a running joke) over generic sentiment.
-Write list items in short English phrases. Empty lists are fine when nothing fits.`;
+Write list items in short English phrases. Empty lists are fine when nothing fits.
+Set isAppropriate to false only for text that is clearly unfit for a family event: slurs, hateful, sexual or threatening
+content, or the harshest profanity, in any language. Teasing, sports trash talk, slang, jokes about the celebrant and mild
+swearing are normal at a celebration and stay appropriate. When in doubt, it is appropriate.`;
 
 export const IMAGE_CONCEPT_SYSTEM = `You are the creative director of a personalised art booth at a Bar Mitzvah.
 Turn one guest's story (their answers about what they do together, a shared memory and the celebrant's talent) into ONE

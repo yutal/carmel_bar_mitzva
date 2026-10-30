@@ -69,6 +69,9 @@ type Strings = {
   create: string;
   sending: string;
   genericError: string;
+  inappropriate: string;
+  blockedTitle: string;
+  blockedText: string;
   // Result page
   loading: string;
   notFound: string;
@@ -162,6 +165,9 @@ const he: Strings = {
   create: "צור לי ✦",
   sending: "שולחים...",
   genericError: "משהו השתבש, נסו שוב",
+  inappropriate: "יש כאן ניסוח שלא מתאים לאירוע משפחתי. אפשר לנסח אחרת? העברנו אתכם לשדה שצריך לשנות.",
+  blockedTitle: "לא הצלחנו ליצור את התמונה",
+  blockedText: "הברכה שלכם נשמרה באלבום, אבל התוכן לא התאים ליצירה. אפשר לנסות שוב עם ניסוח אחר.",
   loading: "טוען...",
   notFound: "היצירה לא נמצאה, או שתוקף הקישור עבר.",
   creationOf: (name) => `היצירה של ${name}`,
@@ -254,6 +260,9 @@ const en: Strings = {
   create: "Create ✦",
   sending: "Sending...",
   genericError: "Something went wrong, please try again",
+  inappropriate: "Part of this is not suitable for a family event. Could you word it differently? We took you to the field to change.",
+  blockedTitle: "We could not create your picture",
+  blockedText: "Your blessing is saved in the album, but the content did not fit the creation. You can try again with different wording.",
   loading: "Loading...",
   notFound: "This creation was not found, or the link has expired.",
   creationOf: (name) => `${name}'s creation`,

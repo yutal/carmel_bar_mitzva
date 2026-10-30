@@ -10,6 +10,8 @@ import { filePath, getSubmission, saveFile, setStage, updateSubmission } from "@
 import type { EventSettings, FaceBox, GuestInput, ImageConcept, StageName, Submission } from "@/lib/types";
 
 const MAX_CELEBRANT_REFS = 5;
+/** Shown in the admin as the failure reason when the analysis finds the guest's text unfit. */
+const BLOCKED_REASON = "תוכן לא ראוי";
 
 function needsWork(s: Submission, stage: StageName): boolean {
   const st = s.stages[stage]?.status;
@@ -35,6 +37,11 @@ export async function runSubmission(id: string): Promise<void> {
       return;
     }
     s = (await getSubmission(id))!;
+    // The analysis found the text unfit: no picture or song is made. The organiser can still regenerate it from /admin.
+    if (s.analysis && !s.analysis.isAppropriate) {
+      await failRemaining(id, BLOCKED_REASON);
+      return;
+    }
   }
 
   // Image first: a song-and-image submission reuses the poster art for its cover.

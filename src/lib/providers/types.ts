@@ -17,6 +17,8 @@ export interface LlmProvider {
   locateFaces(art: Buffer): Promise<FaceBox[]>;
   /** Checks a finished artwork against the celebrant and the guest photo: head count, copies, style. */
   checkPoster(art: Buffer, celebrant: Buffer, guestPhoto: Buffer | undefined, style: string): Promise<PosterCheck>;
+  /** Whether each text is clearly unfit for a family event (hate, sexual content, threats, graphic violence). Same order as the input. */
+  moderate(texts: string[]): Promise<boolean[]>;
   /** Picks the strongest spoken lines of a guest's video or recording for a short clip. */
   clipPlan(segments: TranscriptSegment[], ctx: { guestName: string; celebrantName: string; maxSeconds: number }): Promise<ClipPlan>;
 }

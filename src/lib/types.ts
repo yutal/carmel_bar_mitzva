@@ -59,7 +59,7 @@ export const AnalysisSchema = z.object({
   celebrantTraits: z.array(z.string()).describe("Interests, talents, personality of the celebrant mentioned"),
   visualMotifs: z.array(z.string()).describe("Concrete objects, places, props that could appear in a picture"),
   tone: z.enum(["emotional", "funny", "epic", "sweet", "mixed"]),
-  isAppropriate: z.boolean().describe("False if the text is offensive or unsuitable for a family event"),
+  isAppropriate: z.boolean().describe("False only when the text is clearly unfit for a family event: slurs, hate, sexual or threatening content, the harshest profanity. Teasing, slang and mild swearing are fine"),
 });
 export type Analysis = z.infer<typeof AnalysisSchema>;
 

@@ -3,7 +3,7 @@ import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 import type { Lang } from "@/lib/i18n";
 import { DEFAULT_EVENT, IMAGE_STYLES, ImageConceptSchema, LANGS, type GuestInput, type ImageStyle } from "@/lib/types";
-import { IMAGE_CONCEPT_SYSTEM, imageConceptInput } from "./index";
+import { ANALYSIS_SYSTEM, IMAGE_CONCEPT_SYSTEM, imageConceptInput } from "./index";
 import { buildCoverPrompt, buildImagePrompt, castMismatch, headCount, sendsGuestPhoto, type Cast, type Reference } from "./image";
 import { STYLE_BRIEFS, STYLE_RENDER } from "./styles";
 
@@ -159,6 +159,14 @@ describe("head count after painting", () => {
   });
   it("no photo and no face found is not a reason to paint again", () => {
     assert.equal(castMismatch(0, none), null);
+  });
+});
+
+describe("content protection", () => {
+  it("the analysis blocks only clearly unfit text", () => {
+    assert.match(ANALYSIS_SYSTEM, /isAppropriate to false only for text that is clearly unfit/);
+    assert.match(ANALYSIS_SYSTEM, /mild\s+swearing are normal/);
+    assert.match(ANALYSIS_SYSTEM, /When in doubt, it is appropriate/);
   });
 });
 

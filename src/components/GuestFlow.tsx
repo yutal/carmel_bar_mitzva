@@ -119,7 +119,15 @@ export default function GuestFlow({ again, lang = "he" }: { again?: { fullName: 
       body.set("consentPhoto", String(Boolean(photo) && !blessingOnly));
       if (photo && !blessingOnly) body.set("photo", await resizeImage(photo), "photo.jpg");
       const res = await fetch("/api/submissions", { method: "POST", body });
-      const data = (await res.json()) as { publicId?: string; error?: string };
+      const data = (await res.json()) as { publicId?: string; error?: string; code?: string; field?: string };
+      if (data.code === "inappropriate") {
+        // Back to the step with the field to reword, with the message in the guest's language.
+        setStep(data.field === "blessing" ? "blessing" : data.field === "together" || data.field === "memory" || data.field === "talent" ? "story" : "who");
+        window.scrollTo({ top: 0, behavior: "smooth" });
+        setError(t.inappropriate);
+        setSubmitting(false);
+        return;
+      }
       if (!res.ok || !data.publicId) throw new Error(data.error ?? t.genericError);
       // Replace, so the back button cannot return to a filled form and send it again.
       router.replace(`/r/${data.publicId}${lang === "he" ? "" : `?lang=${lang}`}`);
