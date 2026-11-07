@@ -1,5 +1,6 @@
 "use client";
 
+import { adminSlug, adminUrl, setAdminSlug } from "./admin-url";
 import { useCallback, useEffect, useState } from "react";
 import type { EventSettings, StageName, StageStatus, Submission } from "@/lib/types";
 import { IMAGE_STYLES } from "@/lib/types";
@@ -21,16 +22,17 @@ const STATUS_COLOR: Record<StageStatus, string> = {
   awaiting_music: "bg-olive-100 text-accent",
 };
 const STAGE_LABEL: Record<StageName, string> = { analysis: "ניתוח", image: "תמונה", song: "שיר" };
-const fileUrl = (rel: string, download = false) => `/api/admin/file?path=${encodeURIComponent(rel)}${download ? "&download" : ""}`;
+const fileUrl = (rel: string, download = false) => `/api/admin/e/${adminSlug()}/file?path=${encodeURIComponent(rel)}${download ? "&download" : ""}`;
 
 async function api<T>(url: string, init?: RequestInit): Promise<T> {
-  const res = await fetch(url, { cache: "no-store", ...init });
+  const res = await fetch(adminUrl(url), { cache: "no-store", ...init });
   const data = await res.json().catch(() => ({}));
   if (!res.ok) throw new Error((data as { error?: string }).error ?? `HTTP ${res.status}`);
   return data as T;
 }
 
-export default function AdminDashboard() {
+export default function AdminDashboard({ slug }: { slug: string }) {
+  setAdminSlug(slug);
   const [subs, setSubs] = useState<Submission[]>([]);
   const [queue, setQueue] = useState({ waiting: 0, running: 0 });
   const [filter, setFilter] = useState<Filter>("all");
@@ -88,12 +90,12 @@ export default function AdminDashboard() {
           <p className="text-muted">{subs.length} ברכות · בתור: {queue.waiting} · רצות עכשיו: {queue.running}</p>
         </div>
         <div className="flex flex-wrap gap-2">
-          <a className="btn-ghost" href="/screen" target="_blank">מסך אולם ↗</a>
-          <a className="btn-ghost" href="/admin/lab">🎬 מעבדת וידאו וקול</a>
-          <a className="btn-ghost" href="/admin/qa">🧪 בדיקת סגנונות</a>
-          <a className="btn-primary" href="/api/admin/export">⬇️ ייצוא אלבום (ZIP)</a>
-          <a className="btn-ghost" href="/api/admin/export?marketing=1">⬇️ מאושרים לשיווק (ZIP)</a>
-          <a className="btn-ghost" href="/api/admin/export/pdf">📖 אלבום להדפסה (PDF)</a>
+          <a className="btn-ghost" href={`/e/${slug}/screen`} target="_blank">מסך אולם ↗</a>
+          <a className="btn-ghost" href={`/admin/e/${slug}/lab`}>🎬 מעבדת וידאו וקול</a>
+          <a className="btn-ghost" href={`/admin/e/${slug}/qa`}>🧪 בדיקת סגנונות</a>
+          <a className="btn-primary" href={`/api/admin/e/${slug}/export`}>⬇️ ייצוא אלבום (ZIP)</a>
+          <a className="btn-ghost" href={`/api/admin/e/${slug}/export?marketing=1`}>⬇️ מאושרים לשיווק (ZIP)</a>
+          <a className="btn-ghost" href={`/api/admin/e/${slug}/export/pdf`}>📖 אלבום להדפסה (PDF)</a>
         </div>
       </header>
 
@@ -374,7 +376,8 @@ function StatusPanel({ onShowFailed }: { onShowFailed: () => void }) {
         {tile("פוסטרים מוכנים", `${posters.done} מתוך ${st.submissions.total}`, `בשעה האחרונה: ${st.submissions.lastHour} ברכות`)}
         {tile("בעבודה עכשיו", `${st.queue.running + st.queue.waiting}`, `רצות ${st.queue.running} מתוך ${st.queue.concurrency}, ממתינות ${st.queue.waiting}`)}
         {tile("כשלים", `${st.failures.length}`, st.failures.length ? "אפשר ליצור מחדש מהכרטיס" : "הכל תקין", st.failures.length > 0)}
-        {tile("הוצאה על OpenAI (הערכה)", usd(st.spend.totalUsd), st.spend.perPosterUsd !== null ? `כ-${usd(st.spend.perPosterUsd)} לפוסטר · 24 שעות: ${usd(st.spend.last24hUsd)}` : `24 שעות: ${usd(st.spend.last24hUsd)}`)}
+        {st.spend && tile("הוצאה על OpenAI (הערכה)", usd(st.spend.totalUsd), st.spend.perPosterUsd !== null ? `כ-${usd(st.spend.perPosterUsd)} לפוסטר · 24 שעות: ${usd(st.spend.last24hUsd)}` : `24 שעות: ${usd(st.spend.last24hUsd)}`)}
+        {st.license && tile("רישיון האירוע", st.license.open ? "פתוח" : "סגור", st.license.reason ?? `יצירות: ${st.license.creationsUsed}${st.license.maxCreations ? ` מתוך ${st.license.maxCreations}` : ""}`, !st.license.open)}
         {b
           ? tile(
               "נשאר ביתרה (הערכה)",

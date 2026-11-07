@@ -1,17 +1,18 @@
 "use client";
 
+import { adminSlug, adminUrl, setAdminSlug } from "./admin-url";
 import { useCallback, useEffect, useRef, useState } from "react";
 import type { ChoirState } from "@/lib/lab/choir";
 import type { LabJob } from "@/lib/lab/jobs";
 import type { Submission } from "@/lib/types";
 
-const fileUrl = (rel: string, download = false) => `/api/admin/file?path=${encodeURIComponent(rel)}${download ? "&download" : ""}`;
+const fileUrl = (rel: string, download = false) => `/api/admin/e/${adminSlug()}/file?path=${encodeURIComponent(rel)}${download ? "&download" : ""}`;
 const secs = (n: number) => `${Math.floor(n / 60)}:${String(Math.round(n % 60)).padStart(2, "0")}`;
 // whisper-1 list price, $0.006 per minute of audio.
 const transcribeCost = (seconds: number) => (seconds / 60) * 0.006;
 
 async function api<T>(url: string, init?: RequestInit): Promise<T> {
-  const res = await fetch(url, { cache: "no-store", ...init });
+  const res = await fetch(adminUrl(url), { cache: "no-store", ...init });
   const data = await res.json().catch(() => ({}));
   if (!res.ok) throw new Error((data as { error?: string }).error ?? `HTTP ${res.status}`);
   return data as T;
@@ -21,7 +22,7 @@ async function api<T>(url: string, init?: RequestInit): Promise<T> {
 function upload(url: string, body: FormData, onProgress: (p: number) => void): Promise<void> {
   return new Promise((resolve, reject) => {
     const xhr = new XMLHttpRequest();
-    xhr.open("POST", url);
+    xhr.open("POST", adminUrl(url));
     xhr.upload.onprogress = (e) => e.lengthComputable && onProgress(e.loaded / e.total);
     xhr.onload = () => {
       if (xhr.status < 300) return resolve();
@@ -36,7 +37,8 @@ function upload(url: string, body: FormData, onProgress: (p: number) => void): P
   });
 }
 
-export default function MediaLab() {
+export default function MediaLab({ slug }: { slug: string }) {
+  setAdminSlug(slug);
   const [jobs, setJobs] = useState<LabJob[]>([]);
   const [music, setMusic] = useState(false);
   const [posters, setPosters] = useState<Submission[]>([]);
@@ -80,7 +82,7 @@ export default function MediaLab() {
             גלוי רק לך.
           </p>
         </div>
-        <a className="btn-ghost" href="/admin">→ חזרה לניהול</a>
+        <a className="btn-ghost" href={`/admin/e/${slug}`}>→ חזרה לניהול</a>
       </header>
 
       <div className="grid gap-6 lg:grid-cols-[3fr_2fr]">

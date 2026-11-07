@@ -4,8 +4,20 @@ import { getHeapStatistics } from "node:v8";
 import { config } from "@/lib/config";
 import { ffmpegAvailable } from "@/lib/media/ffmpeg";
 import { queueStats } from "@/lib/pipeline/queue";
+import { forEachEvent } from "@/lib/platform/events";
 import { listCelebrantPhotos } from "@/lib/storage/event";
 import { listSubmissions } from "@/lib/storage/submissions";
+
+/** Totals across all events: no names, slugs or guest data on this public endpoint. */
+async function counts() {
+  const c = { events: 0, submissions: 0, celebrantPhotos: 0 };
+  await forEachEvent(async () => {
+    c.events++;
+    c.submissions += (await listSubmissions()).length;
+    c.celebrantPhotos += (await listCelebrantPhotos()).length;
+  });
+  return c;
+}
 
 const MB = 1024 * 1024;
 
@@ -34,13 +46,12 @@ async function canWrite(dir: string): Promise<boolean> {
 
 /** Public, anonymous health check: storage, memory and queue. No guest data. */
 export async function GET() {
-  const [persistent, writable, stats, memLimit, submissions, celebrantPhotos, ffmpeg] = await Promise.all([
+  const [persistent, writable, stats, memLimit, totals, ffmpeg] = await Promise.all([
     isMountPoint(config.dataDir),
     canWrite(config.dataDir),
     fs.statfs(config.dataDir),
     containerMemoryLimit(),
-    listSubmissions(),
-    listCelebrantPhotos(),
+    counts(),
     ffmpegAvailable(),
   ]);
   return Response.json(
@@ -61,9 +72,9 @@ export async function GET() {
         rssMB: Math.round(process.memoryUsage().rss / MB),
         heapLimitMB: Math.round(getHeapStatistics().heap_size_limit / MB),
       },
-      generation: { concurrency: config.concurrency, ...queueStats() },
+      generation: { concurrency: config.concurrency, ...queueStats("all") },
       videoLab: { ffmpeg },
-      counts: { submissions: submissions.length, celebrantPhotos: celebrantPhotos.length },
+      counts: totals,
     },
     { headers: { "Cache-Control": "no-store" } },
   );

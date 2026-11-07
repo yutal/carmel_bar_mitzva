@@ -1,24 +1,28 @@
 import { Suspense } from "react";
-import GuestFlow from "@/components/GuestFlow";
-import { isLang } from "@/lib/i18n";
+import { connection } from "next/server";
+import { redirect } from "next/navigation";
+import { getPlatform } from "@/lib/platform/events";
 
 export default function Home({ searchParams }: PageProps<"/">) {
   return (
-    <Suspense fallback={<GuestFlow />}>
-      <Guest searchParams={searchParams} />
+    <Suspense>
+      <Root searchParams={searchParams} />
     </Suspense>
   );
 }
 
-/** ?lang=en switches the guest pages to English. "Another creation" links carry the guest's name, so the flow starts at the first question, already filled in. */
-async function Guest({ searchParams }: { searchParams: PageProps<"/">["searchParams"] }) {
-  const params = await searchParams;
-  const one = (v: string | string[] | undefined) => (typeof v === "string" ? v.slice(0, 60) : "");
-  const lang = isLang(params.lang) ? params.lang : "he";
-  // The key resets the form when the guest switches language on the welcome screen.
-  return params.again ? (
-    <GuestFlow key={lang} lang={lang} again={{ fullName: one(params.name), relationship: one(params.rel) }} />
-  ) : (
-    <GuestFlow key={lang} lang={lang} />
-  );
+/** The site root opens the default event, so QR codes printed before events existed keep working. */
+async function Root({ searchParams }: Pick<PageProps<"/">, "searchParams">): Promise<React.ReactElement> {
+  await connection();
+  const { defaultEvent } = await getPlatform();
+  const query = new URLSearchParams();
+  for (const [k, v] of Object.entries(await searchParams)) if (typeof v === "string") query.set(k, v);
+  if (!defaultEvent) {
+    return (
+      <main className="mx-auto flex min-h-dvh max-w-md items-center justify-center px-5 text-center">
+        <p className="text-lg text-muted">אין כרגע אירוע פעיל בכתובת הזאת.</p>
+      </main>
+    );
+  }
+  redirect(`/e/${defaultEvent}${query.size ? `?${query}` : ""}`);
 }

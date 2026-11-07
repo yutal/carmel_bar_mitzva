@@ -2,6 +2,7 @@ import "server-only";
 import fs from "node:fs/promises";
 import path from "node:path";
 import { config } from "@/lib/config";
+import { currentSlug } from "@/lib/platform/scope";
 import { DIRS, dataPath, ensureDirs, readJson, writeFileAtomic, writeJson } from "./fs";
 import { DEFAULT_EVENT, type EventSettings } from "@/lib/types";
 
@@ -10,8 +11,8 @@ const IMAGE_EXT = new Set([".jpg", ".jpeg", ".png", ".webp"]);
 
 export async function getEvent(): Promise<EventSettings> {
   const event = { ...DEFAULT_EVENT, ...(await readJson<Partial<EventSettings>>(eventFile())) };
-  // The look description shipped with the app applies until someone writes one in /admin.
-  if (!event.celebrantLook.trim()) event.celebrantLook = await seedLook();
+  // The look description shipped with the app applies to the first event until someone writes one in /admin.
+  if (!event.celebrantLook.trim() && currentSlug() === config.defaultEventSlug) event.celebrantLook = await seedLook();
   return event;
 }
 
@@ -22,8 +23,8 @@ async function seedLook(): Promise<string> {
 }
 
 /**
- * Copies the celebrant photos shipped in assets/celebrant into DATA_DIR, so they survive
- * a host without a persistent disk. Photos already there are left alone.
+ * Copies the celebrant photos shipped in assets/celebrant into the first event, so they survive
+ * a host without a persistent disk. Photos already there are left alone. Call inside that event's scope.
  */
 export async function seedCelebrantPhotos(): Promise<number> {
   await ensureDirs();
@@ -54,7 +55,7 @@ export function celebrantPhotoPath(name: string): string {
 }
 
 export async function addCelebrantPhoto(jpeg: Buffer): Promise<string> {
-  const name = `carmel_${Date.now()}.jpg`;
+  const name = `celebrant_${Date.now()}.jpg`;
   await writeFileAtomic(celebrantPhotoPath(name), jpeg);
   return name;
 }

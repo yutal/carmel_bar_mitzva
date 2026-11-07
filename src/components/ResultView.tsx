@@ -8,7 +8,7 @@ const ACTIVE = new Set(["pending", "running"]);
 type T = (typeof STRINGS)[Lang];
 
 export default function ResultView({ publicId, initialLang = "he" }: { publicId: string; initialLang?: Lang }) {
-  const [data, setData] = useState<PublicSubmission | null>(null);
+  const [data, setData] = useState<(PublicSubmission & { event?: string }) | null>(null);
   const [missing, setMissing] = useState(false);
   const [thanks, setThanks] = useState(false);
 
@@ -35,7 +35,7 @@ export default function ResultView({ publicId, initialLang = "he" }: { publicId:
 
   if (missing) return <Shell lang={lang}><p className="text-center text-muted">{t.notFound}</p></Shell>;
   if (!data) return <Shell lang={lang}><Spinner title={t.loading} /></Shell>;
-  if (thanks) return <Shell lang={lang}><Thanks t={t} lang={lang} guest={data.fullName} onScreen={data.onScreen} /></Shell>;
+  if (thanks) return <Shell lang={lang}><Thanks t={t} lang={lang} guest={data.fullName} onScreen={data.onScreen} home={data.event ? `/e/${data.event}` : "/"} /></Shell>;
 
   const imageFailed = data.stages.image === "failed";
   const songFailed = data.stages.song === "failed";
@@ -183,7 +183,7 @@ function Actions({ url, title, t }: { url: string; title: string; t: T }) {
 }
 
 /** The last screen: thanks, where the creation goes, and a way to close. */
-function Thanks({ t, lang, guest, onScreen }: { t: T; lang: Lang; guest: string; onScreen: boolean }) {
+function Thanks({ t, lang, guest, onScreen, home }: { t: T; lang: Lang; guest: string; onScreen: boolean; home: string }) {
   const [closeFailed, setCloseFailed] = useState(false);
   return (
     <section className="flex min-h-[80dvh] flex-col items-center justify-center gap-5 text-center">
@@ -203,7 +203,7 @@ function Thanks({ t, lang, guest, onScreen }: { t: T; lang: Lang; guest: string;
       </button>
       {closeFailed && <p className="text-muted">{t.closeHint}</p>}
       {/* A full page load, so the form starts empty. */}
-      <a href={lang === "he" ? "/" : `/?lang=${lang}`} className="text-sm text-muted underline underline-offset-4">
+      <a href={lang === "he" ? home : `${home}?lang=${lang}`} className="text-sm text-muted underline underline-offset-4">
         {t.backHome}
       </a>
     </section>

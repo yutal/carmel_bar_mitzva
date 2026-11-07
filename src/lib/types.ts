@@ -184,13 +184,14 @@ export type EventSettings = {
   songsEnabled: boolean;
 };
 
+/** Blank settings; a new event fills them in when it is created. */
 export const DEFAULT_EVENT: EventSettings = {
-  celebrantName: "כרמל",
-  celebrantNameEn: "Carmel",
-  eventTitle: "בר המצווה של כרמל",
+  celebrantName: "",
+  celebrantNameEn: "",
+  eventTitle: "",
   eventDate: "",
-  footer: "בר המצווה של כרמל",
-  footerEn: "Carmel's Bar Mitzvah",
+  footer: "",
+  footerEn: "",
   celebrantLook: "",
   songsEnabled: false,
 };

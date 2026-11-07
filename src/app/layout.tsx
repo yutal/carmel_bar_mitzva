@@ -6,7 +6,7 @@ const heebo = Heebo({ variable: "--font-heebo", subsets: ["hebrew", "latin"] });
 const frank = Frank_Ruhl_Libre({ variable: "--font-frank", subsets: ["hebrew", "latin"], weight: ["500", "700", "900"] });
 
 export const metadata: Metadata = {
-  title: "הברכה שלך לכרמל",
+  title: "ברכות AI",
   description: "תכתבו ברכה, וה-AI יהפוך אותה לפוסטר או לשיר אישי",
   robots: { index: false, follow: false },
 };

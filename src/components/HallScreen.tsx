@@ -15,13 +15,13 @@ const blessingSize = (text: string, withArt: boolean) =>
     ? text.length < 120 ? "text-[2.4vw]" : text.length < 300 ? "text-[1.9vw]" : "text-[1.5vw]"
     : text.length < 120 ? "text-[3.4vw]" : text.length < 300 ? "text-[2.6vw]" : "text-[2vw]";
 
-export default function HallScreen() {
+export default function HallScreen({ slug }: { slug: string }) {
   const [items, setItems] = useState<PublicSubmission[]>([]);
   // n changes on every slide, even when the same creation comes round again, so the timer always restarts.
   const [slide, setSlide] = useState<{ item: PublicSubmission; n: number } | null>(null);
   const [isNew, setIsNew] = useState(false);
   const [qr, setQr] = useState<string>("");
-  const [celebrant, setCelebrant] = useState("כרמל");
+  const [celebrant, setCelebrant] = useState("");
   // Creations that arrived since the screen opened jump the line, so guests see theirs within a minute.
   const fresh = useRef<string[]>([]);
   const seen = useRef<Set<string> | null>(null);
@@ -30,14 +30,16 @@ export default function HallScreen() {
   const itemsRef = useRef<PublicSubmission[]>([]);
 
   useEffect(() => {
-    void QRCode.toDataURL(location.origin, { margin: 1, width: 360, color: { dark: "#2d331c", light: "#ffffff" } }).then(setQr);
-    fetch("/api/celebrant").then((r) => r.json()).then((d: { celebrantName?: string }) => d.celebrantName && setCelebrant(d.celebrantName)).catch(() => undefined);
-  }, []);
+    // The QR is drawn in the event theme's ink colour.
+    const ink = getComputedStyle(document.querySelector("[data-theme-root]") ?? document.body).getPropertyValue("--color-ink").trim() || "#2d331c";
+    void QRCode.toDataURL(`${location.origin}/e/${slug}`, { margin: 1, width: 360, color: { dark: ink, light: "#ffffff" } }).then(setQr);
+    fetch(`/api/e/${slug}/event`).then((r) => r.json()).then((d: { celebrantName?: string }) => d.celebrantName && setCelebrant(d.celebrantName)).catch(() => undefined);
+  }, [slug]);
 
   useEffect(() => {
     let alive = true;
     async function load() {
-      const res = await fetch("/api/screen", { cache: "no-store" }).catch(() => null);
+      const res = await fetch(`/api/e/${slug}/screen`, { cache: "no-store" }).catch(() => null);
       if (!alive || !res?.ok) return;
       const list = (await res.json()) as PublicSubmission[];
       if (seen.current) {
@@ -54,7 +56,7 @@ export default function HallScreen() {
       alive = false;
       clearInterval(t);
     };
-  }, []);
+  }, [slug]);
 
   // The next slide: a fresh creation if one is waiting, otherwise the next in the rotation.
   const hasItems = items.length > 0;

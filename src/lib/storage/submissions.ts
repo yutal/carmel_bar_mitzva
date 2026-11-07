@@ -2,6 +2,7 @@ import "server-only";
 import { randomBytes } from "node:crypto";
 import fs from "node:fs/promises";
 import { config } from "@/lib/config";
+import { currentSlug } from "@/lib/platform/scope";
 import { DIRS, dataPath, ensureDirs, readJson, writeFileAtomic, writeJson } from "./fs";
 import { submissionBaseName } from "./naming";
 import type { GuestInput, StageName, StageState, Submission, SubmissionFiles } from "@/lib/types";
@@ -12,12 +13,18 @@ import { IMAGE_STYLES, MUSIC_STYLES } from "@/lib/types";
 const jsonPath = (id: string) => dataPath(DIRS.blessings, `${id}.json`);
 const txtPath = (id: string) => dataPath(DIRS.blessings, `${id}.txt`);
 
-/** Serialises read-modify-write per submission inside this process. */
+/** Serialises read-modify-write per submission inside this process. Keyed by event too: ids repeat across events. */
 const locks = new Map<string, Promise<unknown>>();
 function withLock<T>(id: string, fn: () => Promise<T>): Promise<T> {
-  const prev = locks.get(id) ?? Promise.resolve();
+  const key = `${currentSlug()}/${id}`;
+  const prev = locks.get(key) ?? Promise.resolve();
   const next = prev.then(fn, fn);
-  locks.set(id, next.catch(() => undefined));
+  const settled = next.catch(() => undefined);
+  locks.set(key, settled);
+  // Forget the entry once nothing else is waiting, so the map does not grow with every submission ever made.
+  void settled.then(() => {
+    if (locks.get(key) === settled) locks.delete(key);
+  });
   return next;
 }
 
@@ -36,28 +43,32 @@ async function uniqueId(base: string): Promise<string> {
   }
 }
 
-const g = globalThis as unknown as { __nextNumber?: Promise<number> };
+const g = globalThis as unknown as { __nextNumber?: Map<string, Promise<number>> };
+const numbers = (g.__nextNumber ??= new Map());
 
-/** The next running number, counted from the submissions on disk at startup and then kept in memory. */
+/** The event's next running number, counted from its submissions on disk at startup and then kept in memory. */
 function nextNumber(): Promise<number> {
-  const prev = g.__nextNumber ?? fs.readdir(dataPath(DIRS.blessings)).then((n) => n.filter((f) => f.endsWith(".json")).length);
-  const next = prev.then((n) => n + 1);
-  g.__nextNumber = next;
+  const slug = currentSlug();
+  const prev: Promise<number> = numbers.get(slug) ?? fs.readdir(dataPath(DIRS.blessings)).then((n) => n.filter((f) => f.endsWith(".json")).length);
+  const next = prev.then((n: number) => n + 1);
+  numbers.set(slug, next);
   return next;
 }
 
-export async function createSubmission(input: GuestInput): Promise<Submission> {
+export async function createSubmission(input: GuestInput, opts: { test?: boolean } = {}): Promise<Submission> {
   await ensureDirs();
   const id = await uniqueId(submissionBaseName(input.fullName, new Date()));
   const wantsImage = input.experience === "image" || input.experience === "both";
   const wantsSong = input.experience === "song" || input.experience === "both";
   const submission: Submission = {
     id,
-    publicId: randomBytes(12).toString("base64url"),
+    // The event is part of the guest's link, so the link finds its event without searching all of them.
+    publicId: `${currentSlug()}.${randomBytes(12).toString("base64url")}`,
     number: await nextNumber(),
     createdAt: new Date().toISOString(),
     input,
     hidden: false,
+    ...(opts.test && { test: true }),
     stages: {
       analysis: stage("pending"),
       ...(wantsImage && { image: stage("pending") }),
@@ -121,13 +132,14 @@ export async function findByPublicId(publicId: string, opts: { forScreen?: boole
 }
 
 async function lookupPublicId(publicId: string): Promise<Submission | undefined> {
-  const known = byPublicId.get(publicId);
+  const key = `${currentSlug()}|${publicId}`;
+  const known = byPublicId.get(key);
   if (known) {
     const s = await getSubmission(known);
     if (s?.publicId === publicId) return s;
   }
   const found = (await listSubmissions()).find((s) => s.publicId === publicId);
-  if (found) byPublicId.set(publicId, found.id);
+  if (found) byPublicId.set(key, found.id);
   return found;
 }
 

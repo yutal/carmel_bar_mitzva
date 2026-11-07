@@ -15,6 +15,12 @@ const EnvSchema = z.object({
   MAX_CREATIONS_PER_GUEST: z.coerce.number().int().min(0).default(3),
   TRANSCRIBE_MODEL: z.string().default("whisper-1"),
   CLIP_MAX_SECONDS: z.coerce.number().min(5).max(120).default(30),
+  /** Signs login sessions and event licences. Without it a random key is created once in DATA_DIR/platform. */
+  AUTH_SECRET: z.string().min(32).optional(),
+  OWNER_USERNAME: z.string().trim().min(1).default("admin"),
+  /** The event created on first start and served at the site root. */
+  DEFAULT_EVENT_SLUG: z.string().default("carmel"),
+  SESSION_HOURS: z.coerce.number().min(1).max(24 * 30).default(12),
 });
 
 const env = EnvSchema.parse(process.env);
@@ -40,6 +46,12 @@ export const config = {
   transcribeModel: env.TRANSCRIBE_MODEL,
   /** Longest part of a guest's video or recording kept in the edited clip. */
   clipMaxSeconds: env.CLIP_MAX_SECONDS,
+  authSecret: env.AUTH_SECRET,
+  /** The platform owner logs in with this name and ADMIN_PASSWORD. */
+  ownerUsername: env.OWNER_USERNAME,
+  defaultEventSlug: env.DEFAULT_EVENT_SLUG,
+  sessionHours: env.SESSION_HOURS,
+  secureCookies: process.env.NODE_ENV === "production",
   fontsDir: path.resolve(process.cwd(), "assets/fonts"),
   /** Celebrant photos and look.txt shipped with the app, copied into DATA_DIR on startup. */
   celebrantSeedDir: path.resolve(process.cwd(), "assets/celebrant"),

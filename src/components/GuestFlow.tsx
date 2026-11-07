@@ -25,11 +25,25 @@ type Step = (typeof STEPS)[number];
 // "Just a blessing": no story, style or photo, so no image is made.
 const BLESSING_STEPS: readonly Step[] = ["welcome", "who", "blessing"];
 
-export default function GuestFlow({ again, lang = "he" }: { again?: { fullName: string; relationship: string }; lang?: Lang }) {
+export default function GuestFlow({
+  slug,
+  again,
+  lang = "he",
+}: {
+  slug: string;
+  again?: { fullName: string; relationship: string };
+  lang?: Lang;
+}) {
   const router = useRouter();
+  const base = `/e/${slug}`;
+  const api = `/api/e/${slug}`;
   const t = STRINGS[lang];
   const RELATIONSHIPS = t.relationships;
-  const [names, setNames] = useState({ he: "כרמל", en: "Carmel" });
+  const [names, setNames] = useState({ he: "", en: "" });
+  /** Outside the licence window, or switched off: the guest sees why instead of the form. */
+  const [closed, setClosed] = useState<string | null>(null);
+  /** Creations are used up for the event; blessings alone still go in. */
+  const [creationsOver, setCreationsOver] = useState(false);
   const name = names[lang];
   const [songsEnabled, setSongsEnabled] = useState(false);
   const [maxCreations, setMaxCreations] = useState<number | null>(null);
@@ -57,22 +71,36 @@ export default function GuestFlow({ again, lang = "he" }: { again?: { fullName: 
   useEffect(() => () => void (preview && URL.revokeObjectURL(preview)), [preview]);
 
   useEffect(() => {
-    fetch("/api/celebrant")
+    fetch(`${api}/event`, { cache: "no-store" })
       .then((r) => r.json())
-      .then((d: { celebrantName?: string; celebrantNameEn?: string; songsEnabled?: boolean; maxCreations?: number | null }) => {
-        if (d.celebrantName) setNames({ he: d.celebrantName, en: d.celebrantNameEn || d.celebrantName });
-        setSongsEnabled(Boolean(d.songsEnabled));
-        setMaxCreations(d.maxCreations ?? null);
-      })
+      .then(
+        (d: {
+          celebrantName?: string;
+          celebrantNameEn?: string;
+          songsEnabled?: boolean;
+          maxCreations?: number | null;
+          closed?: { he: string; en: string } | null;
+          blessingOnly?: boolean;
+        }) => {
+          if (d.celebrantName) setNames({ he: d.celebrantName, en: d.celebrantNameEn || d.celebrantName });
+          setSongsEnabled(Boolean(d.songsEnabled));
+          setMaxCreations(d.maxCreations ?? null);
+          setClosed(d.closed ? d.closed[lang] : null);
+          if (d.blessingOnly) {
+            setCreationsOver(true);
+            setBlessingOnly(true);
+          }
+        },
+      )
       .catch(() => undefined);
-  }, []);
+  }, [api, lang]);
 
   const set = <K extends keyof Form>(key: K, value: Form[K]) => setForm((f) => ({ ...f, [key]: value }));
   const index = steps.indexOf(step);
   const go = (delta: number) => {
     setError(null);
     const target = steps[Math.min(steps.length - 1, Math.max(0, index + delta))];
-    if (target === "welcome") setBlessingOnly(false);
+    if (target === "welcome" && !creationsOver) setBlessingOnly(false);
     setStep(target);
     window.scrollTo({ top: 0, behavior: "smooth" });
   };
@@ -83,7 +111,7 @@ export default function GuestFlow({ again, lang = "he" }: { again?: { fullName: 
     if (step === "who" && !blessingOnly) {
       setChecking(true);
       try {
-        const res = await fetch(`/api/quota?name=${encodeURIComponent(form.fullName.trim())}`, { cache: "no-store" });
+        const res = await fetch(`${api}/quota?name=${encodeURIComponent(form.fullName.trim())}`, { cache: "no-store" });
         const q = (await res.json()) as { max: number | null; remaining: number | null };
         if (q.remaining === 0) {
           setError(t.quotaReached(q.max));
@@ -118,7 +146,7 @@ export default function GuestFlow({ again, lang = "he" }: { again?: { fullName: 
       body.set("lang", lang);
       body.set("consentPhoto", String(Boolean(photo) && !blessingOnly));
       if (photo && !blessingOnly) body.set("photo", await resizeImage(photo), "photo.jpg");
-      const res = await fetch("/api/submissions", { method: "POST", body });
+      const res = await fetch(`${api}/submissions`, { method: "POST", body });
       const data = (await res.json()) as { publicId?: string; error?: string; code?: string; field?: string };
       if (data.code === "inappropriate") {
         // Back to the step with the field to reword, with the message in the guest's language.
@@ -162,7 +190,7 @@ export default function GuestFlow({ again, lang = "he" }: { again?: { fullName: 
                   // A plain link: a full load starts the flow fresh in the other language.
                   <a
                     key={l}
-                    href={l === "he" ? "/" : `/?lang=${l}`}
+                    href={l === "he" ? base : `${base}?lang=${l}`}
                     aria-current={l === lang ? "true" : undefined}
                     className="rounded-full px-3 py-1 text-muted aria-[current]:bg-olive-100 aria-[current]:font-bold aria-[current]:text-ink"
                   >
@@ -184,11 +212,16 @@ export default function GuestFlow({ again, lang = "he" }: { again?: { fullName: 
             <p className="text-center text-lg leading-relaxed text-muted">
               {t.intro(name, songsEnabled)}
             </p>
+            {closed ? (
+              <p className="card p-5 text-center text-lg font-bold text-accent" role="status">
+                {closed}
+              </p>
+            ) : (
             <div className="space-y-2">
-              <button type="button" className="btn-primary w-full" onClick={() => go(1)}>
+              <button type="button" className="btn-primary w-full" onClick={() => (creationsOver ? setStep("who") : go(1))}>
                 {t.start} <span aria-hidden>{t.forwardArrow}</span>
               </button>
-              <button
+              {!creationsOver && <button
                 type="button"
                 className="w-full py-2 text-center text-accent underline underline-offset-4"
                 onClick={() => {
@@ -197,8 +230,9 @@ export default function GuestFlow({ again, lang = "he" }: { again?: { fullName: 
                 }}
               >
                 {t.blessingOnly}
-              </button>
+              </button>}
             </div>
+            )}
             <div className="space-y-3">
               <p className="text-sm font-bold tracking-[0.2em] text-accent-soft">{t.howItWorks}</p>
               <ol className="grid grid-cols-3 gap-2.5">

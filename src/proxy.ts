@@ -1,26 +1,18 @@
 import { NextResponse, type NextRequest } from "next/server";
 
-/** HTTP Basic auth in front of the admin dashboard and its API (user: admin). */
+/**
+ * First gate in front of the admin pages and API: no session cookie, no entry. This only checks that a cookie is
+ * there; the real check (signature, expiry, account still active, access to this event and this action) runs in
+ * every admin page and API route through lib/platform/page-auth.ts and lib/platform/route.ts.
+ */
 export function proxy(request: NextRequest) {
-  const password = process.env.ADMIN_PASSWORD;
-  if (!password) return new NextResponse("ADMIN_PASSWORD is not configured", { status: 503 });
-
-  const header = request.headers.get("authorization") ?? "";
-  const [scheme, encoded] = header.split(" ");
-  if (scheme === "Basic" && encoded) {
-    const [user, ...rest] = atob(encoded).split(":");
-    if (user === "admin" && timingSafeEqual(rest.join(":"), password)) return NextResponse.next();
+  if (request.cookies.get("bm_session")?.value) return NextResponse.next();
+  if (request.nextUrl.pathname.startsWith("/api/")) {
+    return NextResponse.json({ error: "צריך להתחבר" }, { status: 401 });
   }
-  return new NextResponse("Authentication required", {
-    status: 401,
-    headers: { "WWW-Authenticate": 'Basic realm="admin", charset="UTF-8"' },
-  });
-}
-
-function timingSafeEqual(a: string, b: string): boolean {
-  let diff = a.length ^ b.length;
-  for (let i = 0; i < Math.max(a.length, b.length); i++) diff |= (a.charCodeAt(i) || 0) ^ (b.charCodeAt(i) || 0);
-  return diff === 0;
+  const login = new URL("/login", request.url);
+  login.searchParams.set("next", request.nextUrl.pathname + request.nextUrl.search);
+  return NextResponse.redirect(login);
 }
 
 export const config = { matcher: ["/admin/:path*", "/api/admin/:path*"] };
