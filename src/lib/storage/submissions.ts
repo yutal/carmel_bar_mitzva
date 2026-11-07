@@ -55,7 +55,7 @@ function nextNumber(): Promise<number> {
   return next;
 }
 
-export async function createSubmission(input: GuestInput, opts: { test?: boolean } = {}): Promise<Submission> {
+export async function createSubmission(input: GuestInput, opts: { test?: boolean; mode?: "celebrant" | "open" } = {}): Promise<Submission> {
   await ensureDirs();
   const id = await uniqueId(submissionBaseName(input.fullName, new Date()));
   const wantsImage = input.experience === "image" || input.experience === "both";
@@ -66,6 +66,7 @@ export async function createSubmission(input: GuestInput, opts: { test?: boolean
     publicId: `${currentSlug()}.${randomBytes(12).toString("base64url")}`,
     number: await nextNumber(),
     createdAt: new Date().toISOString(),
+    ...(opts.mode === "open" && { mode: "open" as const }),
     input,
     hidden: false,
     ...(opts.test && { test: true }),

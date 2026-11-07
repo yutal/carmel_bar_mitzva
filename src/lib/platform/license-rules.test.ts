@@ -43,3 +43,11 @@ test("a guest link carries its event", () => {
   assert.equal(splitPublicId("../etc.passwd"), undefined);
   assert.equal(splitPublicId("Bad_Slug.abcdefgh"), undefined);
 });
+
+test("the organiser's tools ignore the guests' window but not suspension or the licence's tool list", () => {
+  const ended = lic({ endsAt: "2020-01-01T00:00:00Z" });
+  assert.equal(licenseBlock(ended, "blessings", none), "ended");
+  assert.equal(licenseBlock(ended, "blessings", none, Date.now(), { staff: true }), null);
+  assert.equal(licenseBlock(lic({ suspended: true }), "blessings", none, Date.now(), { staff: true }), "suspended");
+  assert.equal(licenseBlock(ended, "print", none, Date.now(), { staff: true }), "tool_off");
+});

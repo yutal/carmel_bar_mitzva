@@ -50,6 +50,12 @@ export const GuestInputSchema = z.object({
 });
 export type GuestInput = z.infer<typeof GuestInputSchema>;
 
+/** Open events: no relationship to a celebrant and the wish is optional; the photo is required (checked by the route). */
+export const OpenGuestInputSchema = GuestInputSchema.extend({
+  relationship: z.string().trim().max(60).default(""),
+  blessing: z.string().trim().max(600).default(""),
+});
+
 /** Stage 1 output: what the blessing is actually about. */
 export const AnalysisSchema = z.object({
   themes: z.array(z.string()).describe("Main themes, in English"),
@@ -154,6 +160,8 @@ export type Submission = {
   /** Running number of the creation at the event, shown to the guest like a ticket number. */
   number?: number;
   createdAt: string;
+  /** The event mode when the guest submitted, so a later regeneration paints the same kind of creation. */
+  mode?: "celebrant" | "open";
   input: GuestInput;
   hidden: boolean;
   /** Marked as a test by the organiser: never on the hall screen, left out of the album, counts and quota. */

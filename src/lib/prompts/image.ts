@@ -17,10 +17,13 @@ export type Cast = {
   /** The celebrant is also in the guest photo (a selfie with him). He is still drawn only once. */
   celebrantInGuestPhoto: boolean;
   hasGuestPhoto: boolean;
+  /** Open event: there is no celebrant. The people in the guest photo are the whole cast. */
+  open?: boolean;
 };
 
 /** Total number of people the image must show. */
 export function headCount(cast: Cast): number {
+  if (cast.open) return Math.max(1, cast.guestPeople.length);
   if (!cast.hasGuestPhoto) return 1;
   return 1 + Math.max(cast.guestPeople.length, cast.celebrantInGuestPhoto ? 0 : 1);
 }
@@ -30,6 +33,7 @@ export function headCount(cast: Cast): number {
  * next to his own photos it is the likeliest way to get him drawn twice, so it is left out.
  */
 export function sendsGuestPhoto(cast: Cast): boolean {
+  if (cast.open) return cast.hasGuestPhoto;
   return cast.hasGuestPhoto && !(cast.celebrantInGuestPhoto && cast.guestPeople.length === 0);
 }
 
@@ -69,7 +73,7 @@ export function referenceLegend(refs: Reference[], cast: Cast, style: ImageStyle
     if (cast.celebrantInGuestPhoto) {
       lines.push("The celebrant is also in the guest photo. He is the same boy as in his own reference images: draw him once, not twice.");
     }
-    if (style === "animation") lines.push("Use the guest photo for who they are only: draw them as 3D animated characters, like the celebrant.");
+    if (style === "animation") lines.push("Use the guest photo for who they are only: draw them as 3D animated characters" + (cast.open ? "." : ", like the celebrant."));
   }
   return lines.join("\n");
 }
@@ -77,6 +81,9 @@ export function referenceLegend(refs: Reference[], cast: Cast, style: ImageStyle
 /** One sentence: how many people and who. */
 export function castHead(cast: Cast): string {
   const n = headCount(cast);
+  if (cast.open) {
+    return `CAST: exactly ${n} ${n === 1 ? "person" : "people"} in the image: ${n === 1 ? "the one person" : `the ${n} people`} from the guest photo, and nobody else.`;
+  }
   const who = !cast.hasGuestPhoto || n === 1
     ? "the celebrant, alone. No guest, friend or family member appears, not even from behind"
     : n === 2
@@ -96,7 +103,7 @@ export function castLine(style: ImageStyle, cast: Cast): string {
   ];
   if (style === "animation") {
     lines.push(
-      "Every person, the celebrant and each person from the guest photo alike, is the same kind of 3D animated character; " +
+      "Every person, " + (cast.open ? "each person from the guest photo" : "the celebrant and each person from the guest photo") + " alike, is the same kind of 3D animated character; " +
         "nobody keeps a photographic face or real skin. Keep each likeness through their features, redrawn in the animated style.",
     );
   }
@@ -117,7 +124,7 @@ export function buildImagePrompt(opts: {
     `ART STYLE, the most important instruction: ${render}`,
     referenceLegend(opts.references, opts.cast, opts.style),
     opts.references.length ? LIKENESS : "",
-    opts.celebrantLook ? `The celebrant's appearance: ${opts.celebrantLook}` : "",
+    opts.celebrantLook && !opts.cast.open ? `The celebrant's appearance: ${opts.celebrantLook}` : "",
     castLine(opts.style, opts.cast),
     opts.scene,
     opts.retry ?? "",

@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
-import { LANG_INFO, LANGS, STRINGS, type Lang } from "@/lib/i18n";
+import { LANG_INFO, LANGS, OPEN_STRINGS, STRINGS, type Lang } from "@/lib/i18n";
 import { IMAGE_STYLES, MUSIC_STYLES, type ImageStyle, type MusicStyle } from "@/lib/types";
 import { resizeImage } from "./resize-image";
 
@@ -41,6 +41,11 @@ export default function GuestFlow({
   const RELATIONSHIPS = t.relationships;
   const [names, setNames] = useState({ he: "", en: "" });
   /** Outside the licence window, or switched off: the guest sees why instead of the form. */
+  const [mode, setMode] = useState<"celebrant" | "open">("celebrant");
+  const [eventTitle, setEventTitle] = useState("");
+  const open = mode === "open";
+  const o = OPEN_STRINGS[lang];
+  const [brand, setBrand] = useState<{ hasLogo: boolean; headline: string }>({ hasLogo: false, headline: "" });
   const [closed, setClosed] = useState<string | null>(null);
   /** Creations are used up for the event; blessings alone still go in. */
   const [creationsOver, setCreationsOver] = useState(false);
@@ -81,7 +86,14 @@ export default function GuestFlow({
           maxCreations?: number | null;
           closed?: { he: string; en: string } | null;
           blessingOnly?: boolean;
+          hasLogo?: boolean;
+          headline?: string;
+          mode?: "celebrant" | "open";
+          eventTitle?: string;
         }) => {
+          setMode(d.mode === "open" ? "open" : "celebrant");
+          setEventTitle(d.eventTitle ?? "");
+          setBrand({ hasLogo: Boolean(d.hasLogo), headline: d.headline ?? "" });
           if (d.celebrantName) setNames({ he: d.celebrantName, en: d.celebrantNameEn || d.celebrantName });
           setSongsEnabled(Boolean(d.songsEnabled));
           setMaxCreations(d.maxCreations ?? null);
@@ -128,11 +140,12 @@ export default function GuestFlow({
 
   const canContinue: Record<Step, boolean> = {
     welcome: true,
-    who: form.fullName.trim().length >= 2 && form.relationship.trim().length > 0,
+    who: form.fullName.trim().length >= 2 && (open || form.relationship.trim().length > 0),
     story: Boolean(form.together.trim() || form.memory.trim() || form.talent.trim()),
-    blessing: form.blessing.trim().length >= 5,
+    blessing: open || form.blessing.trim().length >= 5,
     experience: true,
-    photo: true,
+    // An open event makes the picture from the guest's own photo, so it cannot be skipped there.
+    photo: !open || Boolean(photo),
   };
 
   async function submit() {
@@ -142,10 +155,10 @@ export default function GuestFlow({
       const body = new FormData();
       const { withSong, ...fields } = form;
       for (const [k, v] of Object.entries(fields)) body.set(k, String(v));
-      body.set("experience", blessingOnly ? "blessing" : songsEnabled && withSong ? "both" : "image");
+      body.set("experience", blessingOnly && !open ? "blessing" : songsEnabled && withSong && !open ? "both" : "image");
       body.set("lang", lang);
-      body.set("consentPhoto", String(Boolean(photo) && !blessingOnly));
-      if (photo && !blessingOnly) body.set("photo", await resizeImage(photo), "photo.jpg");
+      body.set("consentPhoto", String(Boolean(photo) && (!blessingOnly || open)));
+      if (photo && (!blessingOnly || open)) body.set("photo", await resizeImage(photo), "photo.jpg");
       const res = await fetch(`${api}/submissions`, { method: "POST", body });
       const data = (await res.json()) as { publicId?: string; error?: string; code?: string; field?: string };
       if (data.code === "inappropriate") {
@@ -200,17 +213,23 @@ export default function GuestFlow({
               </nav>
             </div>
             <div className="text-center">
-              <p className="pointer-events-none font-display text-[clamp(10rem,58vw,15rem)] font-black leading-[0.82] tracking-tight text-accent-soft" aria-hidden>
-                13
-              </p>
+              {brand.hasLogo && (
+                // eslint-disable-next-line @next/next/no-img-element -- the event's own logo, served by our API
+                <img src={`${api}/logo`} alt="" className="mx-auto mb-4 max-h-24 w-auto object-contain" />
+              )}
+              {!open && (
+                <p className="pointer-events-none font-display text-[clamp(10rem,58vw,15rem)] font-black leading-[0.82] tracking-tight text-accent-soft" aria-hidden>
+                  13
+                </p>
+              )}
               <h1 className="mt-2 font-display leading-none">
-                <span className="block text-[3.25rem] font-bold text-ink">{t.heroLines(name)[0]}</span>
-                <span className="mt-1 block text-[2.5rem] font-medium text-clay">{t.heroLines(name)[1]}</span>
+                <span className="block text-[3.25rem] font-bold text-ink">{brand.headline || (open ? o.heroLines(eventTitle)[0] : t.heroLines(name)[0])}</span>
+                <span className="mt-1 block text-[2.5rem] font-medium text-clay">{open ? o.heroLines(eventTitle)[1] : t.heroLines(name)[1]}</span>
               </h1>
             </div>
             <span className="mx-auto h-0.5 w-14 bg-line" aria-hidden />
             <p className="text-center text-lg leading-relaxed text-muted">
-              {t.intro(name, songsEnabled)}
+              {open ? o.intro : t.intro(name, songsEnabled)}
             </p>
             {closed ? (
               <p className="card p-5 text-center text-lg font-bold text-accent" role="status">
@@ -221,7 +240,7 @@ export default function GuestFlow({
               <button type="button" className="btn-primary w-full" onClick={() => (creationsOver ? setStep("who") : go(1))}>
                 {t.start} <span aria-hidden>{t.forwardArrow}</span>
               </button>
-              {!creationsOver && <button
+              {!creationsOver && !open && <button
                 type="button"
                 className="w-full py-2 text-center text-accent underline underline-offset-4"
                 onClick={() => {
@@ -233,7 +252,7 @@ export default function GuestFlow({
               </button>}
             </div>
             )}
-            <div className="space-y-3">
+            {!open && <div className="space-y-3">
               <p className="text-sm font-bold tracking-[0.2em] text-accent-soft">{t.howItWorks}</p>
               <ol className="grid grid-cols-3 gap-2.5">
                 {t.howSteps(songsEnabled).map(([title, body], i) => (
@@ -244,8 +263,8 @@ export default function GuestFlow({
                   </li>
                 ))}
               </ol>
-            </div>
-            <p className="text-center text-xs text-accent-soft">{t.meta(name, maxCreations)}</p>
+            </div>}
+            {!open && <p className="text-center text-xs text-accent-soft">{t.meta(name, maxCreations)}</p>}
           </section>
         )}
 
@@ -256,7 +275,7 @@ export default function GuestFlow({
               <span className="text-muted">{t.fullName}</span>
               <input className="field" autoComplete="name" value={form.fullName} maxLength={60} onChange={(e) => set("fullName", e.target.value)} placeholder={t.fullNamePlaceholder} />
             </label>
-            <fieldset className="space-y-3">
+            {!open && <fieldset className="space-y-3">
               <legend className="mb-2 text-muted">{t.relationshipLegend(name)}</legend>
               <div className="flex flex-wrap gap-2">
                 {RELATIONSHIPS.map((r) => (
@@ -272,35 +291,37 @@ export default function GuestFlow({
                 onChange={(e) => set("relationship", e.target.value)}
                 placeholder={t.relationshipOther}
               />
-            </fieldset>
+            </fieldset>}
           </section>
         )}
 
         {step === "story" && (
           <section className="space-y-6">
             <div>
-              <h2 className="font-display text-[2rem] font-bold text-ink">{t.storyTitle}</h2>
-              <p className="mt-3 rounded-2xl bg-olive-100 px-4 py-3 text-accent">
-                🎨 <strong>{t.storyNote(songsEnabled)[0]}</strong> {t.storyNote(songsEnabled)[1]}
-              </p>
-              <p className="mt-2 text-muted">{t.storyHint}</p>
+              <h2 className="font-display text-[2rem] font-bold text-ink">{open ? o.storyTitle : t.storyTitle}</h2>
+              {!open && (
+                <p className="mt-3 rounded-2xl bg-olive-100 px-4 py-3 text-accent">
+                  🎨 <strong>{t.storyNote(songsEnabled)[0]}</strong> {t.storyNote(songsEnabled)[1]}
+                </p>
+              )}
+              <p className="mt-2 text-muted">{open ? o.storyHint : t.storyHint}</p>
             </div>
-            <Question label={t.qTogether(name)} placeholder={t.pTogether} value={form.together} max={300} onChange={(v) => set("together", v)} />
-            <Question label={t.qMemory} placeholder={t.pMemory} value={form.memory} max={600} rows={4} onChange={(v) => set("memory", v)} />
-            <Question label={t.qTalent(name)} placeholder={t.pTalent} value={form.talent} max={300} onChange={(v) => set("talent", v)} />
+            <Question label={open ? o.qLove : t.qTogether(name)} placeholder={open ? o.pLove : t.pTogether} value={form.together} max={300} onChange={(v) => set("together", v)} />
+            <Question label={open ? o.qDream : t.qMemory} placeholder={open ? o.pDream : t.pMemory} value={form.memory} max={600} rows={open ? 2 : 4} onChange={(v) => set("memory", v)} />
+            <Question label={open ? o.qBest : t.qTalent(name)} placeholder={open ? o.pBest : t.pTalent} value={form.talent} max={300} onChange={(v) => set("talent", v)} />
           </section>
         )}
 
         {step === "blessing" && (
           <section className="space-y-4">
-            <h2 className="font-display text-[2rem] font-bold text-ink">{t.blessingTitle(name)}</h2>
-            <p className="text-muted">{blessingOnly ? t.blessingOnlyHint : t.blessingHint(name)}</p>
+            <h2 className="font-display text-[2rem] font-bold text-ink">{open ? o.wishTitle : t.blessingTitle(name)}</h2>
+            <p className="text-muted">{open ? o.wishHint : blessingOnly ? t.blessingOnlyHint : t.blessingHint(name)}</p>
             <textarea
               className="field min-h-48 leading-relaxed"
               value={form.blessing}
               maxLength={600}
               onChange={(e) => set("blessing", e.target.value)}
-              placeholder={t.blessingPlaceholder(name)}
+              placeholder={open ? o.wishPlaceholder : t.blessingPlaceholder(name)}
             />
             <p className="text-end text-sm text-muted">{form.blessing.length}/600</p>
             {blessingOnly && (
@@ -362,8 +383,8 @@ export default function GuestFlow({
         {step === "photo" && (
           <section className="space-y-5">
             <div>
-              <h2 className="font-display text-[2rem] font-bold text-ink">{t.photoTitle}</h2>
-              <p className="mt-1 text-muted">{t.photoHint(name)}</p>
+              <h2 className="font-display text-[2rem] font-bold text-ink">{open ? o.photoTitle : t.photoTitle}</h2>
+              <p className="mt-1 text-muted">{open ? o.photoHint : t.photoHint(name)}</p>
             </div>
             {preview ? (
               <div className="relative">
@@ -379,9 +400,10 @@ export default function GuestFlow({
                 <PhotoInput label={t.gallery} onPick={setPhoto} />
               </div>
             )}
+            {open && !photo && <p className="text-sm font-bold text-accent">{o.photoRequired}</p>}
             {photo && (
               <p className="text-sm text-muted">
-                {t.photoConsent(name)}
+                {t.photoConsent(open ? eventTitle : name)}
               </p>
             )}
             <label className="flex items-start gap-3 text-muted">

@@ -46,12 +46,13 @@ export function licenseBlock(
   tool: ToolId,
   usage: LicenseUsage,
   now = Date.now(),
-  opts: { creating?: boolean } = {},
+  opts: { creating?: boolean; staff?: boolean } = {},
 ): LicenseBlock | null {
   if (lic.tampered) return "tampered";
   if (lic.suspended) return "suspended";
-  if (lic.startsAt && now < Date.parse(lic.startsAt)) return "not_started";
-  if (lic.endsAt && now > Date.parse(lic.endsAt)) return "ended";
+  // The window is for guests. The organiser's tools (album, print, regenerate) keep working after the event ends.
+  if (!opts.staff && lic.startsAt && now < Date.parse(lic.startsAt)) return "not_started";
+  if (!opts.staff && lic.endsAt && now > Date.parse(lic.endsAt)) return "ended";
   if (!lic.tools.includes(tool) || TOOLS[tool].status !== "live") return "tool_off";
   if (lic.budgetUsd > 0 && usage.spentUsd >= lic.budgetUsd) return "budget";
   if (opts.creating && lic.maxCreations > 0 && usage.creations >= lic.maxCreations) return "quota";

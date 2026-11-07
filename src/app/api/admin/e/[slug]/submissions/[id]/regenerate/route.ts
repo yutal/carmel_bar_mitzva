@@ -13,7 +13,7 @@ export const POST = eventAdminRoute("moderate", async (request, { params }) => {
   if (!body.success) return jsonError("בקשה לא תקינה");
   if (!(await getSubmission(id))) return jsonError("לא נמצא", 404);
   // A regeneration is paid AI work: it needs a live licence with budget left, like a guest's creation.
-  await assertTool("blessings");
+  await assertTool("blessings", { staff: true });
   try {
     await regenerate(id, body.data.stage, body.data.newConcept);
   } catch (err) {

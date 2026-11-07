@@ -290,3 +290,60 @@ const en: Strings = {
 };
 
 export const STRINGS: Record<Lang, Strings> = { he, en };
+
+/** Guest-page wording for open events (no celebrant): the guest is the star of their own creation. */
+export const OPEN_STRINGS: Record<Lang, {
+  heroLines: (title: string) => [string, string];
+  intro: string;
+  storyTitle: string;
+  storyHint: string;
+  qLove: string;
+  pLove: string;
+  qDream: string;
+  pDream: string;
+  qBest: string;
+  pBest: string;
+  wishTitle: string;
+  wishHint: string;
+  wishPlaceholder: string;
+  photoTitle: string;
+  photoHint: string;
+  photoRequired: string;
+}> = {
+  he: {
+    heroLines: (title) => [title || "העמדה שלנו", "אתם בכיכוב"],
+    intro: "ספרו קצת על עצמכם, צלמו תמונה, וה-AI ייצור תמונה אישית שבה אתם הגיבורים.",
+    storyTitle: "קצת עליכם",
+    storyHint: "מספיק לענות על שאלה אחת. ככל שתהיו ספציפיים, התמונה תהיה אישית יותר.",
+    qLove: "מה אתם הכי אוהבים לעשות?",
+    pLove: "למשל: לשחק כדורסל, לבשל, לטייל עם הכלב",
+    qDream: "מה החלום שלכם, או איזה סרט הייתם רוצים להיות בו?",
+    pDream: "למשל: לטוס לחלל, לנצח באליפות, להיות שף בכוכב מישלן",
+    qBest: "במה אתם הכי טובים?",
+    pBest: "למשל: להצחיק, לנגן, לפתור חידות",
+    wishTitle: "משאלה או ברכה (לא חובה)",
+    wishHint: "אפשר להשאיר ריק. מה שתכתבו יישמר באלבום של האירוע.",
+    wishPlaceholder: "משהו שתרצו להשאיר מהערב הזה",
+    photoTitle: "צלמו תמונה",
+    photoHint: "צלמו סלפי או בחרו תמונה ברורה של הפנים. התמונה נדרשת כדי ליצור את היצירה, ואפשר גם להצטלם יחד עם חברים.",
+    photoRequired: "צריך תמונה כדי להמשיך",
+  },
+  en: {
+    heroLines: (title) => [title || "Our booth", "You are the star"],
+    intro: "Tell us a little about yourself, take a photo, and AI will create a personal picture where you are the hero.",
+    storyTitle: "A little about you",
+    storyHint: "One answer is enough. The more specific you are, the more personal the picture.",
+    qLove: "What do you love doing most?",
+    pLove: "e.g. playing basketball, cooking, walking the dog",
+    qDream: "What is your dream, or which movie would you love to be in?",
+    pDream: "e.g. flying to space, winning the championship, being a top chef",
+    qBest: "What are you best at?",
+    pBest: "e.g. making people laugh, playing guitar, solving puzzles",
+    wishTitle: "A wish or message (optional)",
+    wishHint: "You can leave this empty. What you write is saved in the event's album.",
+    wishPlaceholder: "Something to leave from tonight",
+    photoTitle: "Take a photo",
+    photoHint: "Take a selfie or pick a clear photo of your face. The photo is needed to make your picture, and friends can join in.",
+    photoRequired: "A photo is needed to continue",
+  },
+};

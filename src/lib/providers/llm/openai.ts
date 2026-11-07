@@ -9,6 +9,7 @@ import {
   CLIP_PLAN_SYSTEM,
   FACE_MAP_SYSTEM,
   IMAGE_CONCEPT_SYSTEM,
+  IMAGE_CONCEPT_SYSTEM_OPEN,
   POSTER_CHECK_SYSTEM,
   SONG_CONCEPT_SYSTEM,
   analysisSummary,
@@ -64,10 +65,14 @@ const asJpeg = (b: Buffer) => sharp(b).rotate().resize(1024, 1024, { fit: "insid
 const BLOCKED_CATEGORIES = ["hate", "hate/threatening", "harassment/threatening", "sexual", "sexual/minors", "violence/graphic"] as const;
 
 export const openAiLlm: LlmProvider = {
-  analyze(input, event) {
-    return structured(AnalysisSchema, "analysis", ANALYSIS_SYSTEM, guestContext(input, event));
+  analyze(input, event, mode) {
+    return structured(AnalysisSchema, "analysis", ANALYSIS_SYSTEM, guestContext(input, event, { mode }));
   },
-  async imageConcept(input, event, guestPhoto, celebrantPhoto) {
+  async imageConcept(input, event, guestPhoto, celebrantPhoto, mode = "celebrant") {
+    if (mode === "open") {
+      if (!guestPhoto) throw new Error("An open event needs the guest's photo");
+      return structured(ImageConceptSchema, "image_concept", IMAGE_CONCEPT_SYSTEM_OPEN, imageConceptInput(input, event, true, false, "open"), [await asJpeg(guestPhoto)]);
+    }
     // The celebrant is sent only with a guest photo, to compare faces; first, as the input text says.
     const compare = guestPhoto && celebrantPhoto ? await asJpeg(celebrantPhoto) : undefined;
     const images = guestPhoto ? [...(compare ? [compare] : []), await asJpeg(guestPhoto)] : undefined;

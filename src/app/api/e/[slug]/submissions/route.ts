@@ -10,7 +10,7 @@ import { BLOCK_MESSAGES, licenseBlock } from "@/lib/platform/license-rules";
 import { can } from "@/lib/platform/roles";
 import { publicEventRoute } from "@/lib/platform/route";
 import { actorFromRequest } from "@/lib/platform/session";
-import { GuestInputSchema } from "@/lib/types";
+import { GuestInputSchema, OpenGuestInputSchema } from "@/lib/types";
 
 export const POST = publicEventRoute(async (request, { slug }) => {
   let form: FormData;
@@ -20,18 +20,21 @@ export const POST = publicEventRoute(async (request, { slug }) => {
     return jsonError("בקשה לא תקינה");
   }
   const text = (k: string) => (typeof form.get(k) === "string" ? (form.get(k) as string) : undefined);
-  const parsed = GuestInputSchema.safeParse({
+  const license = await getLicense();
+  const open = license.mode === "open";
+  const parsed = (open ? OpenGuestInputSchema : GuestInputSchema).safeParse({
     fullName: text("fullName"),
     relationship: text("relationship"),
     together: text("together"),
     memory: text("memory"),
     talent: text("talent"),
     blessing: text("blessing"),
-    experience: text("experience"),
+    // An open event offers the poster only: no song, and a blessing alone is not a creation there.
+    experience: open ? "image" : text("experience"),
     imageStyle: text("imageStyle") || undefined,
     lang: text("lang") || undefined,
     musicStyle: text("musicStyle") || undefined,
-    consentPhoto: text("consentPhoto") === "true",
+    consentPhoto: open ? true : text("consentPhoto") === "true",
     consentScreen: text("consentScreen") === "true",
     consentMarketing: text("consentMarketing") === "true",
   });
@@ -43,7 +46,7 @@ export const POST = publicEventRoute(async (request, { slug }) => {
   // The licence decides whether guests may create right now. A blessing alone costs nothing and stays open while
   // the window is open, even after the creation quota or budget is used up.
   const wantsCreation = parsed.data.experience !== "blessing";
-  const block = licenseBlock(await getLicense(), "blessings", await licenseUsage(), Date.now(), { creating: wantsCreation });
+  const block = licenseBlock(license, "blessings", await licenseUsage(), Date.now(), { creating: wantsCreation });
   // The organiser can try the flow outside the window (a rehearsal); what they make is marked as a test.
   const rehearsal = (block === "not_started" || block === "ended") && can(await actorFromRequest(request), slug, "moderate");
   if (block && !rehearsal) {
@@ -62,10 +65,12 @@ export const POST = publicEventRoute(async (request, { slug }) => {
     return jsonError(err instanceof UploadError ? err.message : "שגיאה בהעלאת התמונה", 422);
   }
 
+  if (open && !photo) return jsonError(parsed.data.lang === "en" ? "A photo is needed to make your picture" : "צריך תמונה כדי ליצור את התמונה שלך", 422);
+
   // With songs switched off, a song request becomes a poster, whatever an old page sent.
-  const songsOff = !(await getEvent()).songsEnabled && (parsed.data.experience === "song" || parsed.data.experience === "both");
+  const songsOff = (open || !(await getEvent()).songsEnabled) && (parsed.data.experience === "song" || parsed.data.experience === "both");
   const input = songsOff ? { ...parsed.data, experience: "image" as const } : parsed.data;
-  const submission = await createSubmission(input, { test: rehearsal });
+  const submission = await createSubmission(input, { test: rehearsal, mode: license.mode });
   if (photo) await saveFile(submission.id, "photo", "uploads", ".jpg", photo);
   enqueue(submission.id);
   return Response.json({ publicId: submission.publicId }, { status: 201 });

@@ -19,6 +19,39 @@ Every file is stored on disk with a name like `david_cohen_20261027_201530` (Heb
 | Hosting | Docker on Render (Web Service, Standard instance, persistent disk at `/data`), code on GitHub |
 | Music | Suno, by hand: the app writes the description, the organiser uploads the MP3 |
 
+## Platform: many events, one app
+
+The app now serves any number of events at once. Each event has its own address, files, licence, theme and staff; the AI queue is shared and takes turns between events.
+
+| Path | What it is |
+| --- | --- |
+| `/login` | One login for everyone. The owner uses `OWNER_USERNAME` (default `admin`) and `ADMIN_PASSWORD`; operators use accounts the owner creates |
+| `/admin` | Home: the events you may see, and the catalogue of tools (live, soon, research) |
+| `/admin/e/<slug>` | One event's dashboard (creations, blessings, regenerate, export). Also `/theme`, `/album`, `/print`, and for the owner `/license`, `/lab`, `/qa` |
+| `/admin/accounts` | Owner only: operators, which events each may enter and in which role, and the audit log |
+| `/e/<slug>` | Guest page of an event. `/e/<slug>/screen` is its hall screen. `/r/<id>` is the guest's result page; the id starts with the event |
+| `/`, `/screen` | Redirect to the default event (`DEFAULT_EVENT_SLUG`, `carmel`), so QR codes printed before this change keep working |
+
+**Upgrading an existing install.** On the first start, everything that lived in `DATA_DIR` (blessings, images, songs, celebrant photos, lab, `event.json`, `usage.jsonl`) is moved into `DATA_DIR/events/carmel/`, that event gets a full licence, and old guest links keep working. Nothing else to do. Back up `DATA_DIR` first anyway.
+
+**Data layout.** `DATA_DIR/platform/` holds accounts, the audit log, the signing key (`secret.key`, or set `AUTH_SECRET`) and the OpenAI balance. `DATA_DIR/events/<slug>/` holds one event: `event.json`, `license.json`, `theme.json` and the usual folders plus `print/`. Every file path inside the app is resolved through the current event's scope (`src/lib/platform/scope.ts`); code outside a scope throws instead of touching another event's files.
+
+**Licence (owner only).** Per event: which tools, `celebrant` or `open` mode, a time window for guests, a creation quota, an AI budget, custom theme allowed, suspended. It is stored signed with HMAC, with the event's slug in the signature. A missing, edited or copied licence closes the event (guests see "not available"; nothing is created). The window and quota apply to guests; the organiser's own tools (album, print, regenerate) keep working after the event ends, until the licence is suspended.
+
+**Roles.** Owner: everything. Operator roles per event: manager (details, photos, theme, exports, album), staff (hide, test, regenerate, print), viewer. Operators never see the licence, prompts, JSON records in the ZIP, spend or the video and style labs. Every admin API route goes through `eventAdminRoute`, `ownerRoute` or `signedInRoute` in `src/lib/platform/route.ts`; `routes.test.ts` fails if a route skips them. An event you have no access to answers 404, like one that does not exist.
+
+**Sessions.** Signed, HTTP-only cookie (`SESSION_HOURS`, default 12). Each request re-reads the account, so disabling an operator, resetting a password or removing an event takes effect at once; changing `ADMIN_PASSWORD` ends owner sessions. Five failed logins lock that name and address for 15 minutes. Cross-site writes are refused.
+
+**Themes.** Six ready themes (olive, gold and black, sport, pastel, sky, neon) with their own fonts; with `customTheme` in the licence, any of nine colours, the font pair, a headline and a logo. A theme is CSS variables on the event's own wrapper, so ten events open at once never touch each other. Posters and the album use the event's colours where they draw their own backgrounds (the poster artwork itself is not themed).
+
+**Open event mode.** No celebrant and no reference photos: the guest's photo is required, the wish is optional, and the picture is built around the people in the photo. It has its own concept prompt (`IMAGE_CONCEPT_SYSTEM_OPEN`) and style briefs (`STYLE_BRIEFS_OPEN`, derived from the celebrant ones so layout fixes apply to both); everything else in the pipeline is shared. No Bar Mitzvah wording appears on its posters or album. `open-mode.test.ts` checks every style.
+
+**Album tool.** `/admin/e/<slug>/album`: pages (one per guest), grid (six per page) or blessings book, with order, title and cover, in the event's colours.
+
+**Print pipeline.** `/admin/e/<slug>/print`: sizes in `src/lib/print/profiles.ts` (5×7.5 and 2×3 in magnets, 10×15 postcard, 8.5×12 card). Each queued poster becomes a 300 dpi file with bleed (Lanczos upscale and light sharpen; the title and sign-off are already drawn by our canvas, so they stay sharp), has a serial number, and can be downloaded or set into A4 sheets with crop marks. Set `PRINT_HOT_FOLDER` to also copy every file into a printer's hot folder. A model upscaler can replace the resize in `render.ts` without touching the rest.
+
+**Video.** Research only: `docs/video-tool-research-he.md`. The tool is listed as "research" and cannot be switched on yet.
+
 ## Contents
 
 1. [Screens](#screens)
@@ -48,9 +81,9 @@ Every file is stored on disk with a name like `david_cohen_20261027_201530` (Heb
 | `/` | Guests, on their phones | Step-by-step form: who you are, tell us about you, blessing, what to receive, photo. A "blessing only" link on the welcome screen skips the creation and the photo |
 | `/r/<id>` | The guest | Personal result page: creation number, place in line and estimated wait, then the poster to download and share, the song when ready, the blessing. "Done" appears once the creation is ready and shows a thank-you screen with a close button |
 | `/screen` | Projector or TV in the hall | Slideshow of posters with their blessings, and blessing-only slides, with a large QR code |
-| `/admin` | The organiser | Carmel's photos, event details, all submissions with the guest's photo, regenerate, hide, Suno, ZIP export, PDF album |
+| `/admin/e/<slug>` | The organiser | Photos of the celebrant, event details, all submissions with the guest's photo, regenerate, hide, Suno, ZIP export, album, print |
 
-Log in to `/admin` with the user `admin` and the password set in `ADMIN_PASSWORD`.
+Log in at `/login` with the user `admin` and the password set in `ADMIN_PASSWORD` (see [Platform](#platform-many-events-one-app)).
 
 The guest-facing UI is mobile-first, in Hebrew (right-to-left) by default or English with `?lang=en`; see [Languages](#languages).
 
@@ -72,7 +105,7 @@ flowchart LR
 
     subgraph App["Next.js server (Docker, Render)"]
         API["API routes"]
-        Proxy["proxy.ts<br/>Basic Auth for /admin"]
+        Proxy["proxy.ts<br/>session gate, root redirect"]
         Q["Job queue<br/>p-queue, 3 at a time"]
         P["Pipeline<br/>analyse, concept, image, compose"]
         C["Poster composer<br/>@napi-rs/canvas, Hebrew RTL"]
@@ -172,7 +205,7 @@ carmel_bar_mitzva/
 ├── .env.example               every setting, with defaults
 ├── assets/fonts/              Frank Ruhl Libre + Heebo, used by the poster composer
 └── src/
-    ├── proxy.ts               Basic Auth for /admin and /api/admin
+    ├── proxy.ts               Session gate for /admin and /api/admin; redirects / and /screen to the default event
     ├── instrumentation.ts     on start-up, resumes unfinished submissions
     ├── app/
     │   ├── page.tsx           guest flow
@@ -209,6 +242,8 @@ API endpoints:
 | `/api/celebrant` | GET | Celebrant name, event details, whether songs are on |
 | `/api/quota?name=` | GET | How many creations a guest name has left |
 | `/api/health` | GET | Disk, memory and queue status, for checking a deploy |
+> **Paths changed with the platform.** Event-scoped admin routes below live under `/api/admin/e/<slug>/…` (for example `/api/admin/e/carmel/submissions`), and the guest routes `/api/submissions`, `/api/celebrant`, `/api/quota` and `/api/screen` live under `/api/e/<slug>/…` (`/api/e/<slug>/event` replaces `/api/celebrant`). Platform routes: `/api/auth/login`, `/api/auth/logout`, `/api/admin/events`, `/api/admin/accounts`, `/api/admin/audit`, `/api/admin/platform`, `/api/admin/e/<slug>/license`, `/theme`, `/print`. `/api/s/<id>` keeps its address.
+
 | `/api/admin/submissions` | GET | All submissions, for the dashboard |
 | `/api/admin/submissions/<id>/regenerate` | POST | Rerun a stage |
 | `/api/admin/submissions/<id>/song` | POST | Upload an MP3 |
@@ -232,7 +267,7 @@ Everything lives under `DATA_DIR`, which is `/data` on the server:
 /data
 ├── event.json                         event details + how Carmel looks
 ├── usage.jsonl                        every OpenAI call: tokens and estimated cost
-├── openai-balance.json                the balance last entered in /admin, and when
+├── (since the platform change this tree sits in events/<slug>/, and the OpenAI balance in platform/)
 ├── celebrant/carmel_<time>.jpg        reference photos of Carmel
 ├── uploads/<name>_<time>.jpg          guest photos (only with consent)
 ├── blessings/<name>_<time>.json       the full record of one submission

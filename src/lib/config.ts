@@ -20,6 +20,8 @@ const EnvSchema = z.object({
   OWNER_USERNAME: z.string().trim().min(1).default("admin"),
   /** The event created on first start and served at the site root. */
   DEFAULT_EVENT_SLUG: z.string().default("carmel"),
+  /** Optional folder the print queue copies finished files into, for a printer that watches a hot folder. */
+  PRINT_HOT_FOLDER: z.string().optional(),
   SESSION_HOURS: z.coerce.number().min(1).max(24 * 30).default(12),
 });
 
@@ -51,6 +53,7 @@ export const config = {
   ownerUsername: env.OWNER_USERNAME,
   defaultEventSlug: env.DEFAULT_EVENT_SLUG,
   sessionHours: env.SESSION_HOURS,
+  printHotFolder: env.PRINT_HOT_FOLDER,
   secureCookies: process.env.NODE_ENV === "production",
   fontsDir: path.resolve(process.cwd(), "assets/fonts"),
   /** Celebrant photos and look.txt shipped with the app, copied into DATA_DIR on startup. */

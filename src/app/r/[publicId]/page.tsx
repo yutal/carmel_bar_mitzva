@@ -1,6 +1,10 @@
 import { Suspense } from "react";
 import ResultView from "@/components/ResultView";
 import { isLang } from "@/lib/i18n";
+import { eventOfPublicId } from "@/lib/platform/events";
+import { withEvent } from "@/lib/platform/scope";
+import { themeVars } from "@/lib/platform/theme-rules";
+import { getTheme } from "@/lib/storage/theme";
 
 export default function ResultPage({ params, searchParams }: PageProps<"/r/[publicId]">) {
   return (
@@ -13,6 +17,13 @@ export default function ResultPage({ params, searchParams }: PageProps<"/r/[publ
 async function Result({ params, searchParams }: Pick<PageProps<"/r/[publicId]">, "params" | "searchParams">) {
   const { publicId } = await params;
   const { lang } = await searchParams;
+  // The result page wears the theme of the event the guest's link belongs to.
+  const slug = await eventOfPublicId(publicId);
+  const theme = slug ? await withEvent(slug, getTheme) : undefined;
   // ?lang only covers the first moment; once loaded, the page follows the language the guest wrote in.
-  return <ResultView publicId={publicId} initialLang={isLang(lang) ? lang : "he"} />;
+  return (
+    <div data-theme-root style={{ ...(theme ? themeVars(theme) : {}), background: "var(--color-canvas)", color: "var(--color-ink)", minHeight: "100dvh" }}>
+      <ResultView publicId={publicId} initialLang={isLang(lang) ? lang : "he"} />
+    </div>
+  );
 }

@@ -89,3 +89,35 @@ Calm areas: the top 15% of the package is a plain solid-colour header card with 
 is a plain card backing with no text.
 Faces: every face (the figure's and any other figure's) sits between 18% and 62% of the frame height.`,
 };
+
+/**
+ * The same briefs for an open event, where there is no celebrant and the guest (with whoever is in their photo) is
+ * the hero. Derived by explicit replacements so a fix to a style's layout rules applies to both modes; the test in
+ * open-mode.test.ts fails if a replacement stops matching and a celebrant is left in the text.
+ */
+const OPEN_EDITS: [string, string][] = [
+  ["the celebrant is the hero", "the guest is the hero"],
+  ["in the same style as the celebrant;", "in the same style as the others;"],
+  [
+    "Cast: only the celebrant and every person from the guest photo. With no guest photo, the celebrant alone.",
+    "Cast: every person from the guest photo, and nobody else.",
+  ],
+  ["starring the celebrant", "starring the guest"],
+  [
+    "The people from the guest photo, if any, stand close beside or slightly behind him;\nwith no guest photo he is alone on the cover. Only one celebrant: never a second boy, twin, reflection or cut-out of him.",
+    "Everyone from the guest photo shares the cover, standing close together. Nobody appears twice: never a twin, reflection or cut-out.",
+  ],
+  ["about the celebrant,", "about the guest,"],
+  ["the celebrant is the star player", "the guest is the star player"],
+  ["pick the celebrant's talent", "pick the guest's talent"],
+  [
+    "Cast: the celebrant and every person from the guest photo, side by side as one team, all from the waist up, all faces visible.\nWith no guest photo, the celebrant alone: the guest does not appear at all, not even from behind. Never add",
+    "Cast: every person from the guest photo, side by side as one team, all from the waist up, all faces visible. Never add",
+  ],
+  ["the celebrant as a collectible", "the guest as a collectible"],
+  ["the figure looks like the celebrant\nin toy form", "the figure looks like the guest\nin toy form"],
+];
+
+export const STYLE_BRIEFS_OPEN: Record<ImageStyle, string> = Object.fromEntries(
+  (Object.keys(STYLE_BRIEFS) as ImageStyle[]).map((style) => [style, OPEN_EDITS.reduce((text, [from, to]) => text.replace(from, to), STYLE_BRIEFS[style])]),
+) as Record<ImageStyle, string>;

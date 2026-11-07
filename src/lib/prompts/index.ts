@@ -1,14 +1,28 @@
 import { LANG_INFO, type Lang } from "@/lib/i18n";
 import type { Analysis, EventSettings, GuestInput } from "@/lib/types";
 import { MUSIC_STYLES, type ImageStyle } from "@/lib/types";
-import { STYLE_BRIEFS } from "./styles";
+import type { EventMode } from "@/lib/platform/license-rules";
+import { STYLE_BRIEFS, STYLE_BRIEFS_OPEN } from "./styles";
 
 /** The celebrant's name as written in a given language. */
 export const celebrantNameIn = (event: EventSettings, lang: Lang) => (lang === "en" && event.celebrantNameEn) || event.celebrantName;
 
 /** The guest's own words, labelled, as the single source of truth for every stage. */
-export function guestContext(input: GuestInput, event: EventSettings, opts: { blessing?: boolean } = {}): string {
+export function guestContext(input: GuestInput, event: EventSettings, opts: { blessing?: boolean; mode?: EventMode } = {}): string {
   const lang = LANG_INFO[input.lang ?? "he"].english;
+  if (opts.mode === "open") {
+    return [
+      `Event: ${event.eventTitle || "a celebration"}. This is an open event for all guests: each guest is the star of their own creation.`,
+      `Poster language: ${lang}. Every word printed on the creation (title, tagline, cover lines, stats, rationale) is in ${lang}.`,
+      `Guest name: ${input.fullName}`,
+      `What they love doing: ${input.together || "(not answered)"}`,
+      `Their dream or the scene they would love to be in: ${input.memory || "(not answered)"}`,
+      `What they are best at: ${input.talent || "(not answered)"}`,
+      opts.blessing === false || !input.blessing ? "" : `Their wish or message (verbatim): ${input.blessing}`,
+    ]
+      .filter(Boolean)
+      .join("\n");
+  }
   return [
     `Celebrant: ${event.celebrantName} (in English: ${event.celebrantNameEn || event.celebrantName}), a 13-year-old boy celebrating his Bar Mitzvah.`,
     `Poster language: ${lang}. Every word printed on the creation (title, tagline, cover lines, stats, rationale, song title) is in ${lang},`,
@@ -31,6 +45,34 @@ Write list items in short English phrases. Empty lists are fine when nothing fit
 Set isAppropriate to false only for text that is clearly unfit for a family event: slurs, hateful, sexual or threatening
 content, or the harshest profanity, in any language. Teasing, sports trash talk, slang, jokes about the celebrant and mild
 swearing are normal at a celebration and stay appropriate. When in doubt, it is appropriate.`;
+
+/**
+ * Open events have no celebrant, so the task itself differs (not only the cast): the concept is built around the
+ * guest. Everything else (styles, calm areas, face placement, number of people) is shared with the celebrant prompt.
+ */
+export const IMAGE_CONCEPT_SYSTEM_OPEN = `You are the creative director of a personalised art booth at an event.
+Turn one guest's answers (what they love, their dream or the scene they would love to be in, what they are best at) into ONE
+image concept, in the art style the guest picked, that makes THEM the hero of their own story.
+
+Rules:
+- The guest photo is required and shows the people to draw. List every person visible in it in guestPhotoPeople, left to right,
+  each with apparent age, gender, hair (colour, length, style), facial hair, glasses, skin tone and one clothing detail.
+  Faces in the far background, on posters or on screens are not people to list. There is no celebrant: set celebrantInGuestPhoto to false.
+- Build the concept on the most specific detail the guest gave. A generic image is a failure. Explain in "rationale" (one sentence,
+  in the poster language) which detail you used. Pick the genre that fits (sports, superhero, space, fantasy, adventure, music...),
+  warm and family friendly.
+- Title (poster language): punchy, max 4 words, may play on the guest's name. Tagline: max 8 words.
+- Fill coverLines and stats only when the style brief asks for them; otherwise return empty lists.
+- The cast is fixed: each person in guestPhotoPeople exactly once, nobody else, in any style.
+- imagePrompt (English, 120-220 words) for an image model that receives the guest photo:
+  * Refer to each person by their place in the photo ("the woman on the left") and repeat the key features you listed,
+    so the image model keeps each face. Give each of them a role in the story.
+  * State the exact number of people and add "no other people". Never write crowds, fans, teammates, extras or passers-by.
+  * Every face is large, front-facing or three-quarter, unobstructed and well lit; nobody is cropped or hidden.
+  * Text is printed on the image later in fixed places (see the style brief). Plan where every face goes, and repeat the
+    brief's face placement in plain words. The brief's calm areas are mandatory.
+  * Start imagePrompt with the style brief's rendering in plain words, and describe every person in that rendering.
+  * Vertical 2:3 frame. Absolutely no text, letters, numbers, logos or watermarks in the image.`;
 
 export const IMAGE_CONCEPT_SYSTEM = `You are the creative director of a personalised art booth at a Bar Mitzvah.
 Turn one guest's story (their answers about what they do together, a shared memory and the celebrant's talent) into ONE
@@ -96,12 +138,15 @@ export function analysisSummary(a: Analysis): string {
   return JSON.stringify(a, null, 2);
 }
 
-export function imageStyleBrief(style: ImageStyle): string {
-  return `Art style picked by the guest: ${style}.\n${STYLE_BRIEFS[style]}`;
+export function imageStyleBrief(style: ImageStyle, mode: EventMode = "celebrant"): string {
+  return `Art style picked by the guest: ${style}.\n${(mode === "open" ? STYLE_BRIEFS_OPEN : STYLE_BRIEFS)[style]}`;
 }
 
 /** The user message for the image concept: the story (never the blessing), the photo situation and the style brief. */
-export function imageConceptInput(input: GuestInput, event: EventSettings, hasGuestPhoto: boolean, hasCelebrantPhoto = false): string {
+export function imageConceptInput(input: GuestInput, event: EventSettings, hasGuestPhoto: boolean, hasCelebrantPhoto = false, mode: EventMode = "celebrant"): string {
+  if (mode === "open") {
+    return [guestContext(input, event, { blessing: false, mode }), "", "The guest photo is attached.", "", imageStyleBrief(input.imageStyle ?? "movie", "open")].join("\n");
+  }
   return [
     guestContext(input, event, { blessing: false }),
     "",

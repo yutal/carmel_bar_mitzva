@@ -49,8 +49,11 @@ export async function licenseUsage() {
   };
 }
 
-/** Throws a LicenseError when the tool is closed for the current event. `creating` also checks the creation quota. */
-export async function assertTool(tool: ToolId, opts: { creating?: boolean } = {}): Promise<void> {
+/**
+ * Throws a LicenseError when the tool is closed for the current event. `creating` also checks the creation quota;
+ * `staff` is for the organiser's own tools, which ignore the guests' time window.
+ */
+export async function assertTool(tool: ToolId, opts: { creating?: boolean; staff?: boolean } = {}): Promise<void> {
   const block = licenseBlock(await getLicense(), tool, await licenseUsage(), Date.now(), opts);
   if (block) throw new LicenseError(block);
 }

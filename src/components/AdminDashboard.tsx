@@ -91,11 +91,13 @@ export default function AdminDashboard({ slug }: { slug: string }) {
         </div>
         <div className="flex flex-wrap gap-2">
           <a className="btn-ghost" href={`/e/${slug}/screen`} target="_blank">מסך אולם ↗</a>
+          <a className="btn-ghost" href={`/admin/e/${slug}/theme`}>🎨 עיצוב</a>
           <a className="btn-ghost" href={`/admin/e/${slug}/lab`}>🎬 מעבדת וידאו וקול</a>
           <a className="btn-ghost" href={`/admin/e/${slug}/qa`}>🧪 בדיקת סגנונות</a>
           <a className="btn-primary" href={`/api/admin/e/${slug}/export`}>⬇️ ייצוא אלבום (ZIP)</a>
           <a className="btn-ghost" href={`/api/admin/e/${slug}/export?marketing=1`}>⬇️ מאושרים לשיווק (ZIP)</a>
-          <a className="btn-ghost" href={`/api/admin/e/${slug}/export/pdf`}>📖 אלבום להדפסה (PDF)</a>
+          <a className="btn-ghost" href={`/admin/e/${slug}/album`}>📖 עיצוב אלבום</a>
+          <a className="btn-ghost" href={`/admin/e/${slug}/print`}>🧲 הדפסה</a>
         </div>
       </header>
 
