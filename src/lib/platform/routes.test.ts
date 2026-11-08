@@ -33,3 +33,15 @@ test("every guest API route under /api/e/[slug] runs inside its event", () => {
     }
   }
 });
+
+test("every guest API route states its entry rule", () => {
+  for (const file of routeFiles(path.join(appDir, "api/e"))) {
+    const src = fs.readFileSync(file, "utf8");
+    assert.match(src, /\{ entry: "(guest|screen|none)" \}\);\s*$/, `${path.relative(appDir, file)} does not say who may call it (entry: guest | screen | none)`);
+  }
+});
+
+test("only the logo is open without a QR entry", () => {
+  const open = routeFiles(path.join(appDir, "api/e")).filter((f) => /entry: "none"/.test(fs.readFileSync(f, "utf8")));
+  assert.deepEqual(open.map((f) => path.relative(appDir, f).replaceAll(path.sep, "/")), ["api/e/[slug]/logo/route.ts"]);
+});

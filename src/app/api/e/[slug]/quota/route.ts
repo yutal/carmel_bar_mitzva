@@ -7,4 +7,4 @@ export const GET = publicEventRoute(async (request) => {
   const name = (new URL(request.url).searchParams.get("name") ?? "").slice(0, 60);
   const remaining = name.trim() ? await remainingFor(name) : null;
   return Response.json({ max: config.maxCreationsPerGuest || null, remaining }, { headers: { "Cache-Control": "no-store" } });
-});
+}, { entry: "guest" });

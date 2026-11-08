@@ -63,6 +63,8 @@ export async function createEvent(slug: string, settings: EventSettings, license
   await withEvent(slug, async () => {
     await saveLicense(license);
     await writeJson(path.join(eventRoot(slug), "event.json"), settings);
+    // New events start with the entry gate on: guests get in only through a QR key.
+    await writeJson(path.join(eventRoot(slug), "gate.json"), { required: true, gen: 0, closed: false });
   });
 }
 
@@ -106,6 +108,8 @@ export async function migrateLegacyLayout(): Promise<void> {
   const old = await readJson<Partial<EventSettings>>(eventFile);
   await writeJson(eventFile, { ...LEGACY_DEFAULTS, ...old });
   await withEvent(slug, () => saveLicense(unlimitedLicense()));
+  // An installation that already had guests keeps its printed QR codes working until the organiser turns the gate on.
+  if (moved) await writeJson(path.join(root, "gate.json"), { required: false, gen: 0, closed: false });
   await savePlatform({ ...platform, defaultEvent: platform.defaultEvent ?? slug, legacyEvent: platform.legacyEvent ?? slug });
   console.log(`[events] created event "${slug}"${moved ? ` from ${moved} existing item(s)` : ""}`);
 }

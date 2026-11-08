@@ -29,11 +29,33 @@ export default function HallScreen({ slug }: { slug: string }) {
   // Read by the slide timer, so a refresh of the list does not restart the current slide's clock.
   const itemsRef = useRef<PublicSubmission[]>([]);
 
+  // The screen needs its own key (the screen link from the admin page) or a signed-in organiser; without one it says so.
+  const [locked, setLocked] = useState(false);
+
   useEffect(() => {
-    // The QR is drawn in the event theme's ink colour.
+    let alive = true;
+    let timer: ReturnType<typeof setTimeout> | undefined;
+    // The QR is drawn in the event theme's ink colour. Its address carries a short-lived key, so it is renewed.
     const ink = getComputedStyle(document.querySelector("[data-theme-root]") ?? document.body).getPropertyValue("--color-ink").trim() || "#2d331c";
-    void QRCode.toDataURL(`${location.origin}/e/${slug}`, { margin: 1, width: 360, color: { dark: ink, light: "#ffffff" } }).then(setQr);
+    async function drawQr() {
+      const res = await fetch(`/api/e/${slug}/entry`, { cache: "no-store" }).catch(() => null);
+      if (!alive) return;
+      if (res?.status === 403) return setLocked(true);
+      if (res?.ok) {
+        const d = (await res.json()) as { url: string; refreshMinutes: number | null };
+        setLocked(false);
+        setQr(await QRCode.toDataURL(d.url, { margin: 1, width: 360, color: { dark: ink, light: "#ffffff" } }));
+        if (d.refreshMinutes && alive) timer = setTimeout(drawQr, d.refreshMinutes * 60_000);
+      } else if (alive) {
+        timer = setTimeout(drawQr, 30_000);
+      }
+    }
+    void drawQr();
     fetch(`/api/e/${slug}/event`).then((r) => r.json()).then((d: { celebrantName?: string }) => d.celebrantName && setCelebrant(d.celebrantName)).catch(() => undefined);
+    return () => {
+      alive = false;
+      clearTimeout(timer);
+    };
   }, [slug]);
 
   useEffect(() => {
@@ -80,6 +102,17 @@ export default function HallScreen({ slug }: { slug: string }) {
 
   const item = slide?.item;
   const art = item?.image?.url ?? item?.song?.coverUrl;
+
+  if (locked) {
+    return (
+      <main className="grid h-dvh place-items-center px-[8vw] text-center">
+        <div className="space-y-[2vh]">
+          <p className="text-[4vw] font-bold text-ink">המסך עדיין לא מורשה</p>
+          <p className="text-[2vw] text-muted">פתחו כאן את &quot;קישור המסך&quot; מדף הניהול של האירוע (כניסה → שער כניסה), או היכנסו כמנהל במחשב הזה.</p>
+        </div>
+      </main>
+    );
+  }
 
   return (
     <main className="relative flex h-dvh w-full items-center gap-[4vw] overflow-hidden px-[5vw]">
