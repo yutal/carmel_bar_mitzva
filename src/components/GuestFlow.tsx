@@ -77,7 +77,12 @@ export default function GuestFlow({
 
   useEffect(() => {
     fetch(`${api}/event`, { cache: "no-store" })
-      .then((r) => r.json())
+      .then(async (r) => {
+        const body = await r.json();
+        // No entry cookie: the page shows why, in the guest's language, instead of an empty form.
+        if (r.status === 403 && body.code === "entry") return { closed: body.message as { he: string; en: string } };
+        return body;
+      })
       .then(
         (d: {
           celebrantName?: string;

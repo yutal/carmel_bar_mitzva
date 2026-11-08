@@ -14,4 +14,4 @@ export const GET = publicEventRoute(async () => {
     .slice(0, 60)
     .map((s) => toPublic(s));
   return Response.json(items, { headers: { "Cache-Control": "no-store" } });
-});
+}, { entry: "screen" });

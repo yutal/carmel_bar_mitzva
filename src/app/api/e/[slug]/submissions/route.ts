@@ -74,4 +74,4 @@ export const POST = publicEventRoute(async (request, { slug }) => {
   if (photo) await saveFile(submission.id, "photo", "uploads", ".jpg", photo);
   enqueue(submission.id);
   return Response.json({ publicId: submission.publicId }, { status: 201 });
-});
+}, { entry: "guest" });

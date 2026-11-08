@@ -33,4 +33,4 @@ export const GET = publicEventRoute(async () => {
     },
     { headers: { "Cache-Control": "no-store" } },
   );
-});
+}, { entry: "guest" });

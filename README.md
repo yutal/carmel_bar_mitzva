@@ -625,3 +625,8 @@ Logs are in the Render dashboard, on the service's **Logs** tab. **Events** show
 - Keys live only in the server's environment variables, never in the code. `.env` and `/data` are never committed.
 - The server runs as a non-root user.
 - Carmel's photos are not stored in the repository; they are uploaded through `/admin` only.
+
+
+## כניסה בקוד QR
+
+אורחים נכנסים רק דרך קוד QR עם מפתח חתום ותוקף (ראו `docs/security-he.md` להסבר ולדיאגרמות). ניהול: `/admin/e/<אירוע>/gate`. אירועים שהיו קיימים לפני השער נשארים פתוחים לכתובת הרגילה עד שבעל הפלטפורמה מפעיל את הדרישה.

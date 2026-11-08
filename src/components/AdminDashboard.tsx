@@ -91,6 +91,7 @@ export default function AdminDashboard({ slug }: { slug: string }) {
         </div>
         <div className="flex flex-wrap gap-2">
           <a className="btn-ghost" href={`/e/${slug}/screen`} target="_blank">מסך אולם ↗</a>
+          <a className="btn-ghost" href={`/admin/e/${slug}/gate`}>🔐 שער כניסה</a>
           <a className="btn-ghost" href={`/admin/e/${slug}/theme`}>🎨 עיצוב</a>
           <a className="btn-ghost" href={`/admin/e/${slug}/lab`}>🎬 מעבדת וידאו וקול</a>
           <a className="btn-ghost" href={`/admin/e/${slug}/qa`}>🧪 בדיקת סגנונות</a>
