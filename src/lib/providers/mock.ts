@@ -1,6 +1,7 @@
 import "server-only";
 import { createHash } from "node:crypto";
 import sharp from "sharp";
+import { proposalFromPalette } from "@/lib/platform/theme-fit";
 import { probe } from "@/lib/media/ffmpeg";
 import type { ImageProvider, LlmProvider, TranscribeProvider } from "./types";
 import type { TranscriptWord } from "@/lib/types";
@@ -94,6 +95,10 @@ export const mockLlm: LlmProvider = {
     let last = 0;
     while (last + 1 < segments.length && segments[last + 1].end - segments[0].start <= maxSeconds) last++;
     return { titleHebrew: "ברכה מכל הלב", quoteHebrew: segments[1]?.text ?? segments[0]?.text ?? "", ranges: [{ first: 0, last }] };
+  },
+  // The offline stand-in "designs" from the measured colours alone, which is also what the real path falls back to.
+  async themeFromImage(_image, palette) {
+    return { ...proposalFromPalette(palette), notes: "תצוגה לדוגמה (ספק מדומה): הצבעים נלקחו מהתמונה." };
   },
 };
 

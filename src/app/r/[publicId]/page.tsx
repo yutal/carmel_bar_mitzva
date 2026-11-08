@@ -3,7 +3,7 @@ import ResultView from "@/components/ResultView";
 import { isLang } from "@/lib/i18n";
 import { eventOfPublicId } from "@/lib/platform/events";
 import { withEvent } from "@/lib/platform/scope";
-import { themeVars } from "@/lib/platform/theme-rules";
+import { DEFAULT_THEME, themeWrapperStyle } from "@/lib/platform/theme-rules";
 import { getTheme } from "@/lib/storage/theme";
 
 export default function ResultPage({ params, searchParams }: PageProps<"/r/[publicId]">) {
@@ -22,7 +22,7 @@ async function Result({ params, searchParams }: Pick<PageProps<"/r/[publicId]">,
   const theme = slug ? await withEvent(slug, getTheme) : undefined;
   // ?lang only covers the first moment; once loaded, the page follows the language the guest wrote in.
   return (
-    <div data-theme-root style={{ ...(theme ? themeVars(theme) : {}), background: "var(--color-canvas)", color: "var(--color-ink)", minHeight: "100dvh" }}>
+    <div data-theme-root style={themeWrapperStyle(theme ?? DEFAULT_THEME)}>
       <ResultView publicId={publicId} initialLang={isLang(lang) ? lang : "he"} />
     </div>
   );
