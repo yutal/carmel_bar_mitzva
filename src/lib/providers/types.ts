@@ -1,5 +1,6 @@
 import type { Lang } from "@/lib/i18n";
 import type { EventMode } from "@/lib/platform/license-rules";
+import type { PaletteColor, ThemeProposal } from "@/lib/platform/theme-fit";
 import type { Analysis, ClipPlan, EventSettings, FaceBox, GuestInput, ImageConcept, PosterCheck, SongConcept, TranscriptSegment, TranscriptWord } from "@/lib/types";
 
 /** `label` replaces the default one-line description of the image in the prompt. */
@@ -22,6 +23,11 @@ export interface LlmProvider {
   moderate(texts: string[]): Promise<boolean[]>;
   /** Picks the strongest spoken lines of a guest's video or recording for a short clip. */
   clipPlan(segments: TranscriptSegment[], ctx: { guestName: string; celebrantName: string; maxSeconds: number }): Promise<ClipPlan>;
+  /**
+   * Looks at an invitation (or any branding picture) and proposes an event theme from it. `palette` is the dominant
+   * colours measured from the picture; the proposal still goes through fitTheme before anyone sees it.
+   */
+  themeFromImage(image: Buffer, palette: PaletteColor[], hint: string): Promise<ThemeProposal>;
 }
 
 export interface TranscribeProvider {
