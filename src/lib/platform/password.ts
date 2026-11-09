@@ -1,4 +1,3 @@
-import "server-only";
 import { randomBytes, scrypt as scryptCb, timingSafeEqual, type ScryptOptions } from "node:crypto";
 
 const scrypt = (pw: string, salt: Buffer, len: number, opts: ScryptOptions) =>
