@@ -19,6 +19,8 @@ import {
   songStyleHint,
 } from "@/lib/prompts";
 import sharp from "sharp";
+import { ThemeProposalSchema } from "@/lib/platform/theme-fit";
+import { THEME_FROM_IMAGE_SYSTEM, themeDesignInput } from "@/lib/prompts/theme";
 import { AnalysisSchema, ClipPlanSchema, FaceMapSchema, ImageConceptSchema, PosterCheckSchema, SongConceptSchema } from "@/lib/types";
 import { recordUsage, type UsageKind } from "@/lib/usage";
 
@@ -102,5 +104,8 @@ export const openAiLlm: LlmProvider = {
   },
   clipPlan(segments, ctx) {
     return structured(ClipPlanSchema, "clip_plan", CLIP_PLAN_SYSTEM, clipPlanInput(segments, ctx));
+  },
+  async themeFromImage(image, palette, hint) {
+    return structured(ThemeProposalSchema, "theme_design", THEME_FROM_IMAGE_SYSTEM, themeDesignInput(palette, hint), await asJpeg(image));
   },
 };
