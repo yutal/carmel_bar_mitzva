@@ -1,10 +1,13 @@
 import "server-only";
+import { createHash } from "node:crypto";
 import { jsonError } from "@/lib/http";
 import { eventExists } from "./events";
+import { clientIp } from "./audit";
 import { entryVerdict } from "./gate";
 import { ENTRY_MESSAGES } from "./gate-rules";
 import { BLOCK_MESSAGES } from "./license-rules";
 import { LicenseError } from "./license";
+import { createLimiter } from "./rate-limit";
 import { can, type Actor, type Perm } from "./roles";
 import { withEvent } from "./scope";
 import { actorFromRequest } from "./session";
@@ -78,6 +81,21 @@ export function eventAdminRoute(perm: Perm, handler: Handler<{ actor: Actor; slu
   };
 }
 
+const g = globalThis as unknown as { __guestLimiter?: ReturnType<typeof createLimiter> };
+const limiter = (g.__guestLimiter ??= createLimiter());
+
+/**
+ * Per browser (its address plus its entry cookie), so a venue where everyone shares one Wi-Fi address is not
+ * throttled as one person. Creating something is far stricter than reading.
+ */
+function tooMany(request: Request, slug: string, route: string): Response | null {
+  const who = `${slug}|${clientIp(request)}|${createHash("sha256").update(request.headers.get("cookie") ?? "").digest("base64url").slice(0, 12)}`;
+  const writes = request.method !== "GET" && request.method !== "HEAD";
+  const r = limiter.hit(`${who}|${writes ? "w" : "r"}`, writes ? 12 : 240, writes ? 10 * 60_000 : 60_000);
+  if (r.ok) return null;
+  return Response.json({ error: "יותר מדי בקשות, נסו שוב בעוד רגע", code: "rate", route }, { status: 429, headers: { "Retry-After": String(r.retryAfterSeconds), "Cache-Control": "no-store" } });
+}
+
 /**
  * Guest routes under /api/e/[slug]/…: no login, but only events that exist, always inside their scope, and (unless
  * `entry: "none"`) only for someone who got in through the event's QR code. "guest" accepts a guest or hall-screen
@@ -100,6 +118,8 @@ export function publicEventRoute(handler: Handler<{ slug: string; params: Params
           }
         }
       }
+      const limited = tooMany(request, slug, opts.entry);
+      if (limited) return limited;
       return handler(request, { slug, params });
     }).catch(fail);
   };

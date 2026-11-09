@@ -4,6 +4,11 @@ import { eventExists } from "@/lib/platform/events";
 import { withEvent } from "@/lib/platform/scope";
 import { isSlug } from "@/lib/platform/slug";
 import { isLang } from "@/lib/i18n";
+import { clientIp } from "@/lib/platform/audit";
+import { createLimiter } from "@/lib/platform/rate-limit";
+
+const g = globalThis as unknown as { __inLimiter?: ReturnType<typeof createLimiter> };
+const limiter = (g.__inLimiter ??= createLimiter());
 
 /**
  * The address inside every QR code: /e/<slug>/in?k=<signed key>. A good key is traded for an entry cookie and the
@@ -14,6 +19,8 @@ import { isLang } from "@/lib/i18n";
 export async function GET(request: Request, ctx: { params: Promise<{ slug: string }> }) {
   const { slug } = await ctx.params;
   if (!isSlug(slug) || !(await eventExists(slug))) return new NextResponse("Not found", { status: 404 });
+  // Generous, because a whole hall scans within a minute from one Wi-Fi address; it only stops scripted floods.
+  if (!limiter.hit(`${slug}|${clientIp(request)}`, 300, 60_000).ok) return new NextResponse("Too many requests", { status: 429, headers: { "Retry-After": "60" } });
   const url = new URL(request.url);
   const result = await withEvent(slug, () => redeemKey(url.searchParams.get("k")));
   const lang = url.searchParams.get("lang");
