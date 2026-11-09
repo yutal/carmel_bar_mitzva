@@ -24,6 +24,17 @@ Turn a picture of an event's look into a theme for the guest pages. The app's ow
    - A matching UI elsewhere: use `cssVariables` (the `--color-*`, `--font-*`, `--radius-*` values and the backdrop) as design tokens. Keep to them; do not add colours that are not in the theme.
 6. Say plainly what is a judgement call (fonts, shape) and what was measured (colours).
 
+## Full design mode (Figma and Canva)
+
+Use this when the user asks for a complete design from a description and the invitation (welcome screens, a sign, a card, a poster, a set of pages), and the Figma and/or Canva tools are connected in this session. Look for their tools first. If they are not connected, say so and deliver the theme and tokens instead; do not pretend.
+
+1. Run steps 1-4 first, so every design starts from the fitted theme and nothing is eyeballed.
+2. **Figma** (screens, mockups, a design system for the event): load the `figma-use` skill (and `figma-generate-design` for whole pages), then `create_new_file` (it needs a `planKey` from `whoami`; ask which plan when there are several), `create_session`, and `use_figma`. Create variables for the nine colours and the corner radius from the fitted theme, text styles from the font pair, and build the screens only from those variables. Check with `get_screenshot`, and fix anything unreadable or clipped (Hebrew is right to left).
+3. **Canva** (print and social pieces: invitation, sign, card, poster, story): `generate-design` with the right `design_type`, and a `query` that carries the mood, the palette as hex values with their roles, the font feel, the headline exactly as it should be printed, and the language and direction. Pass the invitation as an asset when it can be reached (`upload-asset-from-url` takes a public https URL only; otherwise use `create-upload-url`). Use `brand_kit_id` only when the user chose a brand kit: ask first, then `list-brand-kits`. Canva returns candidates: show them, let the user pick one, create it with `create-design-from-candidate`, and `export-design` (png or pdf) when a file is wanted.
+4. Writes land in the user's own Figma and Canva accounts and may ask for approval. Say what was created and where, with the links. Look at the result before presenting it; Hebrew text in generated designs is the usual weak spot.
+
+This is how Claude works with those connectors. The "create from invitation" button in the admin page does not call Figma or Canva (it uses its own model call and the fitted theme).
+
 ## Rules
 
 - Never ship colours that fail the contrast checks, and never edit the fitted values by hand without re-running step 4.
