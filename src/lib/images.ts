@@ -16,15 +16,14 @@ const photoQueue = new PQueue({ concurrency: Math.max(2, os.availableParallelism
  * Re-encodes an uploaded photo: applies EXIF rotation, caps the size and
  * drops all metadata (sharp strips EXIF/GPS unless asked to keep it).
  */
-export async function normalizePhoto(input: Buffer, maxSide = 1536): Promise<Buffer> {
-  return sharp(input, { failOn: "error" })
-    .rotate()
-    .resize(maxSide, maxSide, { fit: "inside", withoutEnlargement: true })
-    .jpeg({ quality: 86 })
-    .toBuffer();
+export async function normalizePhoto(input: Buffer, maxSide = 1536, opts: { keepAlpha?: boolean } = {}): Promise<Buffer> {
+  const img = sharp(input, { failOn: "error" }).rotate().resize(maxSide, maxSide, { fit: "inside", withoutEnlargement: true });
+  // A logo or a sticker with a transparent background stays a PNG; everything else is a JPEG.
+  if (opts.keepAlpha && (await sharp(input).metadata()).hasAlpha) return img.png().toBuffer();
+  return img.jpeg({ quality: 86 }).toBuffer();
 }
 
-export async function readUpload(file: File | null): Promise<Buffer | undefined> {
+export async function readUpload(file: File | null, opts: { keepAlpha?: boolean; maxSide?: number } = {}): Promise<Buffer | undefined> {
   if (!file || file.size === 0) return undefined;
   if (file.size > MAX_UPLOAD_BYTES) throw new UploadError("הקובץ גדול מדי");
   const isHeic = /\.hei[cf]$/i.test(file.name) || /hei[cf]/i.test(file.type);
@@ -34,7 +33,7 @@ export async function readUpload(file: File | null): Promise<Buffer | undefined>
     return await photoQueue.add(async () => {
       // sharp's prebuilt libheif cannot decode iPhone HEIC (HEVC), so convert it first.
       const data = isHeic ? Buffer.from(await heicConvert({ buffer: raw, format: "JPEG", quality: 0.92 })) : raw;
-      return normalizePhoto(data);
+      return normalizePhoto(data, opts.maxSide, { keepAlpha: opts.keepAlpha });
     });
   } catch {
     throw new UploadError("לא הצלחנו לקרוא את התמונה");
