@@ -17,8 +17,10 @@
 
 ## התמונה הכללית
 
+הדיאגרמות מסודרות לקריאה מימין לשמאל: המתחיל בצד ימין.
+
 ```mermaid
-flowchart LR
+flowchart RL
   O[בעל הפלטפורמה] -->|מנפיק ומחתים רישיון| L[(רישיון האירוע)]
   O -->|פותח חשבון ומשייך לאירוע| A[מפעיל או לקוח]
   A -->|מתחבר ומקבל עוגייה חתומה| S[שרת]
@@ -33,10 +35,10 @@ flowchart LR
 
 ```mermaid
 sequenceDiagram
-  participant U as מפעיל
-  participant P as פרוקסי
-  participant R as ראוט מנהל
   participant D as חשבונות
+  participant R as ראוט מנהל
+  participant P as פרוקסי
+  participant U as מפעיל
   U->>P: בקשה ל-/admin או /api/admin
   P->>P: אין עוגייה? הפניה להתחברות
   P->>R: יש עוגייה
@@ -64,6 +66,7 @@ sequenceDiagram
 
 ```mermaid
 stateDiagram-v2
+  direction RL
   [*] --> נחתם: בעל הפלטפורמה שומר
   נחתם --> פתוח: בתוך חלון הזמן ובמכסה
   פתוח --> סגור: מכסה או תקציב נגמרו
@@ -82,9 +85,9 @@ stateDiagram-v2
 
 ```mermaid
 sequenceDiagram
-  participant A as אורח
-  participant IN as /e/slug/in
   participant API as /api/e/slug/...
+  participant IN as /e/slug/in
+  participant A as אורח
   A->>IN: סורק QR עם מפתח
   IN->>IN: חתימה, אירוע נכון, דור מפתח, תוקף, השער לא סגור
   alt מפתח תקין
@@ -126,7 +129,7 @@ flowchart TD
 ## אירועים שרצים במקביל
 
 ```mermaid
-flowchart LR
+flowchart RL
   subgraph E1[אירוע א]
     A1[רישיון] --- B1[שער ומפתחות]
     B1 --- C1[נתונים ועיצוב]
