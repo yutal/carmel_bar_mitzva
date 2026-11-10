@@ -15,6 +15,7 @@ export const DIRS = {
   exports: "exports",
   lab: "lab",
   print: "print",
+  design: "design",
 } as const;
 export type DirName = keyof typeof DIRS;
 
