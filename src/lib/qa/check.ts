@@ -7,6 +7,7 @@ import { celebrantPhoto, celebrantReferences, castOf, paintArt, posterFor } from
 import { headCount } from "@/lib/prompts/image";
 import { STYLE_RENDER } from "@/lib/prompts/styles";
 import { providers } from "@/lib/providers";
+import { bindEvent } from "@/lib/platform/scope";
 import { getEvent } from "@/lib/storage/event";
 import { dataPath, readJson, writeFileAtomic, writeJson } from "@/lib/storage/fs";
 import { IMAGE_STYLES, type GuestInput, type ImageStyle, type PosterCheck } from "@/lib/types";
@@ -102,7 +103,7 @@ export async function startQaRun(opts: { styles: ImageStyle[]; langs: Lang[]; ph
   );
   const run: QaRun = { id, startedAt: new Date().toISOString(), status: "running", cases };
   await writeJson(runFile(id), run);
-  for (const c of cases) void queue.add(() => runCase(id, c, opts.photos[c.photo as Exclude<PhotoCase, "none">]));
+  for (const c of cases) void queue.add(bindEvent(() => runCase(id, c, opts.photos[c.photo as Exclude<PhotoCase, "none">])));
   return run;
 }
 

@@ -17,6 +17,11 @@
   --font-display: var(--font-frank), var(--font-heebo), serif;
 }
 
+/* Outside an event's wrapper (admin pages) buttons stay pill-shaped; a theme's shape overrides this on its wrapper. */
+:root {
+  --btn-radius: 9999px;
+}
+
 html {
   color-scheme: light;
 }
@@ -29,10 +34,10 @@ body {
 
 @layer components {
   .btn-primary {
-    @apply inline-flex min-h-14 items-center justify-center gap-2 rounded-full bg-inverse px-7 text-lg font-bold text-canvas transition hover:bg-accent active:scale-[0.98] disabled:opacity-40;
+    @apply inline-flex min-h-14 items-center justify-center gap-2 rounded-(--btn-radius) bg-inverse px-7 text-lg font-bold text-canvas transition hover:bg-accent active:scale-[0.98] disabled:opacity-40;
   }
   .btn-ghost {
-    @apply inline-flex min-h-12 items-center justify-center gap-2 rounded-full border border-line bg-surface px-5 font-medium text-ink transition hover:border-accent-soft active:scale-[0.98] disabled:opacity-40;
+    @apply inline-flex min-h-12 items-center justify-center gap-2 rounded-(--btn-radius) border border-line bg-surface px-5 font-medium text-ink transition hover:border-accent-soft active:scale-[0.98] disabled:opacity-40;
   }
   .field {
     @apply w-full rounded-2xl border border-line bg-surface px-4 py-3.5 text-lg text-ink placeholder:text-muted/60 outline-none transition focus:border-accent-soft focus:ring-4 focus:ring-accent-soft/20;
@@ -41,7 +46,7 @@ body {
     @apply rounded-3xl border border-line bg-surface/80;
   }
   .chip {
-    @apply rounded-full border border-line bg-surface px-4 py-2.5 text-base text-ink transition active:scale-[0.97];
+    @apply rounded-(--btn-radius) border border-line bg-surface px-4 py-2.5 text-base text-ink transition active:scale-[0.97];
   }
   .chip[aria-pressed="true"] {
     @apply border-accent bg-accent text-canvas;

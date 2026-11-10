@@ -1,23 +1,25 @@
 "use client";
 
+import { adminSlug, adminUrl, setAdminSlug } from "./admin-url";
 import { useCallback, useEffect, useState } from "react";
 import type { PhotoCase, QaCase, QaRun } from "@/lib/qa/check";
 import { IMAGE_STYLES, type ImageStyle } from "@/lib/types";
 
 const STYLES = Object.keys(IMAGE_STYLES) as ImageStyle[];
 const PHOTO_LABEL: Record<PhotoCase, string> = { none: "בלי תמונה", single: "אדם אחד", group: "קבוצה" };
-const fileUrl = (rel: string) => `/api/admin/file?path=${encodeURIComponent(rel)}`;
+const fileUrl = (rel: string) => `/api/admin/e/${adminSlug()}/file?path=${encodeURIComponent(rel)}`;
 // Used until the status panel knows the real average cost of a poster.
 const FALLBACK_CASE_USD = 0.3;
 
 async function api<T>(url: string, init?: RequestInit): Promise<T> {
-  const res = await fetch(url, { cache: "no-store", ...init });
+  const res = await fetch(adminUrl(url), { cache: "no-store", ...init });
   const data = await res.json().catch(() => ({}));
   if (!res.ok) throw new Error((data as { error?: string }).error ?? `HTTP ${res.status}`);
   return data as T;
 }
 
-export default function QaPanel() {
+export default function QaPanel({ slug }: { slug: string }) {
+  setAdminSlug(slug);
   const [run, setRun] = useState<QaRun | null>(null);
   const [styles, setStyles] = useState<ImageStyle[]>(STYLES);
   const [langs, setLangs] = useState<string[]>(["he", "en"]);
@@ -34,8 +36,8 @@ export default function QaPanel() {
   useEffect(() => {
     // eslint-disable-next-line react-hooks/set-state-in-effect -- initial fetch
     void load();
-    void api<{ spend: { perPosterUsd: number | null } }>("/api/admin/status")
-      .then((d) => d.spend.perPosterUsd && setPerCase(d.spend.perPosterUsd + 0.02))
+    void api<{ spend: { perPosterUsd: number | null } | null }>("/api/admin/status")
+      .then((d) => d.spend?.perPosterUsd && setPerCase(d.spend.perPosterUsd + 0.02))
       .catch(() => undefined);
   }, [load]);
   const running = run?.status === "running";
@@ -80,7 +82,7 @@ export default function QaPanel() {
             אם נוספו דמויות ואם הסגנון נכון. עולה כסף, רצה רק כשלוחצים.
           </p>
         </div>
-        <a className="btn-ghost" href="/admin">→ חזרה לניהול</a>
+        <a className="btn-ghost" href={`/admin/e/${slug}`}>→ חזרה לניהול</a>
       </header>
 
       <section className="card space-y-4 p-5">

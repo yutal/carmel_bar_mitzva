@@ -1,15 +1,31 @@
 import "server-only";
 import { config } from "@/lib/config";
 import { queueStats } from "@/lib/pipeline/queue";
+import { forEachEvent } from "@/lib/platform/events";
+import { getLicense, licenseUsage } from "@/lib/platform/license";
+import { BLOCK_ADMIN, licenseBlock } from "@/lib/platform/license-rules";
 import { listSubmissions } from "@/lib/storage/submissions";
 import type { StageName } from "@/lib/types";
 import { getBalance, officialCosts, readUsage } from "@/lib/usage";
 
 const round = (n: number) => Math.round(n * 100) / 100;
 
-/** One snapshot of the event for the admin status panel and the event-status skill: creations, failures, queue and money. */
-export async function eventStatus() {
-  const [all, usage, balance, official] = await Promise.all([listSubmissions(), readUsage(), getBalance(), officialCosts()]);
+/** Every event's spend, for the platform-wide OpenAI balance. */
+async function allUsage() {
+  const all: Awaited<ReturnType<typeof readUsage>> = [];
+  await forEachEvent(async () => {
+    all.push(...(await readUsage()));
+  });
+  return all;
+}
+
+/**
+ * One snapshot of the current event for the admin status panel and the event-status skill: creations, failures,
+ * queue, licence and, for the owner, money.
+ */
+export async function eventStatus(opts: { money: boolean }) {
+  const [all, usage, license, licUsage] = await Promise.all([listSubmissions(), readUsage(), getLicense(), licenseUsage()]);
+  const [balance, official, everyEvent] = opts.money ? await Promise.all([getBalance(), officialCosts(), allUsage()]) : [undefined, null, []];
   // Tests are left out of the counts; their cost still shows in the spend.
   const subs = all.filter((s) => !s.test);
   const now = Date.now();
@@ -46,10 +62,10 @@ export async function eventStatus() {
 
   let balanceView = null;
   if (balance) {
-    const spentSinceUsd = sum(usage.filter((e) => e.at > balance.setAt));
+    const spentSinceUsd = sum(everyEvent.filter((e) => e.at > balance.setAt));
     const remainingUsd = balance.amountUsd - spentSinceUsd;
     const postersLeft = perPosterUsd ? Math.max(0, Math.floor(remainingUsd / perPosterUsd)) : null;
-    const queued = queueStats();
+    const queued = queueStats("all");
     balanceView = {
       ...balance,
       spentSinceUsd: round(spentSinceUsd),
@@ -60,8 +76,20 @@ export async function eventStatus() {
     };
   }
 
+  const block = licenseBlock(license, "blessings", licUsage, now, { creating: true });
+  const licenseView = {
+    open: !block,
+    reason: block ? BLOCK_ADMIN[block] : null,
+    startsAt: license.startsAt,
+    endsAt: license.endsAt,
+    maxCreations: license.maxCreations,
+    creationsUsed: licUsage.creations,
+    budgetUsedPct: license.budgetUsd ? Math.min(100, Math.round((licUsage.spentUsd / license.budgetUsd) * 100)) : null,
+  };
+
   return {
     at: new Date().toISOString(),
+    license: licenseView,
     submissions: {
       total: subs.length,
       lastHour: subs.filter((s) => Date.parse(s.createdAt) > hourAgo).length,
@@ -73,8 +101,8 @@ export async function eventStatus() {
       songs: countStage("song"),
     },
     failures,
-    queue: { ...queueStats(), concurrency: config.concurrency },
-    spend: {
+    queue: { ...queueStats(), allEvents: queueStats("all"), concurrency: config.concurrency },
+    spend: !opts.money ? null : {
       estimated: true,
       totalUsd: round(sum(usage)),
       last24hUsd: round(sum(usage.filter((e) => Date.parse(e.at) > dayAgo))),
@@ -82,7 +110,7 @@ export async function eventStatus() {
       byKind,
       perPosterUsd: perPosterUsd === null ? null : Math.round(perPosterUsd * 1000) / 1000,
     },
-    balance: balanceView,
+    balance: opts.money ? balanceView : null,
     openai: official,
   };
 }

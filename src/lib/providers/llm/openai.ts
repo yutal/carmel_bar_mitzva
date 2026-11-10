@@ -9,6 +9,7 @@ import {
   CLIP_PLAN_SYSTEM,
   FACE_MAP_SYSTEM,
   IMAGE_CONCEPT_SYSTEM,
+  IMAGE_CONCEPT_SYSTEM_OPEN,
   POSTER_CHECK_SYSTEM,
   SONG_CONCEPT_SYSTEM,
   analysisSummary,
@@ -18,6 +19,8 @@ import {
   songStyleHint,
 } from "@/lib/prompts";
 import sharp from "sharp";
+import { ThemeProposalSchema } from "@/lib/platform/theme-fit";
+import { THEME_FROM_IMAGE_SYSTEM, themeDesignInput } from "@/lib/prompts/theme";
 import { AnalysisSchema, ClipPlanSchema, FaceMapSchema, ImageConceptSchema, PosterCheckSchema, SongConceptSchema } from "@/lib/types";
 import { recordUsage, type UsageKind } from "@/lib/usage";
 
@@ -64,10 +67,14 @@ const asJpeg = (b: Buffer) => sharp(b).rotate().resize(1024, 1024, { fit: "insid
 const BLOCKED_CATEGORIES = ["hate", "hate/threatening", "harassment/threatening", "sexual", "sexual/minors", "violence/graphic"] as const;
 
 export const openAiLlm: LlmProvider = {
-  analyze(input, event) {
-    return structured(AnalysisSchema, "analysis", ANALYSIS_SYSTEM, guestContext(input, event));
+  analyze(input, event, mode) {
+    return structured(AnalysisSchema, "analysis", ANALYSIS_SYSTEM, guestContext(input, event, { mode }));
   },
-  async imageConcept(input, event, guestPhoto, celebrantPhoto) {
+  async imageConcept(input, event, guestPhoto, celebrantPhoto, mode = "celebrant") {
+    if (mode === "open") {
+      if (!guestPhoto) throw new Error("An open event needs the guest's photo");
+      return structured(ImageConceptSchema, "image_concept", IMAGE_CONCEPT_SYSTEM_OPEN, imageConceptInput(input, event, true, false, "open"), [await asJpeg(guestPhoto)]);
+    }
     // The celebrant is sent only with a guest photo, to compare faces; first, as the input text says.
     const compare = guestPhoto && celebrantPhoto ? await asJpeg(celebrantPhoto) : undefined;
     const images = guestPhoto ? [...(compare ? [compare] : []), await asJpeg(guestPhoto)] : undefined;
@@ -97,5 +104,8 @@ export const openAiLlm: LlmProvider = {
   },
   clipPlan(segments, ctx) {
     return structured(ClipPlanSchema, "clip_plan", CLIP_PLAN_SYSTEM, clipPlanInput(segments, ctx));
+  },
+  async themeFromImage(image, palette, hint) {
+    return structured(ThemeProposalSchema, "theme_design", THEME_FROM_IMAGE_SYSTEM, themeDesignInput(palette, hint), await asJpeg(image));
   },
 };

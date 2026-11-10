@@ -1,7 +1,8 @@
 import "server-only";
 import { AsyncLocalStorage } from "node:async_hooks";
 import fs from "node:fs/promises";
-import { dataPath, readJson, writeJson } from "@/lib/storage/fs";
+import { maybeSlug } from "@/lib/platform/scope";
+import { dataPath, platformPath, readJson, writeJson } from "@/lib/storage/fs";
 
 /**
  * Every OpenAI call the app makes is logged to usage.jsonl with an estimated cost, so the organiser
@@ -26,7 +27,7 @@ function prices(): Record<string, Price> {
   }
 }
 
-export type UsageKind = "analysis" | "image_concept" | "song_concept" | "face_map" | "clip_plan" | "image" | "transcribe" | "qa_check";
+export type UsageKind = "analysis" | "image_concept" | "song_concept" | "face_map" | "clip_plan" | "image" | "transcribe" | "qa_check" | "theme_design";
 
 export type Usage = {
   inputTokens?: number;
@@ -56,7 +57,8 @@ export function estimateCost(model: string, u: Usage): number {
 const context = new AsyncLocalStorage<{ submissionId: string }>();
 export const withSubmission = <T>(submissionId: string, fn: () => Promise<T>) => context.run({ submissionId }, fn);
 
-const usageFile = () => dataPath("usage.jsonl");
+/** Each event logs its own spend, which its licence budget is checked against. Calls outside an event go to the platform log. */
+const usageFile = () => (maybeSlug() ? dataPath("usage.jsonl") : platformPath("usage.jsonl"));
 
 export async function recordUsage(kind: UsageKind, model: string, usage: Usage): Promise<void> {
   const entry: UsageEntry = {
@@ -88,7 +90,8 @@ export async function readUsage(): Promise<UsageEntry[]> {
 /** The OpenAI balance the organiser read off the billing page, and when. Spend after that time is subtracted from it. */
 export type Balance = { amountUsd: number; setAt: string };
 
-const balanceFile = () => dataPath("openai-balance.json");
+// One OpenAI account pays for every event, so its balance belongs to the platform.
+const balanceFile = () => platformPath("openai-balance.json");
 export const getBalance = () => readJson<Balance>(balanceFile());
 export const saveBalance = (b: Balance) => writeJson(balanceFile(), b);
 

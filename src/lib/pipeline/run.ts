@@ -26,7 +26,7 @@ export async function runSubmission(id: string): Promise<void> {
 
   if (needsWork(s, "analysis") || !s.analysis) {
     const ok = await stage(id, "analysis", async () => {
-      const analysis = await providers.llm.analyze(s!.input, event);
+      const analysis = await providers.llm.analyze(s!.input, event, s!.mode);
       await updateSubmission(id, (x) => {
         x.analysis = analysis;
         if (!analysis.isAppropriate) x.hidden = true;
@@ -58,29 +58,32 @@ async function runImage(id: string, event: EventSettings): Promise<void> {
   let s = (await getSubmission(id))!;
   const guestPhoto = s.files.photo && s.input.consentPhoto ? await fs.readFile(filePath(s.files.photo)) : undefined;
 
+  const open = s.mode === "open";
+  if (open && !guestPhoto) throw new Error("An open event needs the guest's photo");
   if (!s.imageConcept) {
-    const concept = await providers.llm.imageConcept(s.input, event, guestPhoto, await celebrantPhoto());
+    const concept = await providers.llm.imageConcept(s.input, event, guestPhoto, open ? undefined : await celebrantPhoto(), s.mode);
     s = await updateSubmission(id, (x) => {
       x.imageConcept = concept;
     });
   }
 
-  const { art, faces } = await paintArt({ label: id, input: s.input, concept: s.imageConcept!, guestPhoto, event });
+  const { art, faces } = await paintArt({ label: id, input: s.input, concept: s.imageConcept!, guestPhoto, event, open });
   await saveFile(id, "imageRaw", "images", "_raw.png", art);
   if (faces) {
     await updateSubmission(id, (x) => {
       x.faces = faces;
     });
   }
-  await saveFile(id, "image", "images", ".png", await posterFor(art, faces, s.input, s.imageConcept!, event));
+  await saveFile(id, "image", "images", ".png", await posterFor(art, faces, s.input, s.imageConcept!, event, open));
 }
 
 /** The people the image must show, from the concept's reading of the guest photo. */
-export function castOf(concept: ImageConcept, guestPhoto: Buffer | undefined): Cast {
+export function castOf(concept: ImageConcept, guestPhoto: Buffer | undefined, open = false): Cast {
   return {
     guestPeople: guestPhoto ? (concept.guestPhotoPeople ?? []) : [],
-    celebrantInGuestPhoto: Boolean(guestPhoto && concept.celebrantInGuestPhoto),
+    celebrantInGuestPhoto: !open && Boolean(guestPhoto && concept.celebrantInGuestPhoto),
     hasGuestPhoto: Boolean(guestPhoto),
+    ...(open && { open: true }),
   };
 }
 
@@ -103,10 +106,12 @@ export async function paintArt(opts: {
   concept: ImageConcept;
   guestPhoto?: Buffer;
   event: EventSettings;
+  /** Open event: no celebrant references, the guest photo is the whole cast. */
+  open?: boolean;
 }): Promise<{ art: Buffer; faces?: FaceBox[]; repainted: boolean }> {
   const style = opts.input.imageStyle ?? "movie";
-  const cast = castOf(opts.concept, opts.guestPhoto);
-  const references = await celebrantReferences();
+  const cast = castOf(opts.concept, opts.guestPhoto, opts.open);
+  const references = opts.open ? [] : await celebrantReferences();
   if (opts.guestPhoto && sendsGuestPhoto(cast)) references.push({ name: "guest.jpg", data: opts.guestPhoto, role: "guest" });
   const paint = (retry?: string) =>
     providers.image.generate({
@@ -141,7 +146,7 @@ export async function paintArt(opts: {
 }
 
 /** The finished poster: the artwork with the title, sign-off and style layout drawn around the faces. */
-export function posterFor(art: Buffer, faces: FaceBox[] | undefined, input: GuestInput, concept: ImageConcept, event: EventSettings): Promise<Buffer> {
+export function posterFor(art: Buffer, faces: FaceBox[] | undefined, input: GuestInput, concept: ImageConcept, event: EventSettings, open = false): Promise<Buffer> {
   const lang = input.lang ?? "he";
   return composePoster(art, {
     style: input.imageStyle ?? "movie",
@@ -149,9 +154,11 @@ export function posterFor(art: Buffer, faces: FaceBox[] | undefined, input: Gues
     tagline: concept.taglineHebrew,
     coverLines: concept.coverLines ?? [],
     stats: concept.stats ?? [],
-    sender: `${lang === "en" ? "With love," : "באהבה,"} ${input.fullName} · ${input.relationship}`,
+    // An open event has no relationship to a celebrant: the poster is signed with the name alone.
+    sender: open ? input.fullName : `${lang === "en" ? "With love," : "באהבה,"} ${input.fullName} · ${input.relationship}`,
     lang,
-    masthead: lang === "en" ? celebrantNameIn(event, "en").toUpperCase() : event.celebrantName,
+    open,
+    masthead: open ? event.eventTitle : lang === "en" ? celebrantNameIn(event, "en").toUpperCase() : event.celebrantName,
     footer: [(lang === "en" && event.footerEn) || event.footer, event.eventDate].filter(Boolean).join(" · "),
     faces,
   });

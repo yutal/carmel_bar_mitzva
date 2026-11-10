@@ -10,6 +10,8 @@ import { config } from "@/lib/config";
 import { buildClip, type ClipRange } from "@/lib/media/clip";
 import { probe, run } from "@/lib/media/ffmpeg";
 import { providers } from "@/lib/providers";
+import { forEachEvent } from "@/lib/platform/events";
+import { bindEvent } from "@/lib/platform/scope";
 import { getEvent } from "@/lib/storage/event";
 import { DIRS, dataPath, readJson, writeJson } from "@/lib/storage/fs";
 import { getSubmission } from "@/lib/storage/submissions";
@@ -102,15 +104,18 @@ export async function deleteLabJob(id: string): Promise<void> {
 
 /** Runs other lab work (such as the choir) in the same one-at-a-time line as the clips. */
 export function onLabQueue(task: () => Promise<void>): void {
-  void queue.add(task).catch((err) => console.error("[lab] task crashed", err));
+  void queue.add(bindEvent(task)).catch((err) => console.error("[lab] task crashed", err));
 }
 
 export function enqueueLab(id: string): void {
-  void queue.add(() => processJob(id)).catch((err) => console.error(`[lab] ${id} crashed`, err));
+  void queue.add(bindEvent(() => processJob(id))).catch((err) => console.error(`[lab] ${id} crashed`, err));
 }
 
+/** Picks up interrupted lab jobs in every event. */
 export async function resumeLab(): Promise<void> {
-  for (const j of await listLabJobs()) if (j.status === "pending" || j.status === "running") enqueueLab(j.id);
+  await forEachEvent(async () => {
+    for (const j of await listLabJobs()) if (j.status === "pending" || j.status === "running") enqueueLab(j.id);
+  });
 }
 
 /** Turns the model's segment ranges into padded, ordered, non-overlapping time ranges within the length cap. */

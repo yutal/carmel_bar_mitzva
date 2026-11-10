@@ -1,5 +1,6 @@
 import "server-only";
 import { config } from "@/lib/config";
+import { forEachEvent } from "@/lib/platform/events";
 import { listSubmissions, removeFile, updateSubmission } from "./submissions";
 
 const DAY_MS = 24 * 60 * 60 * 1000;
@@ -23,12 +24,13 @@ export async function purgeExpiredGuestPhotos(now = Date.now()): Promise<number>
   return removed;
 }
 
-/** Runs the purge now and then hourly for the life of the process. */
+/** Runs the purge in every event now and then hourly for the life of the process. */
 export function scheduleGuestPhotoPurge(): void {
   const run = () =>
-    purgeExpiredGuestPhotos()
-      .then((n) => n && console.log(`[retention] removed ${n} guest photo(s)`))
-      .catch((err) => console.error("[retention] purge failed", err));
+    forEachEvent(async (slug) => {
+      const n = await purgeExpiredGuestPhotos();
+      if (n) console.log(`[retention] ${slug}: removed ${n} guest photo(s)`);
+    }).catch((err) => console.error("[retention] purge failed", err));
   void run();
   setInterval(run, 60 * 60 * 1000).unref();
 }

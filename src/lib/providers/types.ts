@@ -1,17 +1,19 @@
 import type { Lang } from "@/lib/i18n";
+import type { EventMode } from "@/lib/platform/license-rules";
+import type { PaletteColor, ThemeProposal } from "@/lib/platform/theme-fit";
 import type { Analysis, ClipPlan, EventSettings, FaceBox, GuestInput, ImageConcept, PosterCheck, SongConcept, TranscriptSegment, TranscriptWord } from "@/lib/types";
 
 /** `label` replaces the default one-line description of the image in the prompt. */
 export type ReferenceImage = { name: string; data: Buffer; role: "celebrant" | "guest" };
 
 export interface LlmProvider {
-  analyze(input: GuestInput, event: EventSettings): Promise<Analysis>;
+  analyze(input: GuestInput, event: EventSettings, mode?: EventMode): Promise<Analysis>;
   /**
    * Built only from the guest's story answers, never from the blessing. The guest photo, when given, is shown
    * to the model so it can see who is in it.
    */
   /** `celebrantPhoto` lets the model tell the celebrant apart from a guest of his age in the guest photo. */
-  imageConcept(input: GuestInput, event: EventSettings, guestPhoto?: Buffer, celebrantPhoto?: Buffer): Promise<ImageConcept>;
+  imageConcept(input: GuestInput, event: EventSettings, guestPhoto?: Buffer, celebrantPhoto?: Buffer, mode?: EventMode): Promise<ImageConcept>;
   songConcept(input: GuestInput, analysis: Analysis, event: EventSettings): Promise<SongConcept>;
   /** Finds every face in generated art, so the poster text can be laid out around them. */
   locateFaces(art: Buffer): Promise<FaceBox[]>;
@@ -21,6 +23,11 @@ export interface LlmProvider {
   moderate(texts: string[]): Promise<boolean[]>;
   /** Picks the strongest spoken lines of a guest's video or recording for a short clip. */
   clipPlan(segments: TranscriptSegment[], ctx: { guestName: string; celebrantName: string; maxSeconds: number }): Promise<ClipPlan>;
+  /**
+   * Looks at an invitation (or any branding picture) and proposes an event theme from it. `palette` is the dominant
+   * colours measured from the picture; the proposal still goes through fitTheme before anyone sees it.
+   */
+  themeFromImage(image: Buffer, palette: PaletteColor[], hint: string): Promise<ThemeProposal>;
 }
 
 export interface TranscribeProvider {

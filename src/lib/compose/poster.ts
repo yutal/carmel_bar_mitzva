@@ -103,6 +103,8 @@ export type PosterText = {
   lang?: Lang;
   /** Magazine style: the magazine's name, i.e. the celebrant's name. */
   masthead?: string;
+  /** Open event: no Bar Mitzvah wording or "13" on the creation. */
+  open?: boolean;
 };
 
 /** Fixed words drawn on the creations, per language. */
@@ -110,6 +112,13 @@ const POSTER_WORDS: Record<Lang, { issue: string; badge: string }> = {
   he: { issue: "גיליון מיוחד · בר מצווה · 13", badge: "בר מצווה" },
   en: { issue: "SPECIAL ISSUE · BAR MITZVAH · 13", badge: "BAR MITZVAH" },
 };
+
+/** The same fixed words for an open event: nothing about a Bar Mitzvah. */
+const OPEN_WORDS: Record<Lang, { issue: string; badge: string; mark: string }> = {
+  he: { issue: "גיליון מיוחד", badge: "כוכב הערב", mark: "★" },
+  en: { issue: "SPECIAL ISSUE", badge: "STAR OF THE NIGHT", mark: "★" },
+};
+const wordsFor = (text: PosterText) => (text.open ? OPEN_WORDS : POSTER_WORDS)[text.lang ?? "he"];
 
 type Box = { x0: number; y0: number; x1: number; y1: number };
 
@@ -307,7 +316,7 @@ function drawMagazine(ctx: SKRSContext2D, img: Img, w: number, h: number, text: 
   shade(ctx, w, 0, h * 0.2, 0.4, 0);
   shade(ctx, w, h * 0.58, h, 0, 0.94);
   prepare(ctx);
-  const words = POSTER_WORDS[text.lang ?? "he"];
+  const words = wordsFor(text);
 
   // Issue line, then the masthead as big as one line allows. Hair may overlap the masthead; faces may not.
   const ceiling = facesTop(faces, h);
@@ -416,9 +425,9 @@ function drawCard(ctx: SKRSContext2D, img: Img, w: number, h: number, text: Post
   ctx.shadowBlur = 0;
   ctx.fillStyle = "#2B230C";
   ctx.font = `900 ${Math.round(r * 0.95)}px "${BODY_FONT}"`;
-  fillText(ctx, "13", bx, by + r * 0.22);
+  fillText(ctx, text.open ? "★" : "13", bx, by + r * 0.22);
   ctx.font = `700 ${Math.round(r * 0.26)}px "${BODY_FONT}"`;
-  fillText(ctx, POSTER_WORDS[text.lang ?? "he"].badge, bx, by + r * 0.58);
+  fillText(ctx, wordsFor(text).badge, bx, by + r * 0.58);
   prepare(ctx);
 
   // Name plate: at 60% of the height, or lower when a face reaches down there. When a face is so low that the
